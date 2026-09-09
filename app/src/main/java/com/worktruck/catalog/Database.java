@@ -40,7 +40,7 @@ public class Database {
         if(db!=null&&db.isOpen())db.close();
         db=SQLiteDatabase.openDatabase(target.getAbsolutePath(),null,SQLiteDatabase.OPEN_READWRITE);
         ensureCategoryColumn();
-        ensureNameClassification();
+        ensureNameClassificationFast();
     }
 
     private void ensureCategoryColumn(){
@@ -51,11 +51,22 @@ public class Database {
         if(!has)db.execSQL("ALTER TABLE products ADD COLUMN category TEXT");
     }
 
-    private void ensureNameClassification(){
+    private void ensureNameClassificationFast(){
         db.execSQL("CREATE TABLE IF NOT EXISTS app_meta(k TEXT PRIMARY KEY,v TEXT)");
         String current=null;
         try(Cursor c=db.rawQuery("SELECT v FROM app_meta WHERE k='classifier_version'",null)){if(c.moveToFirst())current=c.getString(0);}
         if(CLASSIFIER_VERSION.equals(current))return;
+
+        // В V5.3 база уже поставляется с готовой категоризацией всех 94 851 позиций.
+        // Проверяем это быстрым COUNT вместо тяжёлого UPDATE всей таблицы.
+        int total=0, classified=0;
+        try(Cursor c=db.rawQuery("SELECT count(*),sum(CASE WHEN category IS NOT NULL AND trim(category)<>'' THEN 1 ELSE 0 END) FROM products",null)){
+            if(c.moveToFirst()){total=c.getInt(0);classified=c.isNull(1)?0:c.getInt(1);}
+        }
+        if(total>0 && classified>=total){
+            db.execSQL("INSERT OR REPLACE INTO app_meta(k,v) VALUES('classifier_version',?)",new Object[]{CLASSIFIER_VERSION});
+            return;
+        }
         classifyAllByName();
         db.execSQL("INSERT OR REPLACE INTO app_meta(k,v) VALUES('classifier_version',?)",new Object[]{CLASSIFIER_VERSION});
     }
