@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <application android:theme="@style/AppTheme" android:label="Ворк Трак" android:icon="@drawable/brand_logo" android:roundIcon="@drawable/brand_logo" android:allowBackup="true" android:supportsRtl="true">
-        <activity android:name=".V52Activity" android:screenOrientation="portrait" android:exported="true">
+        <activity android:name=".V53Activity" android:screenOrientation="portrait" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
