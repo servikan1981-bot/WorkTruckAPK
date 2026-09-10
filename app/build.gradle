@@ -4,10 +4,10 @@ android {
     namespace 'com.worktruck.catalog'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.worktruck.catalog.v57'
+        applicationId 'com.worktruck.catalog.v58'
         minSdk 24
         targetSdk 29
-        versionCode 13
-        versionName '5.7-portrait-fullscreen-tour'
+        versionCode 14
+        versionName '5.8-guess-the-part-game'
     }
 }
