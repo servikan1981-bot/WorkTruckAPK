@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare V6.0 main menu and submenus
+      - name: Prepare V6.1 UI and navigation
         run: python3 tools/prepare_v60.py
 
       - name: Prepare panorama resources
@@ -65,11 +65,11 @@ jobs:
           ls -lh "$APK"
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V6_0_main_menu.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V6_1_blue_optimized.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: WorkTruck_V6_0_main_menu
-          path: WorkTruck_V6_0_main_menu.apk
+          name: WorkTruck_V6_1_blue_optimized
+          path: WorkTruck_V6_1_blue_optimized.apk
           if-no-files-found: error
