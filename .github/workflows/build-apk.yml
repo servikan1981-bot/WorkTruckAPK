@@ -25,13 +25,22 @@ jobs:
               s=s.replace(old_nav,new_nav)
 
           anchor='b.addView(hero("КАТАЛОГ ПО УЗЛАМ","94 851 позиция разнесена по системам Scania","Открыть каталоги",this::showCategories),lp(-1,dp(145),0,12,0,0));'
+          hub='b.addView(hero("КЛИЕНТУ","Автопарк, бонусы, ожидание деталей, статус заказа и персональный менеджер","Открыть",()->startActivity(new Intent(this,ClientHubActivity.class))),lp(-1,dp(145),0,12,0,0));'
           tour='b.addView(hero("ЭКСКУРСИЯ","4 панорамы территории Work Truck — маршрут по площадке","Начать экскурсию",()->startActivity(new Intent(this,TourActivity.class))),lp(-1,dp(145),0,12,0,0));'
           game='b.addView(hero("ИГРА · УГАДАЙ ЗАПЧАСТЬ","10 коротких вопросов про детали Scania и тестовый приз за результат","Играть",()->startActivity(new Intent(this,GameActivity.class))),lp(-1,dp(145),0,12,0,0));'
-          if anchor in s and '"ЭКСКУРСИЯ"' not in s:
-              s=s.replace(anchor,anchor+'\n        '+tour)
+
+          if anchor in s and '"КЛИЕНТУ"' not in s:
+              s=s.replace(anchor,anchor+'\n        '+hub)
+          if '"ЭКСКУРСИЯ"' not in s:
+              if hub in s:
+                  s=s.replace(hub,hub+'\n        '+tour)
+              elif anchor in s:
+                  s=s.replace(anchor,anchor+'\n        '+tour)
           if '"ИГРА · УГАДАЙ ЗАПЧАСТЬ"' not in s:
               if tour in s:
                   s=s.replace(tour,tour+'\n        '+game)
+              elif hub in s:
+                  s=s.replace(hub,hub+'\n        '+game)
               elif anchor in s:
                   s=s.replace(anchor,anchor+'\n        '+game)
           p.write_text(s,encoding='utf-8')
@@ -45,12 +54,19 @@ jobs:
 
           grep -q 'TourActivity' app/src/main/AndroidManifest.xml
           grep -q 'GameActivity' app/src/main/AndroidManifest.xml
+          grep -q 'ClientHubActivity' app/src/main/AndroidManifest.xml
           grep -q 'screenOrientation="portrait"' app/src/main/AndroidManifest.xml
           grep -q 'tour_04' app/src/main/java/com/worktruck/catalog/TourActivity.java
           grep -q 'nudge(0f,-0.13f)' app/src/main/java/com/worktruck/catalog/TourActivity.java
           grep -q 'Угадай запчасть' app/src/main/java/com/worktruck/catalog/GameActivity.java
+          grep -q 'Мой автопарк' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
+          grep -q 'Бонусный кошелёк' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
+          grep -q 'Сообщить о поступлении' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
+          grep -q 'Где мой заказ' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
+          grep -q 'Персональный менеджер' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
           grep -q '"Профиль"' app/src/main/java/com/worktruck/catalog/V53Activity.java
           grep -q '"Тур"' app/src/main/java/com/worktruck/catalog/V53Activity.java
+          grep -q '"КЛИЕНТУ"' app/src/main/java/com/worktruck/catalog/V53Activity.java
           grep -q '"ИГРА · УГАДАЙ ЗАПЧАСТЬ"' app/src/main/java/com/worktruck/catalog/V53Activity.java
 
       - name: Set up Java 17
@@ -82,11 +98,11 @@ jobs:
           ls -lh "$APK"
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V5_8_guess_the_part.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V5_9_client_hub.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: WorkTruck_V5_8_guess_the_part
-          path: WorkTruck_V5_8_guess_the_part.apk
+          name: WorkTruck_V5_9_client_hub
+          path: WorkTruck_V5_9_client_hub.apk
           if-no-files-found: error
