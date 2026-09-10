@@ -13,71 +13,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Prepare V6.0 main menu and submenus
+        run: python3 tools/prepare_v60.py
+
+      - name: Prepare panorama resources
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          # Main application: keep all existing functional screens, only simplify the home screen.
-          p=Path('app/src/main/java/com/worktruck/catalog/V53Activity.java')
-          s=p.read_text(encoding='utf-8')
-
-          old_nav='n.addView(nav("●","Профиль",4,this::showProfile),weight());return n;'
-          new_nav='n.addView(nav("●","Профиль",4,this::showProfile),weight());n.addView(nav("◎","Тур",5,()->startActivity(new Intent(this,TourActivity.class))),weight());return n;'
-          if old_nav in s:
-              s=s.replace(old_nav,new_nav)
-
-          # Allow More submenu to open the old screens without changing their implementation.
-          s=s.replace('postDelayed(this::showHome,550)', 'postDelayed(this::openStartScreen,550)')
-          if 'private void openStartScreen()' not in s:
-              marker='    private void showSplash(){'
-              helper='''    private void openStartScreen(){\n        String screen=getIntent().getStringExtra("screen");\n        if("request".equals(screen)){showRequest("");return;}\n        if("orders".equals(screen)){showOrders();return;}\n        if("profile".equals(screen)){showProfile();return;}\n        showHome();\n    }\n\n'''
-              if marker not in s:
-                  raise SystemExit('showSplash marker not found')
-              s=s.replace(marker,helper+marker,1)
-
-          home='''    private void showHome(){\n        prepare(0);\n        ScrollView sv=new ScrollView(this);sv.setFillViewport(true);\n        LinearLayout b=col();b.setPadding(dp(14),dp(10),dp(14),dp(18));\n        b.addView(header());\n        EditText search=searchField("Поиск по всей номенклатуре");\n        search.setOnEditorActionListener((v,id,e)->{showProducts(null,search.getText().toString().trim());return true;});\n        b.addView(search,lp(-1,dp(52),0,8,0,10));\n\n        TextView lead=tv("Главное",22,DARK,true);lead.setPadding(dp(2),dp(4),0,dp(6));b.addView(lead);\n        TextView hint=tv("Пять основных разделов. Остальные сервисы перенесены в подменю, чтобы нужное находилось быстрее.",13,MUTED,false);hint.setPadding(dp(2),0,dp(2),dp(8));b.addView(hint);\n\n        b.addView(hero("КАТАЛОГ","Поиск, наличие, цены и 10 разделов запчастей Scania","Открыть каталог",this::showCategories),lp(-1,dp(132),0,8,0,0));\n        b.addView(hero("МОИ МАШИНЫ","Сохранённые Scania, VIN и госномера клиента","Открыть автопарк",()->{Intent i=new Intent(this,ClientHubActivity.class);i.putExtra("section","fleet");startActivity(i);}),lp(-1,dp(132),0,10,0,0));\n        b.addView(hero("КЛИЕНТУ","Бонусы, ожидание деталей, статус заказа и персональный менеджер","Открыть сервисы",()->startActivity(new Intent(this,ClientHubActivity.class))),lp(-1,dp(132),0,10,0,0));\n        b.addView(photoHero("НОВЫЕ ПОСТУПЛЕНИЯ","Автомобили Scania в разбор и новые позиции","Смотреть поступления",this::showVehicles),lp(-1,dp(166),0,10,0,0));\n        b.addView(hero("ЕЩЁ","Экскурсия, игра, заявка, заказы и профиль","Открыть ещё",()->startActivity(new Intent(this,MoreActivity.class))),lp(-1,dp(132),0,10,0,0));\n\n        LinearLayout info=card();\n        info.addView(tv(dbReady?"Каталог готов":"База номенклатуры недоступна",15,dbReady?GREEN:Color.rgb(170,80,0),true));\n        info.addView(tv(dbReady?("В наличии: "+nf.format(database.getProductCount())+" позиций"):"Закройте приложение и откройте снова.",13,MUTED,false));\n        b.addView(info,lp(-1,-2,0,14,0,0));\n        sv.addView(b);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));root.addView(bottomNav());\n    }\n\n'''
-          pattern=r'    private void showHome\(\)\{.*?\n    private void showVehicles\(\)\{'
-          if not re.search(pattern,s,flags=re.S):
-              raise SystemExit('showHome block not found')
-          s=re.sub(pattern,home+'    private void showVehicles(){',s,count=1,flags=re.S)
-          p.write_text(s,encoding='utf-8')
-
-          # Client hub: permit a direct entry into My cars while preserving the hub behavior.
-          cp=Path('app/src/main/java/com/worktruck/catalog/ClientHubActivity.java')
-          c=cp.read_text(encoding='utf-8')
-          if 'private boolean directSection=false;' not in c:
-              c=c.replace('    private LinearLayout root;','    private LinearLayout root;\n    private boolean directSection=false;',1)
-          c=c.replace('        prefs=getSharedPreferences("wt_client_hub",MODE_PRIVATE);\n        showHub();',
-'''        prefs=getSharedPreferences("wt_client_hub",MODE_PRIVATE);\n        String section=getIntent().getStringExtra("section");\n        directSection=section!=null&&!section.isEmpty();\n        if("fleet".equals(section))showFleet();\n        else if("bonus".equals(section))showBonus();\n        else if("watch".equals(section))showWatch();\n        else if("orders".equals(section))showOrderStatus();\n        else if("manager".equals(section))showManager();\n        else {directSection=false;showHub();}''',1)
-          if 'private void backFromSection()' not in c:
-              c=c.replace('    private void showHub(){','    private void backFromSection(){if(directSection)finish();else showHub();}\n\n    private void showHub(){',1)
-          c=c.replace('base("Мой автопарк",this::showHub);','base("Мой автопарк",this::backFromSection);')
-          c=c.replace('base("Бонусный кошелёк",this::showHub);','base("Бонусный кошелёк",this::backFromSection);')
-          c=c.replace('base("Сообщить о поступлении",this::showHub);','base("Сообщить о поступлении",this::backFromSection);')
-          c=c.replace('base("Где мой заказ?",this::showHub);','base("Где мой заказ?",this::backFromSection);')
-          c=c.replace('base("Персональный менеджер",this::showHub);','base("Персональный менеджер",this::backFromSection);')
-          c=c.replace('@Override public void onBackPressed(){showHub();}','@Override public void onBackPressed(){if(directSection)finish();else showHub();}')
-          cp.write_text(c,encoding='utf-8')
-
-          # Fail fast: the source that is actually compiled must contain the new five-entry home screen.
-          out=p.read_text(encoding='utf-8')
-          for token in ['hero("КАТАЛОГ"','hero("МОИ МАШИНЫ"','hero("КЛИЕНТУ"','photoHero("НОВЫЕ ПОСТУПЛЕНИЯ"','hero("ЕЩЁ"','MoreActivity.class']:
-              assert token in out, token
-          assert 'ИГРА · УГАДАЙ ЗАПЧАСТЬ' not in out[out.index('private void showHome()'):out.index('private void showVehicles()')]
-          cout=cp.read_text(encoding='utf-8')
-          assert '"fleet".equals(section)' in cout
-          print('V6.0 FIVE-ENTRY MAIN MENU CONFIRMED')
-          PY
-
           mkdir -p app/src/main/res/drawable-nodpi
           cp app/src/main/res/drawable-nodpi/company_panorama.jpg app/src/main/res/drawable-nodpi/tour_01.jpg
           cp app/src/main/res/drawable-nodpi/company_panorama.jpg app/src/main/res/drawable-nodpi/tour_02.jpg
           cp app/src/main/res/drawable-nodpi/company_panorama.jpg app/src/main/res/drawable-nodpi/tour_03.jpg
           cp app/src/main/res/drawable-nodpi/company_panorama.jpg app/src/main/res/drawable-nodpi/tour_04.jpg
 
+      - name: Verify prepared source
+        run: |
           grep -q 'MoreActivity' app/src/main/AndroidManifest.xml
-          grep -q 'ClientHubActivity' app/src/main/AndroidManifest.xml
           grep -q 'МОИ МАШИНЫ' app/src/main/java/com/worktruck/catalog/V53Activity.java
           grep -q 'НОВЫЕ ПОСТУПЛЕНИЯ' app/src/main/java/com/worktruck/catalog/V53Activity.java
           grep -q 'Экскурсия по Work Truck' app/src/main/java/com/worktruck/catalog/MoreActivity.java
