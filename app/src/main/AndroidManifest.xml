@@ -3,6 +3,7 @@
     <application android:theme="@style/AppTheme" android:label="Ворк Трак" android:icon="@drawable/brand_logo" android:roundIcon="@drawable/brand_logo" android:allowBackup="true" android:supportsRtl="true">
         <activity android:name=".TourActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".GameActivity" android:screenOrientation="portrait" android:exported="false" />
+        <activity android:name=".ClientHubActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".V53Activity" android:screenOrientation="portrait" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
