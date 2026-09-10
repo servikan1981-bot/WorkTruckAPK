@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Patch V5.3 navigation, fast startup and native tour renderer
+      - name: Prepare V5.3 real 360 tour assets and fast startup
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -21,24 +21,25 @@ jobs:
           new_nav='n.addView(nav("◎","Экскурсия",4,()->startActivity(new Intent(this,TourActivity.class))),weight());return n;'
           if old_nav in s:
               s=s.replace(old_nav,new_nav)
-
           old_start='''        showSplash();\n        new Thread(()->{\n            try{database=new Database(this);database.open();dbReady=true;}catch(Throwable e){dbReady=false;}\n            runOnUiThread(()->new Handler(Looper.getMainLooper()).postDelayed(this::showHome,550));\n        }).start();'''
           new_start='''        showSplash();\n        new Handler(Looper.getMainLooper()).postDelayed(this::showHome,280);\n        new Thread(()->{\n            try{database=new Database(this);database.open();dbReady=true;}catch(Throwable e){dbReady=false;}\n        }).start();'''
-          if old_start not in s:
-              raise SystemExit('startup marker not found')
-          s=s.replace(old_start,new_start)
+          if old_start in s:
+              s=s.replace(old_start,new_start)
           p.write_text(s,encoding='utf-8')
-
-          t=Path('app/src/main/java/com/worktruck/catalog/TourActivity.java')
-          x=t.read_text(encoding='utf-8')
-          x=x.replace('c.drawBitmap(world,new RectF(left,top,left+sw,top+sh),dst,p);',
-                      'c.drawBitmap(world,new Rect((int)left,(int)top,(int)(left+sw),(int)(top+sh)),dst,p);')
-          x=x.replace('c.drawBitmap(world,new RectF(left,top,W,top+sh),d1,p);',
-                      'c.drawBitmap(world,new Rect((int)left,(int)top,W,(int)(top+sh)),d1,p);')
-          x=x.replace('c.drawBitmap(world,new RectF(0,top,sw-first,top+sh),d2,p);',
-                      'c.drawBitmap(world,new Rect(0,(int)top,(int)(sw-first),(int)(top+sh)),d2,p);')
-          t.write_text(x,encoding='utf-8')
           PY
+
+          mkdir -p app/src/main/res/drawable-nodpi
+          curl -L --fail --retry 3 --retry-delay 2 \
+            'https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/autoshop_01.jpg' \
+            -o app/src/main/res/drawable-nodpi/autoshop_01.jpg
+          curl -L --fail --retry 3 --retry-delay 2 \
+            'https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/garage.jpg' \
+            -o app/src/main/res/drawable-nodpi/garage.jpg
+          file app/src/main/res/drawable-nodpi/autoshop_01.jpg
+          file app/src/main/res/drawable-nodpi/garage.jpg
+          test -s app/src/main/res/drawable-nodpi/autoshop_01.jpg
+          test -s app/src/main/res/drawable-nodpi/garage.jpg
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -55,7 +56,10 @@ jobs:
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
       - name: Verify APK
-        run: test -f app/build/outputs/apk/debug/app-debug.apk && ls -lh app/build/outputs/apk/debug/app-debug.apk
+        run: |
+          test -f app/build/outputs/apk/debug/app-debug.apk
+          unzip -l app/build/outputs/apk/debug/app-debug.apk | grep -E 'autoshop_01|garage.jpg'
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_v5_3_exsp.apk
       - name: Upload APK
