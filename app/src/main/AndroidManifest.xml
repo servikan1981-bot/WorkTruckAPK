@@ -4,6 +4,7 @@
         <activity android:name=".TourActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".GameActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".ClientHubActivity" android:screenOrientation="portrait" android:exported="false" />
+        <activity android:name=".MoreActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".V53Activity" android:screenOrientation="portrait" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
