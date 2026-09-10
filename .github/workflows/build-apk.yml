@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare V5.5 navigation and panorama placeholders
+      - name: Prepare navigation and panorama placeholders
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -38,7 +38,9 @@ jobs:
           cp app/src/main/res/drawable-nodpi/company_panorama.jpg app/src/main/res/drawable-nodpi/tour_04.jpg
 
           grep -q 'TourActivity' app/src/main/AndroidManifest.xml
+          grep -q 'screenOrientation="portrait"' app/src/main/AndroidManifest.xml
           grep -q 'tour_04' app/src/main/java/com/worktruck/catalog/TourActivity.java
+          grep -q 'nudge(0f,-0.13f)' app/src/main/java/com/worktruck/catalog/TourActivity.java
           grep -q '"Профиль"' app/src/main/java/com/worktruck/catalog/V53Activity.java
           grep -q '"Тур"' app/src/main/java/com/worktruck/catalog/V53Activity.java
 
@@ -71,11 +73,11 @@ jobs:
           ls -lh "$APK"
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V5_5_multi_panorama_tour.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V5_7_portrait_fullscreen_tour.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: WorkTruck_V5_5_multi_panorama_tour
-          path: WorkTruck_V5_5_multi_panorama_tour.apk
+          name: WorkTruck_V5_7_portrait_fullscreen_tour
+          path: WorkTruck_V5_7_portrait_fullscreen_tour.apk
           if-no-files-found: error
