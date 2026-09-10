@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare V5.4 navigation and tour entry
+      - name: Prepare V5.5 navigation and panorama placeholders
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -25,18 +25,23 @@ jobs:
               s=s.replace(old_nav,new_nav)
 
           anchor='b.addView(hero("КАТАЛОГ ПО УЗЛАМ","94 851 позиция разнесена по системам Scania","Открыть каталоги",this::showCategories),lp(-1,dp(145),0,12,0,0));'
-          tour='b.addView(hero("ЭКСКУРСИЯ","Панорама территории Work Truck — осмотр площадки прямо в приложении","Начать экскурсию",()->startActivity(new Intent(this,TourActivity.class))),lp(-1,dp(145),0,12,0,0));'
+          tour='b.addView(hero("ЭКСКУРСИЯ","4 панорамы территории Work Truck — маршрут по площадке","Начать экскурсию",()->startActivity(new Intent(this,TourActivity.class))),lp(-1,dp(145),0,12,0,0));'
           if anchor in s and '"ЭКСКУРСИЯ"' not in s:
               s=s.replace(anchor,anchor+'\n        '+tour)
-
           p.write_text(s,encoding='utf-8')
           PY
 
-          test -s app/src/main/res/drawable-nodpi/company_panorama.jpg
+          mkdir -p app/src/main/res/drawable-nodpi
+          # Valid placeholder JPEGs are replaced with the user's four real panoramas after CI build.
+          cp app/src/main/res/drawable-nodpi/company_panorama.jpg app/src/main/res/drawable-nodpi/tour_01.jpg
+          cp app/src/main/res/drawable-nodpi/company_panorama.jpg app/src/main/res/drawable-nodpi/tour_02.jpg
+          cp app/src/main/res/drawable-nodpi/company_panorama.jpg app/src/main/res/drawable-nodpi/tour_03.jpg
+          cp app/src/main/res/drawable-nodpi/company_panorama.jpg app/src/main/res/drawable-nodpi/tour_04.jpg
+
           grep -q 'TourActivity' app/src/main/AndroidManifest.xml
-          grep -q 'company_panorama' app/src/main/java/com/worktruck/catalog/TourActivity.java
-          grep -q '"Тур"' app/src/main/java/com/worktruck/catalog/V53Activity.java
+          grep -q 'tour_04' app/src/main/java/com/worktruck/catalog/TourActivity.java
           grep -q '"Профиль"' app/src/main/java/com/worktruck/catalog/V53Activity.java
+          grep -q '"Тур"' app/src/main/java/com/worktruck/catalog/V53Activity.java
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -63,15 +68,19 @@ jobs:
           APK=app/build/outputs/apk/debug/app-debug.apk
           test -f "$APK"
           unzip -t "$APK" >/dev/null
-          unzip -l "$APK" | grep -E 'company_panorama|resources.arsc|classes.dex'
+          unzip -l "$APK" | grep 'res/drawable-nodpi/tour_01.jpg'
+          unzip -l "$APK" | grep 'res/drawable-nodpi/tour_02.jpg'
+          unzip -l "$APK" | grep 'res/drawable-nodpi/tour_03.jpg'
+          unzip -l "$APK" | grep 'res/drawable-nodpi/tour_04.jpg'
+          unzip -l "$APK" | grep -E 'products.db|resources.arsc|classes.dex'
           ls -lh "$APK"
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V5_4_company_tour.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V5_5_multi_panorama_tour.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: WorkTruck_V5_4_company_tour
-          path: WorkTruck_V5_4_company_tour.apk
+          name: WorkTruck_V5_5_multi_panorama_tour
+          path: WorkTruck_V5_5_multi_panorama_tour.apk
           if-no-files-found: error
