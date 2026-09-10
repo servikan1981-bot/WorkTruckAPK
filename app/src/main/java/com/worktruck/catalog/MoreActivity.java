@@ -13,7 +13,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 public class MoreActivity extends Activity {
-    private static final int GREEN=Color.rgb(8,91,58), DARK=Color.rgb(7,38,29), BG=Color.rgb(244,247,245), MUTED=Color.rgb(101,113,107);
+    private static final int GREEN=Color.rgb(18,92,185), DARK=Color.rgb(8,39,79), BG=Color.rgb(244,247,250), MUTED=Color.rgb(101,113,125);
 
     @Override protected void onCreate(Bundle b){
         super.onCreate(b);
@@ -30,19 +30,12 @@ public class MoreActivity extends Activity {
 
         ScrollView sv=new ScrollView(this);LinearLayout body=col();body.setPadding(dp(14),dp(14),dp(14),dp(24));
         TextView intro=tv("Дополнительные возможности",23,DARK,true);body.addView(intro);
-        TextView sub=tv("Тур, игра и сервисные разделы собраны здесь, чтобы главный экран оставался простым.",13,MUTED,false);sub.setPadding(0,dp(5),0,dp(14));body.addView(sub);
+        TextView sub=tv("Здесь только те разделы, которые не дублируются в нижней навигации.",13,MUTED,false);sub.setPadding(0,dp(5),0,dp(14));body.addView(sub);
 
         body.addView(menu("◎","Экскурсия по Work Truck","Панорамный тур по территории",()->startActivity(new Intent(this,TourActivity.class))));
         body.addView(menu("?","Игра · Угадай запчасть","10 вопросов и тестовый приз",()->startActivity(new Intent(this,GameActivity.class))));
-        body.addView(menu("+","Создать заявку","Быстрый запрос на запчасть",()->openMain("request")));
-        body.addView(menu("▦","Мои заказы","История заявок и заказов",()->openMain("orders")));
-        body.addView(menu("●","Профиль","Профиль клиента и данные приложения",()->openMain("profile")));
 
         sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
-    }
-
-    private void openMain(String screen){
-        Intent i=new Intent(this,V53Activity.class);i.putExtra("screen",screen);startActivity(i);
     }
 
     private View menu(String icon,String title,String sub,Runnable action){
@@ -56,6 +49,6 @@ public class MoreActivity extends Activity {
 
     private LinearLayout col(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);return l;}
     private TextView tv(String x,int sp,int color,boolean bold){TextView t=new TextView(this);t.setText(x);t.setTextSize(sp);t.setTextColor(color);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return t;}
-    private GradientDrawable round(int color,int r){GradientDrawable g=new GradientDrawable();g.setColor(color);g.setCornerRadius(dp(r));g.setStroke(dp(1),Color.rgb(226,232,229));return g;}
+    private GradientDrawable round(int color,int r){GradientDrawable g=new GradientDrawable();g.setColor(color);g.setCornerRadius(dp(r));g.setStroke(dp(1),Color.rgb(226,232,238));return g;}
     private int dp(int x){return (int)(x*getResources().getDisplayMetrics().density+.5f);}
 }
