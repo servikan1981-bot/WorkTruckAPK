@@ -103,10 +103,10 @@ public class MessagingService extends Service {
             prefs.edit().putBoolean("seen_" + id, true).apply();
 
             String msg = obj.optString("message", "");
-            if (msg.startsWith("of4ctl|")) return;
+            if (msg.startsWith("of42ctl|")) return;
 
             String[] p = msg.split("\\|", 9);
-            if (p.length < 9 || !"of4".equals(p[0])) return;
+            if (p.length < 9 || !"of42".equals(p[0])) return;
 
             String senderTag = p[1];
             String recipientTag = p[2];
