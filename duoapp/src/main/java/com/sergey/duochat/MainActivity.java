@@ -260,7 +260,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "4.0";
+            return "4.2";
         }
     }
 
