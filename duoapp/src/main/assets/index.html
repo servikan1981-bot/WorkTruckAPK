@@ -133,8 +133,8 @@ var NAMES={};MEMBERS.forEach(function(m){NAMES[m.id]=m.name;});
 var role='',code='',relayBase='https://ntfy.sh',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='',activePeer='';
 var cryptoKeys={},roleTags={},socket=null,socketOpen=false,reconnectTimer=null,reconnectDelay=1500;
 var packetChunks={},seenNtfy=new Set(),processedPayloads=new Set(),messages=[];
-var pc=null,localStream=null,currentCallId='',currentCallKind='video',callPeer='',incomingOffer=null,incomingInvite=null,acceptedCallId='',callTimeout=null,isCaller=false,restartCount=0,pendingNativeAccept=null;
-var iceTypes=new Set();
+var pc=null,localStream=null,currentCallId='',currentCallKind='video',callPeer='',incomingOffer=null,incomingInvite=null,acceptedCallId='',callTimeout=null,connectionWatchdog=null,isCaller=false,restartCount=0,pendingNativeAccept=null;
+var iceTypes=new Set(),pendingRemoteCandidates=[];
 
 try{(JSON.parse(localStorage.getItem('of4_seen')||'[]')||[]).slice(-1200).forEach(function(x){seenNtfy.add(x);});}catch(e){}
 
@@ -364,10 +364,24 @@ async function processPayload(p){
  if(p.kind==='call_answer'&&pc&&d.callId===currentCallId&&d.sdp){
    try{
      await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
+     await flushRemoteCandidates();
      $('callState').textContent='соединение…';
+     armConnectionWatchdog();
    }catch(e){
      toast('Ошибка ответа WebRTC');
    }
+   return;
+ }
+
+ if(p.kind==='call_candidate'&&d.callId===currentCallId&&d.candidate){
+   try{
+     var cand=new RTCIceCandidate(d.candidate);
+     if(pc&&pc.remoteDescription&&pc.remoteDescription.type){
+       await pc.addIceCandidate(cand);
+     }else{
+       pendingRemoteCandidates.push(cand);
+     }
+   }catch(e){}
    return;
  }
 
@@ -421,30 +435,122 @@ async function getMedia(kind){return navigator.mediaDevices.getUserMedia({audio:
 function showCall(kind,state,peer){currentCallKind=kind;callPeer=peer||callPeer;$('callTitle').textContent=(kind==='audio'?'Аудиозвонок · ':'Видеозвонок · ')+(NAMES[callPeer]||'');$('callState').textContent=state||'Соединение…';$('callOverlay').classList.remove('hidden');$('camBtn').style.display=kind==='video'?'':'none';$('localVideo').style.display=kind==='video'?'':'none';}
 function attachRemoteStream(stream){$('remoteVideo').srcObject=stream;var x=$('remoteVideo').play();if(x&&x.catch)x.catch(function(){});$('callState').textContent='разговор';}
 function createPC(){
- iceTypes=new Set();var c=new RTCPeerConnection({iceServers:iceServers(),iceCandidatePoolSize:4,bundlePolicy:'max-bundle'});
- c.onicecandidate=function(ev){if(ev.candidate)iceTypes.add(candidateType(ev.candidate.candidate));};
- c.ontrack=function(ev){if(ev.streams&&ev.streams[0])attachRemoteStream(ev.streams[0]);else{var ms=$('remoteVideo').srcObject||new MediaStream();ms.addTrack(ev.track);attachRemoteStream(ms);}};
- c.onconnectionstatechange=function(){if(!pc||c!==pc)return;var s=c.connectionState;if(s==='connected'){$('callState').textContent='разговор';restartCount=0;clearTimeout(callTimeout);}else if(s==='connecting')$('callState').textContent='соединение…';else if(s==='disconnected')$('callState').textContent='восстановление…';else if(s==='failed'){if(isCaller&&restartCount<1){restartCount++;restartIceCall();}else toast('Медиаканал не установился');}};
+ iceTypes=new Set();
+ pendingRemoteCandidates=[];
+ var cid=currentCallId,peer=callPeer;
+ var c=new RTCPeerConnection({
+   iceServers:iceServers(),
+   iceCandidatePoolSize:4,
+   bundlePolicy:'max-bundle'
+ });
+
+ c.onicecandidate=function(ev){
+   if(!ev.candidate)return;
+   iceTypes.add(candidateType(ev.candidate.candidate));
+   if(c!==pc||cid!==currentCallId||!peer)return;
+   publishEnvelope(
+     'call_candidate',
+     {callId:cid,candidate:ev.candidate.toJSON?ev.candidate.toJSON():ev.candidate},
+     4,
+     peer,
+     'call_candidate',
+     cid
+   ).catch(function(){});
+ };
+
+ c.ontrack=function(ev){
+   if(ev.streams&&ev.streams[0]){
+     attachRemoteStream(ev.streams[0]);
+   }else{
+     var ms=$('remoteVideo').srcObject||new MediaStream();
+     ms.addTrack(ev.track);
+     attachRemoteStream(ms);
+   }
+ };
+
+ c.oniceconnectionstatechange=function(){
+   if(!pc||c!==pc)return;
+   var st=c.iceConnectionState;
+   if(st==='checking')$('callState').textContent='соединение…';
+   else if(st==='connected'||st==='completed'){
+     $('callState').textContent='разговор';
+     clearTimeout(callTimeout);
+     clearTimeout(connectionWatchdog);
+   }else if(st==='disconnected'){
+     $('callState').textContent='восстановление связи…';
+   }else if(st==='failed'){
+     if(isCaller&&restartCount<1){
+       restartCount++;
+       restartIceCall();
+     }else{
+       $('callState').textContent='соединение не установлено';
+       toast('Не удалось установить медиаканал');
+     }
+   }
+ };
+
+ c.onconnectionstatechange=function(){
+   if(!pc||c!==pc)return;
+   var st=c.connectionState;
+   if(st==='connected'){
+     $('callState').textContent='разговор';
+     clearTimeout(callTimeout);
+     clearTimeout(connectionWatchdog);
+   }else if(st==='connecting'){
+     $('callState').textContent='соединение…';
+   }else if(st==='disconnected'){
+     $('callState').textContent='восстановление связи…';
+   }else if(st==='failed'&&isCaller&&restartCount<1){
+     restartCount++;
+     restartIceCall();
+   }
+ };
  return c;
+}
+
+async function flushRemoteCandidates(){
+ if(!pc||!pc.remoteDescription||!pc.remoteDescription.type)return;
+ var queued=pendingRemoteCandidates.splice(0);
+ for(var i=0;i<queued.length;i++){
+   try{await pc.addIceCandidate(queued[i]);}catch(e){}
+ }
+}
+
+function armConnectionWatchdog(){
+ clearTimeout(connectionWatchdog);
+ connectionWatchdog=setTimeout(function(){
+   if(!pc||!currentCallId)return;
+   var st=pc.connectionState;
+   if(st!=='connected'){
+     if(isCaller&&restartCount<1){
+       restartCount++;
+       restartIceCall();
+     }else{
+       $('callState').textContent='проблема с маршрутом…';
+     }
+   }
+ },12000);
 }
 async function restartIceCall(){
  if(!pc||!currentCallId||!callPeer||!isCaller)return;
  try{
-   $('callState').textContent='повторное соединение…';
+   $('callState').textContent='быстрое восстановление…';
+   pendingRemoteCandidates=[];
    var offer=await pc.createOffer({iceRestart:true});
    await pc.setLocalDescription(offer);
-   await waitIceComplete(pc,10000);
-   await publishEnvelope('call_offer',{
-     callId:currentCallId,
-     kind:currentCallKind,
-     sdp:pc.localDescription,
-     restart:true
-   },5,callPeer,'call_offer',currentCallId);
+   await publishEnvelope(
+     'call_offer',
+     {callId:currentCallId,kind:currentCallKind,sdp:pc.localDescription,restart:true},
+     5,
+     callPeer,
+     'call_offer',
+     currentCallId
+   );
+   armConnectionWatchdog();
  }catch(e){
    toast('Не удалось восстановить медиаканал');
  }
 }
-
 async function placeCall(kind){
  if(!activePeer){toast('Сначала выберите человека');return;}
  if(!socketOpen){toast('Интернет-канал подключается');return;}
@@ -542,8 +648,7 @@ async function startCallerNegotiation(){
    var offer=await pc.createOffer();
    await pc.setLocalDescription(offer);
 
-   $('callState').textContent='поиск маршрута…';
-   await waitIceComplete(pc,10000);
+   $('callState').textContent='соединение…';
 
    await publishEnvelope(
      'call_offer',
@@ -554,7 +659,7 @@ async function startCallerNegotiation(){
      currentCallId
    );
 
-   $('callState').textContent='соединение…';
+   armConnectionWatchdog();
  }catch(e){
    toast('Не удалось создать видеоканал');
    endCall(true);
@@ -568,12 +673,12 @@ async function answerFreshOffer(){
 
  try{
    await pc.setRemoteDescription(new RTCSessionDescription(offer.sdp));
+   await flushRemoteCandidates();
 
    var answer=await pc.createAnswer();
    await pc.setLocalDescription(answer);
 
-   $('callState').textContent='поиск маршрута…';
-   await waitIceComplete(pc,10000);
+   $('callState').textContent='соединение…';
 
    await publishEnvelope(
      'call_answer',
@@ -584,7 +689,7 @@ async function answerFreshOffer(){
      currentCallId
    );
 
-   $('callState').textContent='соединение…';
+   armConnectionWatchdog();
  }catch(e){
    toast('Не удалось завершить WebRTC-соединение');
    endCall(true);
@@ -600,6 +705,8 @@ function endCall(sendSignal){
           (incomingOffer&&incomingOffer.from) || '';
 
  clearTimeout(callTimeout);
+ clearTimeout(connectionWatchdog);
+ pendingRemoteCandidates=[];
 
  if(sendSignal&&id&&peer){
    publishEnvelope('hangup',{callId:id},4,peer,'hangup',id).catch(function(){});
@@ -669,11 +776,11 @@ async function enter(){
  $('myAvatar').textContent=initials(NAMES[role]);
  $('adminArchiveBtn').classList.toggle('hidden',role!=='sergey');
 
- if(!localStorage.getItem('of41_admin_notice_seen')){
+ if(!localStorage.getItem('of42_admin_notice_seen')){
    var n=$('adminOnce');
    n.classList.remove('hidden');
    setTimeout(function(){n.classList.add('hidden');},5000);
-   localStorage.setItem('of41_admin_notice_seen','1');
+   localStorage.setItem('of42_admin_notice_seen','1');
  }
 
  loadMessages();
