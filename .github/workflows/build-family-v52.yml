@@ -1,0 +1,88 @@
+name: Build Our Family v5.2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-v5-2-admin-all-chats ]
+    paths:
+      - 'duoapp/**'
+      - 'settings-duo.gradle'
+      - '.github/workflows/build-family-v52.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Validate JavaScript
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text()
+          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
+          assert blocks
+          Path('/tmp/family-v52.js').write_text('\n'.join(blocks))
+          PY
+          node --check /tmp/family-v52.js
+
+      - name: Validate Sergey all chats
+        run: |
+          HTML=duoapp/src/main/assets/index.html
+          grep -q "👁️ Все чаты" "$HTML"
+          grep -q "collectAdminAllChats" "$HTML"
+          grep -q "admin_sync" "$HTML"
+          grep -q "syncExistingHistoryToSergey" "$HTML"
+          grep -q "x.kind==='direct'" "$HTML"
+          grep -q "x.kind==='group'" "$HTML"
+          grep -q "m.kind==='admin'" "$HTML"
+          grep -q "versionCode 52" duoapp/build.gradle
+          grep -q "applicationId 'com.sergey.duochat.v51'" duoapp/build.gradle
+
+      - name: Validate v5.1 features retained
+        run: |
+          HTML=duoapp/src/main/assets/index.html
+          for token in "layout-side" "layout-stack" "layout-pip" "data-theme-choice=\"light\"" "data-theme-choice=\"dark\"" "data-theme-choice=\"ocean\"" "photoInput" "fileInput" "sendAttachment" "direct_chat" "group_chat" "direct_invite" "group_invite"; do
+            grep -q "$token" "$HTML"
+          done
+
+      - name: Build APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK=duoapp/build/outputs/apk/debug/duoapp-debug.apk
+          test -f "$APK"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/index.html | grep -q "👁️ Все чаты"
+          unzip -p "$APK" assets/index.html | grep -q "admin_sync"
+          ls -lh "$APK"
+
+      - name: Rename APK
+        run: cp duoapp/build/outputs/apk/debug/duoapp-debug.apk OurFamily_v5_2.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_v5_2
+          path: OurFamily_v5_2.apk
+          if-no-files-found: error
