@@ -228,6 +228,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String drainRelayInbox() {
+            return RelayInbox.drain(MainActivity.this);
+        }
+
+        @JavascriptInterface
         public String consumePendingAction() {
             SharedPreferences p = SecureStore.prefs(MainActivity.this);
             String value = p.getString("pending_call_action", "");
@@ -260,7 +265,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "4.2";
+            return "5.0";
         }
     }
 
