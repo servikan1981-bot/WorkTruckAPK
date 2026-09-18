@@ -23,7 +23,7 @@ public final class CallControl {
                 String fromTag = FamilyDirectory.tag(code, ownRole);
                 String toTag = FamilyDirectory.tag(code, callerRole);
                 String token = FamilyDirectory.controlToken(code, callId, "decline", ownRole, callerRole);
-                String wire = "of42ctl|" + fromTag + "|" + toTag + "|" + callId + "|decline|" + token;
+                String wire = "of5ctl|" + fromTag + "|" + toTag + "|" + callId + "|decline|" + token;
 
                 JSONObject body = new JSONObject();
                 body.put("topic", FamilyDirectory.inboxTopic(code, callerRole));
