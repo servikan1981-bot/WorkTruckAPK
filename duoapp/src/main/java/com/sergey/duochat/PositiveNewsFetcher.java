@@ -171,7 +171,7 @@ public final class PositiveNewsFetcher {
     private static String meta(String html, String attr, String value) {
         if (html == null) return "";
         String lower = html.toLowerCase(Locale.US);
-        String needle = attr.toLowerCase(Locale.US) + "=\\\"" + value.toLowerCase(Locale.US) + "\\\"";
+        String needle = attr.toLowerCase(Locale.US) + "=\"" + value.toLowerCase(Locale.US) + "\"";
         int pos = lower.indexOf(needle);
         if (pos < 0) {
             needle = attr.toLowerCase(Locale.US) + "='" + value.toLowerCase(Locale.US) + "'";
