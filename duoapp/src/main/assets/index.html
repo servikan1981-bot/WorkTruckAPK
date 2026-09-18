@@ -64,8 +64,27 @@ h1{font-size:28px;margin:0 0 8px}.sub{color:var(--muted);line-height:1.45;margin
     <div class="family-title">Семья</div>
     <div class="family-sub">Выберите, кому написать или позвонить</div>
     <div id="permissionBanner" class="permission hidden">Для полноценного экрана входящего звонка Android требует отдельное разрешение.<br><button id="fullScreenPermissionBtn">Разрешить экран звонка</button></div>
+    <button id="adminArchiveBtn" class="primary hidden" style="margin:0 0 12px">Семейный архив</button>
     <div id="contactsList"></div>
   </div>
+</section>
+
+<section id="adminArchive" class="screen hidden">
+  <div class="topbar">
+    <button id="adminBackBtn" class="iconbtn back">‹</button>
+    <div class="avatar">A</div>
+    <div class="who"><div class="name">Семейный архив</div><div class="status">доступ администратора Сергея</div></div>
+  </div>
+  <div class="contacts-body"><div id="adminPairs"></div></div>
+</section>
+
+<section id="adminChat" class="screen hidden">
+  <div class="topbar">
+    <button id="adminChatBackBtn" class="iconbtn back">‹</button>
+    <div class="avatar">A</div>
+    <div class="who"><div class="name" id="adminChatTitle"></div><div class="status">только просмотр</div></div>
+  </div>
+  <div id="adminMessages" style="flex:1;overflow:auto;padding:16px 12px 14px;display:flex;flex-direction:column;gap:8px"></div>
 </section>
 
 <section id="chat" class="screen hidden">
@@ -97,6 +116,9 @@ h1{font-size:28px;margin:0 0 8px}.sub{color:var(--muted);line-height:1.45;margin
   <div class="incoming-kind" id="incomingKind">Видеозвонок</div>
   <div class="incoming-actions"><button id="declineBtn" class="decline">Отклонить</button><button id="acceptBtn" class="accept">Принять</button></div>
 </div>
+<div id="adminOnce" class="incoming-card hidden" style="bottom:auto;top:24px;text-align:center;z-index:130;font-size:14px;font-weight:700">
+  Сергей — админ, имеет доступ ко всему приложению.
+</div>
 <div id="toast" class="toast"></div>
 
 <script>
@@ -111,7 +133,7 @@ var NAMES={};MEMBERS.forEach(function(m){NAMES[m.id]=m.name;});
 var role='',code='',relayBase='https://ntfy.sh',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='',activePeer='';
 var cryptoKeys={},roleTags={},socket=null,socketOpen=false,reconnectTimer=null,reconnectDelay=1500;
 var packetChunks={},seenNtfy=new Set(),processedPayloads=new Set(),messages=[];
-var pc=null,localStream=null,currentCallId='',currentCallKind='video',callPeer='',incomingOffer=null,callTimeout=null,isCaller=false,restartCount=0,pendingNativeAccept=null;
+var pc=null,localStream=null,currentCallId='',currentCallKind='video',callPeer='',incomingOffer=null,incomingInvite=null,acceptedCallId='',callTimeout=null,isCaller=false,restartCount=0,pendingNativeAccept=null;
 var iceTypes=new Set();
 
 try{(JSON.parse(localStorage.getItem('of4_seen')||'[]')||[]).slice(-1200).forEach(function(x){seenNtfy.add(x);});}catch(e){}
@@ -137,7 +159,7 @@ function rememberNtfy(id){if(!id)return;seenNtfy.add(id);if(seenNtfy.size>1400)s
 function saveMessages(){messages=messages.slice(-1200);try{AndroidBridge.saveHistory(JSON.stringify(messages));}catch(e){}}
 function loadMessages(){try{messages=JSON.parse(AndroidBridge.loadHistory()||'[]');if(!Array.isArray(messages))messages=[];}catch(e){messages=[];}}
 function messagePeer(m){return m.from===role?m.to:m.from;}
-function visibleMessages(){return messages.filter(function(m){return messagePeer(m)===activePeer;});}
+function visibleMessages(){return messages.filter(function(m){return !m.admin&&messagePeer(m)===activePeer;});}
 function renderMessages(){
  var box=$('messages');box.innerHTML='';
  visibleMessages().slice(-400).forEach(function(m){
@@ -150,10 +172,10 @@ function renderMessages(){
  });
  saveMessages();requestAnimationFrame(function(){box.scrollTop=box.scrollHeight;});
 }
-function addMessage(m){if(messages.some(function(x){return x.id===m.id;}))return;if(m.from!==role)m.read=(activePeer===m.from&&!$('chat').classList.contains('hidden'));messages.push(m);saveMessages();renderContacts();if(activePeer===messagePeer(m))renderMessages();}
+function addMessage(m){if(messages.some(function(x){return x.id===m.id;}))return;if(!m.admin&&m.from!==role)m.read=(activePeer===m.from&&!$('chat').classList.contains('hidden'));messages.push(m);saveMessages();renderContacts();if(!m.admin&&activePeer===messagePeer(m))renderMessages();}
 function updateMessageState(id,state){var m=messages.find(function(x){return x.id===id;});if(m){m.state=state;saveMessages();if(activePeer===messagePeer(m))renderMessages();renderContacts();}}
-function lastFor(peer){var arr=messages.filter(function(m){return messagePeer(m)===peer;});return arr.length?arr[arr.length-1]:null;}
-function unreadFor(peer){return messages.filter(function(m){return m.from===peer&&!m.read;}).length;}
+function lastFor(peer){var arr=messages.filter(function(m){return !m.admin&&messagePeer(m)===peer;});return arr.length?arr[arr.length-1]:null;}
+function unreadFor(peer){return messages.filter(function(m){return !m.admin&&m.from===peer&&!m.read;}).length;}
 function renderContacts(){
  var list=$('contactsList');list.innerHTML='';
  MEMBERS.filter(function(m){return m.id!==role;}).forEach(function(m){
@@ -168,7 +190,68 @@ function renderContacts(){
  });
 }
 function showContacts(){
- activePeer='';$('chat').classList.add('hidden');$('contacts').classList.remove('hidden');$('settingsPop').classList.add('hidden');renderContacts();
+ activePeer='';
+ $('chat').classList.add('hidden');
+ $('adminArchive').classList.add('hidden');
+ $('adminChat').classList.add('hidden');
+ $('contacts').classList.remove('hidden');
+ $('settingsPop').classList.add('hidden');
+ renderContacts();
+}
+function pairId(a,b){return [a,b].sort().join('|');}
+function renderAdminArchive(){
+ if(role!=='sergey')return;
+ var grouped={};
+ messages.filter(function(m){return m.admin;}).forEach(function(m){
+   var id=pairId(m.from,m.to);
+   if(!grouped[id])grouped[id]=[];
+   grouped[id].push(m);
+ });
+ var box=$('adminPairs');box.innerHTML='';
+ var ids=Object.keys(grouped).sort(function(a,b){
+   var aa=grouped[a][grouped[a].length-1].ts||0;
+   var bb=grouped[b][grouped[b].length-1].ts||0;
+   return bb-aa;
+ });
+ ids.forEach(function(id){
+   var parts=id.split('|');
+   var arr=grouped[id].sort(function(a,b){return a.ts-b.ts;});
+   var last=arr[arr.length-1];
+   var btn=document.createElement('button');btn.className='contact';
+   var av=document.createElement('div');av.className='cavatar';av.textContent='A';
+   var body=document.createElement('div');body.className='cbody';
+   var n=document.createElement('div');n.className='cname';n.textContent=NAMES[parts[0]]+' ↔ '+NAMES[parts[1]];
+   var p=document.createElement('div');p.className='preview';p.textContent=(NAMES[last.from]||last.from)+': '+last.text;
+   body.append(n,p);btn.append(av,body);
+   btn.addEventListener('click',function(){openAdminPair(parts[0],parts[1]);});
+   box.appendChild(btn);
+ });
+ if(!ids.length){
+   var e=document.createElement('div');e.className='permission';
+   e.textContent='Пока архив пуст. Новые сообщения появятся здесь после установки версии 4.1 на семейные телефоны.';
+   box.appendChild(e);
+ }
+}
+function showAdminArchive(){
+ if(role!=='sergey')return;
+ $('contacts').classList.add('hidden');
+ $('adminChat').classList.add('hidden');
+ $('adminArchive').classList.remove('hidden');
+ renderAdminArchive();
+}
+function openAdminPair(a,b){
+ $('adminArchive').classList.add('hidden');
+ $('adminChat').classList.remove('hidden');
+ $('adminChatTitle').textContent=NAMES[a]+' ↔ '+NAMES[b];
+ var box=$('adminMessages');box.innerHTML='';
+ messages.filter(function(m){return m.admin&&pairId(m.from,m.to)===pairId(a,b);})
+   .sort(function(x,y){return x.ts-y.ts;})
+   .forEach(function(m){
+     var wrap=document.createElement('div');wrap.className='bubble theirs';wrap.style.maxWidth='92%';
+     var t=document.createElement('div');t.className='msgtext';t.textContent=(NAMES[m.from]||m.from)+': '+m.text;
+     var meta=document.createElement('div');meta.className='meta';meta.textContent=fmt(m.ts);
+     wrap.append(t,meta);box.appendChild(wrap);
+   });
 }
 function openChat(peer){
  activePeer=peer;$('contacts').classList.add('hidden');$('chat').classList.remove('hidden');
@@ -222,18 +305,80 @@ async function handleWireMessage(evt){
  }catch(e){}
 }
 async function processPayload(p){
- if(!p||p.v!==4||p.to!==role||p.from===role)return;var d=p.data||{},peer=p.from;
- if(p.kind==='chat'){addMessage({id:d.messageId||p.id,text:String(d.text||''),ts:d.ts||p.ts,from:peer,to:role,state:'delivered'});try{await publishEnvelope('ack',{messageId:d.messageId||p.id},2,peer);}catch(e){}return;}
- if(p.kind==='ack'){updateMessageState(d.messageId,'delivered');return;}
- if(p.kind==='call_offer'){
-   if(!d.callId||!d.sdp)return;incomingOffer={callId:d.callId,kind:d.kind||'video',sdp:d.sdp,from:peer};callPeer=peer;
-   $('incomingName').textContent=NAMES[peer]+' звонит';$('incomingKind').textContent=incomingOffer.kind==='audio'?'Аудиозвонок':'Видеозвонок';
-   $('incomingCard').classList.remove('hidden');
-   if(pendingNativeAccept&&pendingNativeAccept.callId===d.callId){var pa=pendingNativeAccept;pendingNativeAccept=null;activePeer=pa.callerRole||peer;await acceptCall();}
+ if(!p||p.v!==4||p.to!==role||p.from===role)return;
+ var d=p.data||{},peer=p.from;
+
+ if(p.kind==='chat'){
+   addMessage({id:d.messageId||p.id,text:String(d.text||''),ts:d.ts||p.ts,from:peer,to:role,state:'delivered'});
+   try{await publishEnvelope('ack',{messageId:d.messageId||p.id},2,peer);}catch(e){}
    return;
  }
- if(p.kind==='call_answer'&&pc&&d.callId===currentCallId&&d.sdp){try{await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));$('callState').textContent='соединение…';}catch(e){toast('Ошибка ответа WebRTC');}return;}
- if(p.kind==='hangup'&&(d.callId===currentCallId||(incomingOffer&&d.callId===incomingOffer.callId))){endCall(false);toast('Звонок завершён');return;}
+
+ if(p.kind==='admin_copy'&&role==='sergey'){
+   addMessage({
+     id:'adm-'+(d.messageId||p.id),
+     text:String(d.text||''),
+     ts:d.ts||p.ts,
+     from:d.originalFrom,
+     to:d.originalTo,
+     admin:true,
+     read:true
+   });
+   return;
+ }
+
+ if(p.kind==='ack'){
+   updateMessageState(d.messageId,'delivered');
+   return;
+ }
+
+ if(p.kind==='call_invite'){
+   if(!d.callId)return;
+   incomingInvite={callId:d.callId,kind:d.kind||'video',from:peer};
+   callPeer=peer;
+   $('incomingName').textContent=NAMES[peer]+' звонит';
+   $('incomingKind').textContent=incomingInvite.kind==='audio'?'Аудиозвонок':'Видеозвонок';
+   $('incomingCard').classList.remove('hidden');
+
+   if(pendingNativeAccept&&pendingNativeAccept.callId===d.callId){
+     pendingNativeAccept=null;
+     activePeer=peer;
+     await acceptInvite();
+   }
+   return;
+ }
+
+ if(p.kind==='call_accept'&&isCaller&&d.callId===currentCallId){
+   await startCallerNegotiation();
+   return;
+ }
+
+ if(p.kind==='call_offer'){
+   if(!d.callId||!d.sdp||d.callId!==acceptedCallId)return;
+   incomingOffer={callId:d.callId,kind:d.kind||currentCallKind||'video',sdp:d.sdp,from:peer};
+   callPeer=peer;
+   await answerFreshOffer();
+   return;
+ }
+
+ if(p.kind==='call_answer'&&pc&&d.callId===currentCallId&&d.sdp){
+   try{
+     await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
+     $('callState').textContent='соединение…';
+   }catch(e){
+     toast('Ошибка ответа WebRTC');
+   }
+   return;
+ }
+
+ if(p.kind==='hangup'&&(
+   d.callId===currentCallId ||
+   (incomingInvite&&d.callId===incomingInvite.callId) ||
+   (incomingOffer&&d.callId===incomingOffer.callId)
+ )){
+   endCall(false);
+   toast('Звонок завершён');
+ }
 }
 function relayWsUrl(){return relayBase.replace(/^https:/,'wss:').replace(/^http:/,'ws:')+'/'+ownTopic+'/ws?since=12h';}
 function connectRelay(){
@@ -251,7 +396,22 @@ function connectRelay(){
 async function sendChat(){
  if(!activePeer)return;var inp=$('messageInput'),text=inp.value.trim();if(!text)return;
  var id=randomId(),ts=Date.now();addMessage({id:id,text:text,ts:ts,from:role,to:activePeer,state:'sending'});inp.value='';
- try{await publishEnvelope('chat',{messageId:id,text:text,ts:ts},3,activePeer,'chat','-');updateMessageState(id,'sent');}catch(e){toast('Не удалось отправить. Проверяю интернет.');connectRelay();}
+ try{
+   await publishEnvelope('chat',{messageId:id,text:text,ts:ts},3,activePeer,'chat','-');
+   updateMessageState(id,'sent');
+   if(role!=='sergey'&&activePeer!=='sergey'){
+     publishEnvelope('admin_copy',{
+       messageId:id,
+       originalFrom:role,
+       originalTo:activePeer,
+       text:text,
+       ts:ts
+     },2,'sergey','admin_copy','-').catch(function(){});
+   }
+ }catch(e){
+   toast('Не удалось отправить. Проверяю интернет.');
+   connectRelay();
+ }
 }
 
 function iceServers(){var list=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}];if(turnUrl&&turnUser&&turnPass)list.unshift({urls:turnUrl,username:turnUser,credential:turnPass});return list;}
@@ -267,35 +427,232 @@ function createPC(){
  c.onconnectionstatechange=function(){if(!pc||c!==pc)return;var s=c.connectionState;if(s==='connected'){$('callState').textContent='разговор';restartCount=0;clearTimeout(callTimeout);}else if(s==='connecting')$('callState').textContent='соединение…';else if(s==='disconnected')$('callState').textContent='восстановление…';else if(s==='failed'){if(isCaller&&restartCount<1){restartCount++;restartIceCall();}else toast('Медиаканал не установился');}};
  return c;
 }
-async function restartIceCall(){if(!pc||!currentCallId||!callPeer)return;var offer=await pc.createOffer({iceRestart:true});await pc.setLocalDescription(offer);await waitIceComplete(pc,10000);await publishEnvelope('call_offer',{callId:currentCallId,kind:currentCallKind,sdp:pc.localDescription,restart:true},5,callPeer,currentCallKind==='audio'?'call_audio_offer':'call_offer',currentCallId);}
-async function placeCall(kind){
- if(!activePeer){toast('Сначала выберите человека');return;}if(!socketOpen){toast('Интернет-канал подключается');return;}
+async function restartIceCall(){
+ if(!pc||!currentCallId||!callPeer||!isCaller)return;
  try{
-  isCaller=true;restartCount=0;callPeer=activePeer;currentCallId=randomId();currentCallKind=kind;showCall(kind,'подготовка канала…',callPeer);
-  localStream=await getMedia(kind);$('localVideo').srcObject=localStream;pc=createPC();localStream.getTracks().forEach(function(t){pc.addTrack(t,localStream);});
-  var offer=await pc.createOffer();await pc.setLocalDescription(offer);$('callState').textContent='поиск маршрута…';await waitIceComplete(pc,10000);
-  await publishEnvelope('call_offer',{callId:currentCallId,kind:kind,sdp:pc.localDescription},5,callPeer,kind==='audio'?'call_audio_offer':'call_offer',currentCallId);
-  $('callState').textContent='вызов…';clearTimeout(callTimeout);callTimeout=setTimeout(function(){if(pc&&pc.connectionState!=='connected'){toast('Нет соединения');endCall(true);}},65000);
- }catch(e){toast('Не удалось начать звонок');endCall(false);}
+   $('callState').textContent='повторное соединение…';
+   var offer=await pc.createOffer({iceRestart:true});
+   await pc.setLocalDescription(offer);
+   await waitIceComplete(pc,10000);
+   await publishEnvelope('call_offer',{
+     callId:currentCallId,
+     kind:currentCallKind,
+     sdp:pc.localDescription,
+     restart:true
+   },5,callPeer,'call_offer',currentCallId);
+ }catch(e){
+   toast('Не удалось восстановить медиаканал');
+ }
 }
-async function acceptCall(){
- if(!incomingOffer)return;var offer=incomingOffer;incomingOffer=null;$('incomingCard').classList.add('hidden');
- try{
-  isCaller=false;restartCount=0;callPeer=offer.from;activePeer=offer.from;currentCallId=offer.callId;currentCallKind=offer.kind;showCall(currentCallKind,'подготовка ответа…',callPeer);
-  localStream=await getMedia(currentCallKind);$('localVideo').srcObject=localStream;pc=createPC();localStream.getTracks().forEach(function(t){pc.addTrack(t,localStream);});
-  await pc.setRemoteDescription(new RTCSessionDescription(offer.sdp));var answer=await pc.createAnswer();await pc.setLocalDescription(answer);$('callState').textContent='поиск маршрута…';await waitIceComplete(pc,10000);
-  await publishEnvelope('call_answer',{callId:currentCallId,sdp:pc.localDescription},5,callPeer,'call_answer',currentCallId);$('callState').textContent='соединение…';
- }catch(e){toast('Не удалось ответить');endCall(true);}
-}
-function endCall(sendSignal){var id=currentCallId||(incomingOffer&&incomingOffer.callId)||'',peer=callPeer||(incomingOffer&&incomingOffer.from)||'';clearTimeout(callTimeout);if(sendSignal&&id&&peer)publishEnvelope('hangup',{callId:id},4,peer,'hangup',id).catch(function(){});if(pc)try{pc.close();}catch(e){}pc=null;if(localStream)localStream.getTracks().forEach(function(t){t.stop();});localStream=null;$('localVideo').srcObject=null;$('remoteVideo').srcObject=null;$('callOverlay').classList.add('hidden');$('incomingCard').classList.add('hidden');currentCallId='';incomingOffer=null;callPeer='';isCaller=false;}
-async function declineIncoming(){var id=incomingOffer?incomingOffer.callId:'',peer=incomingOffer?incomingOffer.from:'';incomingOffer=null;$('incomingCard').classList.add('hidden');if(id&&peer)try{await publishEnvelope('hangup',{callId:id},4,peer,'hangup',id);}catch(e){}}
 
+async function placeCall(kind){
+ if(!activePeer){toast('Сначала выберите человека');return;}
+ if(!socketOpen){toast('Интернет-канал подключается');return;}
+
+ try{
+   isCaller=true;
+   restartCount=0;
+   callPeer=activePeer;
+   currentCallId=randomId();
+   currentCallKind=kind;
+   acceptedCallId='';
+   incomingInvite=null;
+   incomingOffer=null;
+
+   showCall(kind,'ожидаю ответа…',callPeer);
+
+   await publishEnvelope(
+     'call_invite',
+     {callId:currentCallId,kind:kind},
+     5,
+     callPeer,
+     kind==='audio'?'call_audio_invite':'call_invite',
+     currentCallId
+   );
+
+   clearTimeout(callTimeout);
+   callTimeout=setTimeout(function(){
+     if(currentCallId&&(!pc||pc.connectionState!=='connected')){
+       toast('Нет ответа');
+       endCall(true);
+     }
+   },70000);
+ }catch(e){
+   toast('Не удалось начать звонок');
+   endCall(false);
+ }
+}
+
+async function acceptInvite(){
+ if(!incomingInvite)return;
+ var inv=incomingInvite;
+ incomingInvite=null;
+ $('incomingCard').classList.add('hidden');
+
+ try{
+   isCaller=false;
+   restartCount=0;
+   callPeer=inv.from;
+   activePeer=inv.from;
+   currentCallId=inv.callId;
+   acceptedCallId=inv.callId;
+   currentCallKind=inv.kind;
+
+   showCall(currentCallKind,'подготовка камеры…',callPeer);
+
+   localStream=await getMedia(currentCallKind);
+   $('localVideo').srcObject=localStream;
+
+   pc=createPC();
+   localStream.getTracks().forEach(function(t){pc.addTrack(t,localStream);});
+
+   $('callState').textContent='готов к соединению…';
+
+   await publishEnvelope(
+     'call_accept',
+     {callId:currentCallId,kind:currentCallKind},
+     5,
+     callPeer,
+     'call_accept',
+     currentCallId
+   );
+ }catch(e){
+   toast('Не удалось подготовить звонок');
+   endCall(true);
+ }
+}
+
+async function startCallerNegotiation(){
+ if(!isCaller||!currentCallId||!callPeer)return;
+
+ try{
+   if(pc){try{pc.close();}catch(e){}}
+   if(localStream){localStream.getTracks().forEach(function(t){t.stop();});}
+   pc=null;
+   localStream=null;
+
+   $('callState').textContent='подготовка камеры…';
+
+   localStream=await getMedia(currentCallKind);
+   $('localVideo').srcObject=localStream;
+
+   pc=createPC();
+   localStream.getTracks().forEach(function(t){pc.addTrack(t,localStream);});
+
+   var offer=await pc.createOffer();
+   await pc.setLocalDescription(offer);
+
+   $('callState').textContent='поиск маршрута…';
+   await waitIceComplete(pc,10000);
+
+   await publishEnvelope(
+     'call_offer',
+     {callId:currentCallId,kind:currentCallKind,sdp:pc.localDescription},
+     5,
+     callPeer,
+     'call_offer',
+     currentCallId
+   );
+
+   $('callState').textContent='соединение…';
+ }catch(e){
+   toast('Не удалось создать видеоканал');
+   endCall(true);
+ }
+}
+
+async function answerFreshOffer(){
+ if(!incomingOffer||!pc||!localStream)return;
+ var offer=incomingOffer;
+ incomingOffer=null;
+
+ try{
+   await pc.setRemoteDescription(new RTCSessionDescription(offer.sdp));
+
+   var answer=await pc.createAnswer();
+   await pc.setLocalDescription(answer);
+
+   $('callState').textContent='поиск маршрута…';
+   await waitIceComplete(pc,10000);
+
+   await publishEnvelope(
+     'call_answer',
+     {callId:currentCallId,sdp:pc.localDescription},
+     5,
+     callPeer,
+     'call_answer',
+     currentCallId
+   );
+
+   $('callState').textContent='соединение…';
+ }catch(e){
+   toast('Не удалось завершить WebRTC-соединение');
+   endCall(true);
+ }
+}
+
+function endCall(sendSignal){
+ var id=currentCallId ||
+        (incomingInvite&&incomingInvite.callId) ||
+        (incomingOffer&&incomingOffer.callId) || '';
+ var peer=callPeer ||
+          (incomingInvite&&incomingInvite.from) ||
+          (incomingOffer&&incomingOffer.from) || '';
+
+ clearTimeout(callTimeout);
+
+ if(sendSignal&&id&&peer){
+   publishEnvelope('hangup',{callId:id},4,peer,'hangup',id).catch(function(){});
+ }
+
+ if(pc){try{pc.close();}catch(e){}}
+ pc=null;
+
+ if(localStream){
+   localStream.getTracks().forEach(function(t){t.stop();});
+ }
+ localStream=null;
+
+ $('localVideo').srcObject=null;
+ $('remoteVideo').srcObject=null;
+ $('callOverlay').classList.add('hidden');
+ $('incomingCard').classList.add('hidden');
+
+ currentCallId='';
+ acceptedCallId='';
+ incomingInvite=null;
+ incomingOffer=null;
+ callPeer='';
+ isCaller=false;
+}
+
+async function declineIncoming(){
+ var id=(incomingInvite&&incomingInvite.callId)||(incomingOffer&&incomingOffer.callId)||'';
+ var peer=(incomingInvite&&incomingInvite.from)||(incomingOffer&&incomingOffer.from)||'';
+
+ incomingInvite=null;
+ incomingOffer=null;
+ $('incomingCard').classList.add('hidden');
+
+ if(id&&peer){
+   try{
+     await publishEnvelope('hangup',{callId:id},4,peer,'hangup',id);
+   }catch(e){}
+ }
+}
 function checkFullScreenPermission(){try{var ok=AndroidBridge.canUseFullScreenCall();$('permissionBanner').classList.toggle('hidden',!!ok);}catch(e){$('permissionBanner').classList.add('hidden');}}
 function requestFullScreen(){try{AndroidBridge.requestFullScreenCallPermission();}catch(e){}}
 function consumeNativeAction(){
  try{
   var raw=AndroidBridge.consumePendingAction();if(!raw)return;var a=JSON.parse(raw);
-  if(a.action==='accept'){pendingNativeAccept=a;activePeer=a.callerRole||'';if(incomingOffer&&incomingOffer.callId===a.callId){pendingNativeAccept=null;acceptCall();}}
+  if(a.action==='accept'){
+    pendingNativeAccept=a;
+    activePeer=a.callerRole||'';
+    if(incomingInvite&&incomingInvite.callId===a.callId){
+      pendingNativeAccept=null;
+      acceptInvite();
+    }
+  }
  }catch(e){}
 }
 window.__ourFamilyConsumeNativeAction=consumeNativeAction;
@@ -306,8 +663,22 @@ async function configure(){
  connectRelay();consumeNativeAction();checkFullScreenPermission();
 }
 async function enter(){
- $('setup').classList.add('hidden');$('contacts').classList.remove('hidden');$('myName').textContent=NAMES[role];$('myAvatar').textContent=initials(NAMES[role]);
- loadMessages();renderContacts();await configure();
+ $('setup').classList.add('hidden');
+ $('contacts').classList.remove('hidden');
+ $('myName').textContent=NAMES[role];
+ $('myAvatar').textContent=initials(NAMES[role]);
+ $('adminArchiveBtn').classList.toggle('hidden',role!=='sergey');
+
+ if(!localStorage.getItem('of41_admin_notice_seen')){
+   var n=$('adminOnce');
+   n.classList.remove('hidden');
+   setTimeout(function(){n.classList.add('hidden');},5000);
+   localStorage.setItem('of41_admin_notice_seen','1');
+ }
+
+ loadMessages();
+ renderContacts();
+ await configure();
 }
 function loadProfile(){try{var raw=AndroidBridge.loadProfile();if(raw){var p=JSON.parse(raw);role=p.role||'';code=p.code||'';relayBase=p.relay||'https://ntfy.sh';turnUrl=p.turnUrl||'';turnUser=p.turnUser||'';turnPass=p.turnPass||'';return true;}}catch(e){}return false;}
 function populateRoles(){
@@ -326,10 +697,13 @@ $('startBtn').addEventListener('click',async function(){
 });
 $('backBtn').addEventListener('click',showContacts);$('sendBtn').addEventListener('click',sendChat);$('messageInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
 $('audioBtn').addEventListener('click',function(){placeCall('audio');});$('videoBtn').addEventListener('click',function(){placeCall('video');});$('hangBtn').addEventListener('click',function(){endCall(true);});
-$('acceptBtn').addEventListener('click',acceptCall);$('declineBtn').addEventListener('click',declineIncoming);
+$('acceptBtn').addEventListener('click',acceptInvite);$('declineBtn').addEventListener('click',declineIncoming);
 $('muteBtn').addEventListener('click',function(){if(!localStream)return;var t=localStream.getAudioTracks()[0];if(t){t.enabled=!t.enabled;$('muteBtn').textContent=t.enabled?'🎙️':'🔇';}});
 $('camBtn').addEventListener('click',function(){if(!localStream)return;var t=localStream.getVideoTracks()[0];if(t){t.enabled=!t.enabled;$('camBtn').textContent=t.enabled?'📷':'🚫';}});
 $('contactsMenuBtn').addEventListener('click',function(){$('settingsPop').classList.toggle('hidden');});
+$('adminArchiveBtn').addEventListener('click',showAdminArchive);
+$('adminBackBtn').addEventListener('click',showContacts);
+$('adminChatBackBtn').addEventListener('click',showAdminArchive);
 $('diagBtn').addEventListener('click',function(){$('settingsPop').classList.add('hidden');toast(socketOpen?'Канал связи работает':'Канал переподключается');});
 $('fullScreenPermissionBtn').addEventListener('click',requestFullScreen);$('fullScreenMenuBtn').addEventListener('click',function(){$('settingsPop').classList.add('hidden');requestFullScreen();});
 $('resetBtn').addEventListener('click',function(){if(confirm('Сменить профиль или семейный код? История на этом телефоне будет очищена.')){try{AndroidBridge.clearProfile();}catch(e){}location.reload();}});
