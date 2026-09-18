@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Наш чат</title>
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<style>
+:root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#708098;--line:#e6ebf2;--blue:#2f6fed;--green:#18a66a;--red:#e24a4a;--shadow:0 12px 28px rgba(23,32,51,.10)}
+*{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+button,input{font:inherit}.hidden{display:none!important}.screen{height:100%;min-height:100dvh}
+#setup{display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(145deg,#edf3ff,#f9fbff 55%,#eef9f4)}
+.setup-card{width:min(440px,100%);background:var(--card);border-radius:28px;padding:28px;box-shadow:var(--shadow)}
+.logo{width:72px;height:72px;border-radius:24px;background:var(--blue);display:grid;place-items:center;color:white;font-size:34px;margin-bottom:20px}
+h1{font-size:28px;margin:0 0 8px}.sub{color:var(--muted);line-height:1.45;margin:0 0 24px}.label{font-size:13px;font-weight:700;margin:18px 0 8px}.roles{display:grid;grid-template-columns:1fr 1fr;gap:10px}.role{border:1px solid var(--line);background:#fff;border-radius:16px;padding:14px;font-weight:700}.role.active{border-color:var(--blue);background:#edf3ff;color:#1f59cc}.code{width:100%;border:1px solid var(--line);border-radius:16px;padding:15px 16px;outline:none}.code:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,111,237,.10)}
+.primary{width:100%;border:0;border-radius:16px;background:var(--blue);color:#fff;font-weight:800;padding:15px;margin-top:18px}.hint{font-size:12px;color:var(--muted);line-height:1.45;margin-top:12px}
+#chat{display:flex;flex-direction:column;background:var(--bg)}header{background:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line);padding-top:max(12px,env(safe-area-inset-top))}.avatar{width:44px;height:44px;border-radius:50%;background:#eaf0ff;display:grid;place-items:center;font-size:22px}.who{min-width:0;flex:1}.name{font-weight:800;font-size:17px}.status{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.status.online{color:var(--green)}.status.warn{color:#b67b0a}.head-btn{width:42px;height:42px;border:0;border-radius:14px;background:#f4f7fb;font-size:20px}.head-btn.video{background:#edf3ff;color:var(--blue)}
+#messages{flex:1;overflow:auto;padding:16px 12px 14px;display:flex;flex-direction:column;gap:8px}.day{align-self:center;font-size:11px;color:var(--muted);background:#e9eef5;padding:5px 9px;border-radius:10px;margin:4px 0}.bubble{max-width:82%;padding:10px 12px;border-radius:17px;box-shadow:0 2px 8px rgba(30,40,60,.05)}.mine{align-self:flex-end;background:#dce9ff;border-bottom-right-radius:5px}.theirs{align-self:flex-start;background:#fff;border-bottom-left-radius:5px}.msgtext{font-size:15.5px;line-height:1.35;white-space:pre-wrap;word-break:break-word}.meta{font-size:10px;color:#718096;text-align:right;margin-top:4px}.pending{opacity:.65}
+.composer{background:#fff;border-top:1px solid var(--line);padding:10px 10px max(10px,env(safe-area-inset-bottom));display:flex;gap:8px;align-items:flex-end}.composer textarea{flex:1;resize:none;max-height:120px;min-height:44px;border:1px solid var(--line);border-radius:18px;padding:11px 13px;outline:none;font:inherit}.send{width:46px;height:46px;border:0;border-radius:50%;background:var(--blue);color:#fff;font-size:20px;font-weight:800}
+#callOverlay{position:fixed;inset:0;background:#0a1020;z-index:50;color:white;display:flex;flex-direction:column}.call-top{padding:max(18px,env(safe-area-inset-top)) 18px 10px;display:flex;justify-content:space-between;align-items:center}.call-title{font-weight:800}.call-state{font-size:12px;opacity:.75}.videos{position:relative;flex:1;overflow:hidden}.remote{width:100%;height:100%;object-fit:cover;background:#101828}.local{position:absolute;right:14px;top:14px;width:30%;max-width:160px;aspect-ratio:3/4;object-fit:cover;background:#1d2939;border-radius:18px;border:2px solid rgba(255,255,255,.6);box-shadow:0 8px 20px rgba(0,0,0,.35)}.audio-only{display:grid;place-items:center;font-size:72px}.call-actions{padding:18px 18px max(24px,env(safe-area-inset-bottom));display:flex;justify-content:center;gap:18px}.callbtn{width:60px;height:60px;border:0;border-radius:50%;font-size:24px}.hang{background:var(--red);color:#fff}.dark{background:#29354b;color:#fff}.incoming-card{position:absolute;left:18px;right:18px;bottom:26px;background:#fff;color:var(--ink);border-radius:24px;padding:20px;box-shadow:var(--shadow);z-index:80}.incoming-name{font-size:22px;font-weight:800;margin-bottom:6px}.incoming-kind{color:var(--muted);margin-bottom:18px}.incoming-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}.accept,.decline{border:0;border-radius:16px;padding:14px;font-weight:800;color:#fff}.accept{background:var(--green)}.decline{background:var(--red)}
+.toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);background:#101828;color:#fff;border-radius:14px;padding:10px 14px;font-size:13px;z-index:120;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1}.settings-pop{position:fixed;right:12px;top:70px;background:#fff;border-radius:18px;padding:8px;box-shadow:var(--shadow);z-index:30}.settings-pop button{border:0;background:#fff;padding:12px 14px;border-radius:12px;color:var(--ink);font-weight:700}
+</style>
+</head>
+<body>
+<section id="setup" class="screen">
+  <div class="setup-card">
+    <div class="logo">❤</div>
+    <h1>Наш чат</h1>
+    <p class="sub">Личный мессенджер только для двух телефонов: сообщения, аудиозвонки и видеозвонки.</p>
+    <div class="label">Кто использует этот телефон?</div>
+    <div class="roles"><button class="role" data-role="sergey">Сергей</button><button class="role" data-role="wife">Супруга</button></div>
+    <div class="label">Общий семейный код</div>
+    <input id="familyCode" class="code" type="password" minlength="8" placeholder="Минимум 8 символов" autocomplete="off" />
+    <button id="startBtn" class="primary">Войти в наш чат</button>
+    <div class="hint">На обоих телефонах введите один и тот же код, но выберите разные роли. Сам код никуда не отправляется.</div>
+  </div>
+</section>
+
+<section id="chat" class="screen hidden">
+<header>
+  <div class="avatar" id="partnerAvatar">❤</div>
+  <div class="who"><div class="name" id="partnerName">Супруга</div><div id="status" class="status">Подключение…</div></div>
+  <button id="audioBtn" class="head-btn" aria-label="Аудиозвонок">📞</button>
+  <button id="videoBtn" class="head-btn video" aria-label="Видеозвонок">🎥</button>
+  <button id="menuBtn" class="head-btn" aria-label="Настройки">⋮</button>
+</header>
+<div id="settingsPop" class="settings-pop hidden"><button id="resetBtn">Сменить профиль / код</button></div>
+<div id="messages"></div>
+<div class="composer"><textarea id="messageInput" rows="1" placeholder="Сообщение…"></textarea><button id="sendBtn" class="send">➤</button></div>
+</section>
+
+<section id="callOverlay" class="hidden">
+  <div class="call-top"><div><div class="call-title" id="callTitle">Видеозвонок</div><div class="call-state" id="callState">Соединение…</div></div></div>
+  <div class="videos" id="videoArea"><video id="remoteVideo" class="remote" autoplay playsinline></video><video id="localVideo" class="local" autoplay muted playsinline></video></div>
+  <div class="call-actions"><button id="muteBtn" class="callbtn dark">🎙️</button><button id="camBtn" class="callbtn dark">📷</button><button id="hangBtn" class="callbtn hang">✕</button></div>
+</section>
+<div id="incomingCard" class="incoming-card hidden"><div class="incoming-name" id="incomingName">Входящий звонок</div><div class="incoming-kind" id="incomingKind">Видеозвонок</div><div class="incoming-actions"><button id="declineBtn" class="decline">Отклонить</button><button id="acceptBtn" class="accept">Ответить</button></div></div>
+<div id="toast" class="toast"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+let role = localStorage.getItem('duo_role') || '';
+let code = localStorage.getItem('duo_code') || '';
+let peer = null, conn = null, activeCall = null, pendingCall = null, localStream = null, retryTimer = null;
+let currentCallKind = 'video';
+let messages = [];
+try { messages = JSON.parse(localStorage.getItem('duo_messages') || '[]'); } catch(e) { messages = []; }
+const names = {sergey:'Сергей', wife:'Супруга'};
+
+function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2200); }
+function h(s){ let x=2166136261>>>0; for(let i=0;i<s.length;i++){ x^=s.charCodeAt(i); x=Math.imul(x,16777619); } return (x>>>0).toString(16).padStart(8,'0'); }
+function peerId(r){ return 'd2-'+h('a|'+code+'|'+r)+h('b|'+r+'|'+code); }
+function partnerRole(){ return role==='sergey'?'wife':'sergey'; }
+function setStatus(text, cls=''){ const s=$('status'); s.textContent=text; s.className='status '+cls; }
+function saveMessages(){ localStorage.setItem('duo_messages', JSON.stringify(messages.slice(-500))); }
+function fmt(ts){ const d=new Date(ts); return d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
+function render(){ const box=$('messages'); box.innerHTML=''; messages.slice(-300).forEach(m=>{ const b=document.createElement('div'); b.className='bubble '+(m.from===role?'mine':'theirs')+(m.pending?' pending':''); const t=document.createElement('div'); t.className='msgtext'; t.textContent=m.text; const meta=document.createElement('div'); meta.className='meta'; meta.textContent=fmt(m.ts)+(m.pending?' · ожидает':''); b.append(t,meta); box.appendChild(b); }); requestAnimationFrame(()=>box.scrollTop=box.scrollHeight); }
+function addMessage(m){ if(messages.some(x=>x.id===m.id)) return; messages.push(m); saveMessages(); render(); }
+function markDelivered(id){ const m=messages.find(x=>x.id===id); if(m){m.pending=false; saveMessages(); render();} }
+function flushPending(){ if(!conn || !conn.open) return; messages.filter(m=>m.from===role && m.pending).forEach(m=>{ try{conn.send({type:'msg',id:m.id,text:m.text,ts:m.ts});}catch(e){} }); }
+function setupConn(c){ if(conn && conn!==c){ try{conn.close();}catch(e){} } conn=c; c.on('open',()=>{ setStatus('в сети','online'); flushPending(); }); c.on('data',d=>{ if(!d||typeof d!=='object') return; if(d.type==='msg'){ addMessage({id:d.id,text:String(d.text||''),ts:d.ts||Date.now(),from:partnerRole(),pending:false}); try{c.send({type:'ack',id:d.id});}catch(e){} } else if(d.type==='ack'){ markDelivered(d.id); } }); c.on('close',()=>{ if(conn===c) conn=null; setStatus('не в сети — повторное подключение','warn'); }); c.on('error',()=>{}); }
+function connectPartner(){ if(!peer || peer.destroyed || !peer.open) return; if(conn && conn.open) return; try{ setupConn(peer.connect(peerId(partnerRole()),{reliable:true,metadata:{role}})); }catch(e){} }
+function startPeer(){
+  if(peer){ try{peer.destroy();}catch(e){} }
+  setStatus('подключение…');
+  peer = new Peer(peerId(role), {debug:0, config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}],sdpSemantics:'unified-plan'}});
+  peer.on('open',()=>{ setStatus('ищу второй телефон…','warn'); connectPartner(); });
+  peer.on('connection',c=>setupConn(c));
+  peer.on('call',call=>{ pendingCall=call; currentCallKind=(call.metadata&&call.metadata.kind)||'video'; $('incomingName').textContent=names[partnerRole()]+' звонит'; $('incomingKind').textContent=currentCallKind==='audio'?'Аудиозвонок':'Видеозвонок'; $('incomingCard').classList.remove('hidden'); });
+  peer.on('disconnected',()=>{ setStatus('связь потеряна — переподключение','warn'); setTimeout(()=>{try{peer.reconnect();}catch(e){}},1500); });
+  peer.on('error',err=>{ if(err && err.type==='peer-unavailable'){ setStatus('второй телефон сейчас не в сети','warn'); } else if(err && err.type==='unavailable-id'){ setStatus('профиль уже открыт на другом устройстве','warn'); } else { setStatus('нет связи — пробую снова','warn'); } });
+  clearInterval(retryTimer); retryTimer=setInterval(connectPartner,4000);
+}
+async function getMedia(kind){ return navigator.mediaDevices.getUserMedia({audio:true,video:kind==='video'?{facingMode:'user'}:false}); }
+function showCall(kind){ currentCallKind=kind; $('callTitle').textContent=kind==='audio'?'Аудиозвонок':'Видеозвонок'; $('callState').textContent='Соединение…'; $('callOverlay').classList.remove('hidden'); $('camBtn').style.display=kind==='video'?'':'none'; $('localVideo').style.display=kind==='video'?'':'none'; if(kind==='audio'){ $('remoteVideo').style.objectFit='contain'; $('remoteVideo').style.background='#0a1020'; } }
+function bindCall(call){ activeCall=call; call.on('stream',stream=>{ $('remoteVideo').srcObject=stream; $('callState').textContent='разговор'; }); call.on('close',endCall); call.on('error',()=>{toast('Ошибка звонка'); endCall();}); }
+async function placeCall(kind){ if(!peer||!peer.open){toast('Нет подключения к сети'); return;} try{ showCall(kind); localStream=await getMedia(kind); $('localVideo').srcObject=localStream; const call=peer.call(peerId(partnerRole()),localStream,{metadata:{kind,role}}); if(!call){throw new Error('call');} bindCall(call); }catch(e){ toast('Не удалось включить камеру/микрофон'); endCall(); } }
+async function acceptCall(){ const call=pendingCall; if(!call)return; pendingCall=null; $('incomingCard').classList.add('hidden'); try{ showCall(currentCallKind); localStream=await getMedia(currentCallKind); $('localVideo').srcObject=localStream; bindCall(call); call.answer(localStream); }catch(e){ try{call.close();}catch(_){} toast('Нет доступа к камере/микрофону'); endCall(); } }
+function endCall(){ if(activeCall){try{activeCall.close();}catch(e){}} activeCall=null; if(pendingCall){try{pendingCall.close();}catch(e){}} pendingCall=null; if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;} $('remoteVideo').srcObject=null; $('localVideo').srcObject=null; $('callOverlay').classList.add('hidden'); $('incomingCard').classList.add('hidden'); }
+function send(){ const inp=$('messageInput'); const text=inp.value.trim(); if(!text)return; const m={id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),text,ts:Date.now(),from:role,pending:true}; addMessage(m); inp.value=''; if(conn&&conn.open){try{conn.send({type:'msg',id:m.id,text:m.text,ts:m.ts});}catch(e){}} }
+function enter(){ $('setup').classList.add('hidden'); $('chat').classList.remove('hidden'); $('partnerName').textContent=names[partnerRole()]; render(); startPeer(); }
+function initialize(){ if(role&&code.length>=8){ enter(); } else { document.querySelectorAll('.role').forEach(b=>b.classList.toggle('active',b.dataset.role===role)); } }
+
+document.querySelectorAll('.role').forEach(b=>b.addEventListener('click',()=>{role=b.dataset.role;document.querySelectorAll('.role').forEach(x=>x.classList.toggle('active',x===b));}));
+$('startBtn').addEventListener('click',()=>{ const c=$('familyCode').value.trim(); if(!role){toast('Выберите, чей это телефон');return;} if(c.length<8){toast('Код должен быть не короче 8 символов');return;} code=c;localStorage.setItem('duo_role',role);localStorage.setItem('duo_code',code);enter(); });
+$('sendBtn').addEventListener('click',send); $('messageInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+$('audioBtn').addEventListener('click',()=>placeCall('audio')); $('videoBtn').addEventListener('click',()=>placeCall('video')); $('hangBtn').addEventListener('click',endCall);
+$('acceptBtn').addEventListener('click',acceptCall); $('declineBtn').addEventListener('click',()=>{if(pendingCall){try{pendingCall.close();}catch(e){}} pendingCall=null;$('incomingCard').classList.add('hidden');});
+$('muteBtn').addEventListener('click',()=>{if(!localStream)return; const t=localStream.getAudioTracks()[0]; if(t){t.enabled=!t.enabled;$('muteBtn').textContent=t.enabled?'🎙️':'🔇';}});
+$('camBtn').addEventListener('click',()=>{if(!localStream)return; const t=localStream.getVideoTracks()[0]; if(t){t.enabled=!t.enabled;$('camBtn').textContent=t.enabled?'📷':'🚫';}});
+$('menuBtn').addEventListener('click',()=> $('settingsPop').classList.toggle('hidden'));
+$('resetBtn').addEventListener('click',()=>{ if(confirm('Сменить профиль или семейный код? История сообщений останется на этом телефоне.')){ localStorage.removeItem('duo_role');localStorage.removeItem('duo_code');location.reload(); } });
+initialize();
+})();
+</script>
+</body>
+</html>
