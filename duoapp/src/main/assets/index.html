@@ -95,7 +95,7 @@ body[data-theme="ocean"] .mine{background:#d1edf2}
       <button id="newVideoBtn" class="action green">🎥 Видеозвонок</button>
     </div>
     <button id="adminArchiveBtn" class="primary wide hidden" style="margin-bottom:11px">Семейный архив</button>
-    <div class="section-title">Личные чаты</div>
+    <div class="section-title">История чатов</div>
     <div id="directList"></div>
     <div class="section-title">Групповые чаты</div>
     <div id="groupList"></div>
@@ -211,6 +211,8 @@ var roleTags={},cryptoKeys={},packetChunks={},processedPayloads=new Set(),rawInF
 var messages=[],currentThread=null,pickerMode='new',pickerSelected=new Set(),pollBusy=false,pollTimer=null;
 var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={};
 var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},callTimeout=null;
+var uiSettings={theme:'light',videoLayout:'side'},attachmentKeys={},attachmentDbPromise=null;
+var EMOJIS="😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥳 🤩 🥺 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥱 😤 😡 😠 🤬 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 😴 🤤 😪 😵 🤐 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👻 💀 ☠️ 👽 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾 ❤️".split(' ');
 
 function toast(t){var e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove('show');},3000);}
 function initials(n){return (n||'?').slice(0,1).toUpperCase();}
@@ -244,7 +246,128 @@ async function decryptFrom(peer,data){
  return JSON.parse(new TextDecoder().decode(plain));
 }
 
-function saveMessages(){messages=messages.slice(-1800);try{AndroidBridge.saveHistory(JSON.stringify(messages));}catch(e){}}
+function loadUiSettings(){
+ try{
+   var raw=AndroidBridge.loadUiSettings(),v=JSON.parse(raw||'{}');
+   if(['light','dark','ocean'].includes(v.theme))uiSettings.theme=v.theme;
+   if(['side','stack','pip'].includes(v.videoLayout))uiSettings.videoLayout=v.videoLayout;
+ }catch(e){}
+ applyTheme();
+}
+function saveUiSettings(){try{AndroidBridge.saveUiSettings(JSON.stringify(uiSettings));}catch(e){}}
+function applyTheme(){
+ document.body.dataset.theme=uiSettings.theme;
+ document.querySelectorAll('[data-theme-choice]').forEach(function(b){b.classList.toggle('active',b.dataset.themeChoice===uiSettings.theme);});
+}
+function applyVideoLayout(){
+ var grid=$('videoGrid');
+ grid.classList.remove('layout-side','layout-stack','layout-pip','layout-group');
+ if(activeCall&&activeCall.type==='group')grid.classList.add('layout-group');
+ else grid.classList.add('layout-'+uiSettings.videoLayout);
+ document.querySelectorAll('[data-layout]').forEach(function(b){b.classList.toggle('active',b.dataset.layout===uiSettings.videoLayout);});
+}
+
+function attachmentContextForThread(t){
+ if(!t)return '';
+ if(t.type==='direct')return 'direct:'+sortedMembers([role,t.peer]).join('|');
+ return 'group:'+t.groupId;
+}
+async function deriveAttachmentKey(context){
+ if(attachmentKeys[context])return attachmentKeys[context];
+ var enc=new TextEncoder(),base=await crypto.subtle.importKey('raw',enc.encode(code),'PBKDF2',false,['deriveKey']);
+ attachmentKeys[context]=await crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('OurFamily-v5.1-attachment|'+context),iterations:220000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+ return attachmentKeys[context];
+}
+function openAttachmentDb(){
+ if(attachmentDbPromise)return attachmentDbPromise;
+ attachmentDbPromise=new Promise(function(resolve,reject){
+   var req=indexedDB.open('ourfamily-v51-media',1);
+   req.onupgradeneeded=function(){var db=req.result;if(!db.objectStoreNames.contains('files'))db.createObjectStore('files',{keyPath:'id'});};
+   req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error);};
+ });
+ return attachmentDbPromise;
+}
+async function cacheAttachmentBytes(id,buffer){
+ var db=await openAttachmentDb();
+ return new Promise(function(resolve,reject){
+   var tx=db.transaction('files','readwrite');tx.objectStore('files').put({id:id,data:buffer});
+   tx.oncomplete=function(){resolve();};tx.onerror=function(){reject(tx.error);};
+ });
+}
+async function getAttachmentBytes(id){
+ var db=await openAttachmentDb();
+ return new Promise(function(resolve,reject){
+   var tx=db.transaction('files','readonly'),req=tx.objectStore('files').get(id);
+   req.onsuccess=function(){resolve(req.result?req.result.data:null);};req.onerror=function(){reject(req.error);};
+ });
+}
+async function encryptAttachmentBytes(buffer,context){
+ var key=await deriveAttachmentKey(context),iv=crypto.getRandomValues(new Uint8Array(12));
+ var ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,buffer));
+ var out=new Uint8Array(iv.length+ct.length);out.set(iv);out.set(ct,iv.length);return out.buffer;
+}
+async function decryptAttachmentBytes(buffer,context){
+ var all=new Uint8Array(buffer),key=await deriveAttachmentKey(context);
+ return crypto.subtle.decrypt({name:'AES-GCM',iv:all.slice(0,12)},key,all.slice(12));
+}
+function maxAttachmentSize(){return /(^|\.)ntfy\.sh$/i.test((new URL(relayBase)).hostname)?1800000:12000000;}
+async function uploadEncryptedAttachment(buffer){
+ var topic='of5file-'+randomId(),res=await fetch(relayBase+'/'+topic,{method:'PUT',headers:{'Filename':'encrypted.bin','Content-Type':'application/octet-stream'},body:buffer});
+ if(!res.ok)throw new Error('upload '+res.status);
+ var txt=(await res.text()).trim(),lines=txt.split('\n'),obj=JSON.parse(lines[lines.length-1]);
+ if(!obj.attachment||!obj.attachment.url)throw new Error('no attachment url');
+ return obj.attachment.url;
+}
+async function cacheRemoteAttachment(att){
+ if(!att||!att.id)return;
+ try{
+   if(await getAttachmentBytes(att.id))return;
+   var r=await fetch(att.url);if(!r.ok)throw new Error('download');
+   await cacheAttachmentBytes(att.id,await r.arrayBuffer());
+ }catch(e){}
+}
+async function getAttachmentBlob(att){
+ var enc=await getAttachmentBytes(att.id);
+ if(!enc){await cacheRemoteAttachment(att);enc=await getAttachmentBytes(att.id);}
+ if(!enc)throw new Error('attachment unavailable');
+ var plain=await decryptAttachmentBytes(enc,att.context);
+ return new Blob([plain],{type:att.mime||'application/octet-stream'});
+}
+function formatBytes(n){if(n<1024)return n+' Б';if(n<1048576)return (n/1024).toFixed(1)+' КБ';return (n/1048576).toFixed(1)+' МБ';}
+async function renderAttachmentInto(parent,att){
+ if(!att)return;
+ var card=document.createElement('div');card.className='attachment-card';card.textContent='Загрузка вложения…';parent.appendChild(card);
+ try{
+   var blob=await getAttachmentBlob(att),url=URL.createObjectURL(blob);card.innerHTML='';
+   if((att.mime||'').startsWith('image/')){
+     var img=document.createElement('img');img.className='attachment-img';img.src=url;img.alt=att.name||'Фото';card.appendChild(img);
+   }else{
+     var a=document.createElement('a');a.className='attachment-file';a.href=url;a.download=att.name||'file';a.textContent='📎 '+(att.name||'Файл');card.appendChild(a);
+   }
+   var size=document.createElement('div');size.className='attachment-size';size.textContent=formatBytes(att.size||0);card.appendChild(size);
+ }catch(e){card.textContent='📎 '+(att.name||'Файл')+' — файл пока недоступен';}
+}
+async function compressPhoto(file){
+ var limit=maxAttachmentSize();if(file.size<=limit)return file;
+ try{
+   var url=URL.createObjectURL(file),img=new Image();
+   await new Promise(function(resolve,reject){img.onload=resolve;img.onerror=reject;img.src=url;});
+   var scale=Math.min(1,1600/Math.max(img.width,img.height)),c=document.createElement('canvas');
+   c.width=Math.max(1,Math.round(img.width*scale));c.height=Math.max(1,Math.round(img.height*scale));
+   c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
+   var blob=await new Promise(function(resolve){c.toBlob(resolve,'image/jpeg',.78);});
+   if(blob&&blob.size<=limit)return new File([blob],(file.name||'photo').replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'});
+ }catch(e){}
+ return file;
+}
+
+function saveMessages(){
+ messages=messages.slice(-1800);
+ try{
+   var ok=AndroidBridge.saveHistory(JSON.stringify(messages));
+   if(ok===false)console.warn('history save failed');
+ }catch(e){}
+}
 function loadMessages(){try{messages=JSON.parse(AndroidBridge.loadHistory()||'[]');if(!Array.isArray(messages))messages=[];}catch(e){messages=[];}}
 function addMessage(m){
  if(messages.some(function(x){return x.id===m.id;}))return;
