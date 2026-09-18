@@ -2,12 +2,15 @@ package com.sergey.duochat;
 
 import android.Manifest;
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
+import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
@@ -16,14 +19,23 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.view.WindowManager;
 
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
 
 public class MainActivity extends Activity {
     private WebView webView;
     private static final int PERMISSION_REQUEST = 2001;
-    private static final String PREFS = "duo_native";
+    private static final String PREFS = "duo_native_v3";
+    private static final String KEY_ALIAS = "OurChatV3ProfileKey";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,15 +52,14 @@ public class MainActivity extends Activity {
         settings.setAllowContentAccess(true);
         settings.setAllowFileAccess(true);
 
-        webView.addJavascriptInterface(new AndroidBridge(this), "AndroidBridge");
+        webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
         webView.setWebViewClient(new WebViewClient());
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public void onPermissionRequest(final PermissionRequest request) {
                 runOnUiThread(() -> {
-                    if (hasMediaPermissions()) {
-                        request.grant(request.getResources());
-                    } else {
+                    if (hasMediaPermissions()) request.grant(request.getResources());
+                    else {
                         request.deny();
                         requestPermissionsIfNeeded();
                     }
@@ -83,14 +94,9 @@ public class MainActivity extends Activity {
     private void requestPermissionsIfNeeded() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return;
         java.util.ArrayList<String> list = new java.util.ArrayList<>();
-        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            list.add(Manifest.permission.CAMERA);
-        }
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            list.add(Manifest.permission.RECORD_AUDIO);
-        }
-        if (Build.VERSION.SDK_INT >= 33 &&
-                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) list.add(Manifest.permission.CAMERA);
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) list.add(Manifest.permission.RECORD_AUDIO);
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             list.add(Manifest.permission.POST_NOTIFICATIONS);
         }
         if (!list.isEmpty()) requestPermissions(list.toArray(new String[0]), PERMISSION_REQUEST);
@@ -98,8 +104,7 @@ public class MainActivity extends Activity {
 
     private void maybeStartMessagingService() {
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        String topic = prefs.getString("topic", "");
-        if (!topic.isEmpty()) startMessagingService(false);
+        if (!prefs.getString("topic", "").isEmpty()) startMessagingService(false);
     }
 
     private void startMessagingService(boolean restart) {
@@ -109,27 +114,113 @@ public class MainActivity extends Activity {
         else startService(i);
     }
 
+    private SecretKey getOrCreateKey() throws Exception {
+        KeyStore ks = KeyStore.getInstance("AndroidKeyStore");
+        ks.load(null);
+        if (ks.containsAlias(KEY_ALIAS)) return ((KeyStore.SecretKeyEntry) ks.getEntry(KEY_ALIAS, null)).getSecretKey();
+
+        KeyGenerator kg = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore");
+        kg.init(new KeyGenParameterSpec.Builder(
+                KEY_ALIAS,
+                KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setRandomizedEncryptionRequired(true)
+                .build());
+        return kg.generateKey();
+    }
+
+    private String encryptLocal(String value) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey());
+        byte[] iv = cipher.getIV();
+        byte[] ct = cipher.doFinal(value.getBytes(StandardCharsets.UTF_8));
+        byte[] all = new byte[iv.length + ct.length];
+        System.arraycopy(iv, 0, all, 0, iv.length);
+        System.arraycopy(ct, 0, all, iv.length, ct.length);
+        return Base64.encodeToString(all, Base64.NO_WRAP);
+    }
+
+    private String decryptLocal(String encoded) throws Exception {
+        byte[] all = Base64.decode(encoded, Base64.NO_WRAP);
+        if (all.length < 29) throw new IllegalArgumentException("ciphertext");
+        byte[] iv = new byte[12];
+        byte[] ct = new byte[all.length - 12];
+        System.arraycopy(all, 0, iv, 0, 12);
+        System.arraycopy(all, 12, ct, 0, ct.length);
+
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), new GCMParameterSpec(128, iv));
+        return new String(cipher.doFinal(ct), StandardCharsets.UTF_8);
+    }
+
     public class AndroidBridge {
-        private final Context context;
-        AndroidBridge(Context context) { this.context = context; }
+        @JavascriptInterface
+        public String loadProfile() {
+            try {
+                SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
+                String role = p.getString("role", "");
+                String enc = p.getString("pair_secret", "");
+                String relay = p.getString("relay_base", "https://ntfy.sh");
+                if (role.isEmpty() || enc.isEmpty()) return "";
+                JSONObject o = new JSONObject();
+                o.put("role", role);
+                o.put("code", decryptLocal(enc));
+                o.put("relay", relay);
+                return o.toString();
+            } catch (Exception e) {
+                return "";
+            }
+        }
 
         @JavascriptInterface
-        public void configure(String topic, String role) {
-            if (topic == null || role == null) return;
+        public boolean saveProfile(String role, String code, String relayBase) {
+            try {
+                if (!("sergey".equals(role) || "wife".equals(role))) return false;
+                if (code == null || code.length() < 14) return false;
+                if (relayBase == null || !relayBase.startsWith("https://")) return false;
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                        .putString("role", role)
+                        .putString("pair_secret", encryptLocal(code))
+                        .putString("relay_base", relayBase.replaceAll("/+$", ""))
+                        .apply();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public void clearProfile() {
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().clear().apply();
+        }
+
+        @JavascriptInterface
+        public void configure(String topic, String role, String relayBase, String senderTag) {
+            if (topic == null || role == null || relayBase == null || senderTag == null) return;
             if (!topic.matches("[a-zA-Z0-9_-]{12,100}")) return;
-            if (!("sergey".equals(role) || "wife".equals(role))) return;
+            if (!senderTag.matches("[a-f0-9]{8,32}")) return;
+            if (!relayBase.startsWith("https://")) return;
 
             getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                     .putString("topic", topic)
                     .putString("role", role)
+                    .putString("relay_base", relayBase.replaceAll("/+$", ""))
+                    .putString("sender_tag", senderTag)
                     .apply();
 
             runOnUiThread(() -> startMessagingService(true));
         }
 
         @JavascriptInterface
+        public String deviceId() {
+            String id = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+            return id == null ? "" : id;
+        }
+
+        @JavascriptInterface
         public String getVersion() {
-            return "2.0";
+            return "3.0";
         }
     }
 
