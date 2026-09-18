@@ -1,0 +1,95 @@
+name: Build Our Family v5 Stable
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-v5-stable ]
+    paths:
+      - 'duoapp/**'
+      - 'settings-duo.gradle'
+      - '.github/workflows/build-family-v5.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Validate JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text()
+          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
+          assert blocks, 'script missing'
+          Path('/tmp/family-v5.js').write_text('\n'.join(blocks))
+          PY
+          node --check /tmp/family-v5.js
+
+      - name: Validate reliable delivery architecture
+        run: |
+          grep -q "RelayInbox.enqueue" duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q "readRelayInbox" duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q "ackRelayInbox" duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q "AndroidBridge.readRelayInbox" duoapp/src/main/assets/index.html
+          grep -q "AndroidBridge.ackRelayInbox" duoapp/src/main/assets/index.html
+          if grep -q "new WebSocket" duoapp/src/main/assets/index.html; then
+            echo "WebSocket duplicate receiver is forbidden in v5"
+            exit 1
+          fi
+
+      - name: Validate chat and call protocol
+        run: |
+          HTML=duoapp/src/main/assets/index.html
+          for token in direct_chat group_chat admin_copy direct_invite direct_accept direct_offer direct_answer direct_candidate group_invite group_join group_offer group_answer group_candidate group_leave; do
+            grep -q "$token" "$HTML"
+          done
+          grep -q "pickerSelected" "$HTML"
+          grep -q "toggleAll" "$HTML"
+          grep -q "maybeConnectGroupPeer" "$HTML"
+          grep -q "await prepareLocalMedia(activeCall.kind);await makeOffer" "$HTML"
+          grep -q "of5|" "$HTML"
+          grep -q "of5-" duoapp/src/main/java/com/sergey/duochat/FamilyDirectory.java
+          grep -q "of5ctl|" duoapp/src/main/java/com/sergey/duochat/CallControl.java
+
+      - name: Build APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleDebug
+
+      - name: Verify APK contents
+        run: |
+          APK=duoapp/build/outputs/apk/debug/duoapp-debug.apk
+          test -f "$APK"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья v5"
+          unzip -p "$APK" assets/index.html | grep -q "Групповой видеозвонок"
+          unzip -p "$APK" assets/index.html | grep -q "Сергей — админ, имеет доступ ко всему приложению."
+          ls -lh "$APK"
+
+      - name: Rename APK
+        run: cp duoapp/build/outputs/apk/debug/duoapp-debug.apk OurFamily_v5.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_v5
+          path: OurFamily_v5.apk
+          if-no-files-found: error
