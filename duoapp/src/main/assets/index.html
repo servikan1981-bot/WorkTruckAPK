@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья v5.2</title>
+<title>Наша семья v5.3</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -64,6 +64,10 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 .news-composer{background:var(--card);border-top:1px solid var(--line);padding:9px 9px max(9px,env(safe-area-inset-bottom));display:grid;grid-template-columns:auto auto 1fr auto;gap:7px;align-items:end}
 .news-composer textarea{resize:none;min-height:44px;max-height:110px;border:1px solid var(--line);border-radius:16px;padding:10px 11px;background:var(--card);color:var(--ink)}
 .attachment-video{display:block;max-width:260px;max-height:300px;border-radius:11px;background:#000}
+#videoGrid{position:relative}
+.videoTile.local-self{touch-action:none}
+.videoTile.local-self.floating-self{position:absolute!important;width:32%!important;height:30%!important;min-height:110px!important;z-index:8;box-shadow:0 8px 24px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.75)}
+.auto-news{border-left:4px solid var(--green)}.auto-news-source{font-size:11px;color:var(--green);font-weight:850;margin-bottom:6px}.auto-news-title{font-size:17px;font-weight:900;line-height:1.25;margin-bottom:6px}.auto-news-image{display:block;width:100%;max-height:260px;object-fit:cover;border-radius:12px;margin-top:9px;background:#111}
 @media(max-width:420px){.emoji-panel{grid-template-columns:repeat(7,1fr)}.news-composer{grid-template-columns:auto auto 1fr auto}}
 </style>
 </head>
@@ -71,7 +75,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья v5.2</h1>
+    <h1>Наша семья v5.3</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -162,11 +166,18 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   <div class="news-composer">
     <button id="newsPhotoBtn" class="mini">🖼️</button>
     <button id="newsVideoBtn" class="mini">🎬</button>
+    <button id="newsCameraBtn" class="mini">📷</button>
     <textarea id="newsInput" rows="1" placeholder="Новость, поздравление или ссылка…"></textarea>
     <button id="newsSendBtn" class="send">➤</button>
   </div>
   <input id="newsPhotoInput" type="file" accept="image/*" class="hidden">
   <input id="newsVideoInput" type="file" accept="video/*" class="hidden">
+  <input id="newsCapturePhotoInput" type="file" accept="image/*" capture="environment" class="hidden">
+  <input id="newsCaptureVideoInput" type="file" accept="video/*" capture="environment" class="hidden">
+  <div id="newsCaptureMenu" class="attach-menu hidden" style="left:74px;bottom:72px">
+    <button id="capturePhotoBtn">📷 Снять фото</button>
+    <button id="captureVideoBtn">🎥 Снять видео</button>
+  </div>
 </section>
 
 <section id="adminArchive" class="screen hidden">
@@ -213,7 +224,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="callOverlay" class="hidden">
   <div class="call-head"><div id="callTitle" class="call-title">Видеозвонок</div><div id="callState" class="call-state">Соединение…</div></div>
   <div id="videoGrid"></div>
-  <div class="call-actions"><button id="muteBtn" class="callbtn">🎙️</button><button id="camBtn" class="callbtn">📷</button><button id="switchCamBtn" class="callbtn">🔄</button><button id="hangBtn" class="callbtn hang">✕</button></div>
+  <div class="call-actions"><button id="muteBtn" class="callbtn">🎙️</button><button id="camBtn" class="callbtn">📷</button><button id="switchCamBtn" class="callbtn">🔄</button><button id="speakerBtn" class="callbtn">🔊</button><button id="hangBtn" class="callbtn hang">✕</button></div>
 </section>
 
 <div id="incomingCard" class="incoming-card hidden">
@@ -239,7 +250,8 @@ var role='',code='',relayBase='https://ntfy.sh',turnUrl='',turnUser='',turnPass=
 var roleTags={},cryptoKeys={},packetChunks={},processedPayloads=new Set(),rawInFlight=new Set();
 var messages=[],currentThread=null,pickerMode='new',pickerSelected=new Set(),pollBusy=false,pollTimer=null;
 var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={};
-var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},callTimeout=null,currentFacing='user',cameraSwitchBusy=false;
+var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},callTimeout=null,currentFacing='user',cameraSwitchBusy=false,speakerOn=false;
+var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[];
 var uiSettings={theme:'light',videoLayout:'side'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
 var EMOJIS="😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥳 🤩 🥺 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥱 😤 😡 😠 🤬 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 😴 🤤 😪 😵 🤐 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👻 💀 ☠️ 👽 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾 ❤️".split(' ');
@@ -474,7 +486,17 @@ function renderHome(){
 }
 function escapeText(t){return String(t||'').replace(/[<>&]/g,function(c){return {'<':'‹','>':'›','&':'＆'}[c];});}
 function messagePreview(m){if(!m)return '';if(m.text)return m.text;if(m.attachment)return ((m.attachment.mime||'').startsWith('video/')?'🎬 ':'📎 ')+(m.attachment.name||'Вложение');return 'Сообщение';}
-function newsMessages(){return messages.filter(function(m){return m.kind==='news';});}
+function refreshAutoNews(){
+ try{
+   var raw=AndroidBridge.loadAutoNews(),arr=JSON.parse(raw||'[]');
+   autoNewsCache=Array.isArray(arr)?arr:[];
+ }catch(e){autoNewsCache=[];}
+}
+function newsMessages(){
+ var manual=messages.filter(function(m){return m.kind==='news';});
+ var auto=autoNewsCache.map(function(n){return {id:'auto-'+n.id,kind:'auto_news',from:'auto',title:n.title||'',text:n.summary||'',imageUrl:n.image||'',source:n.source||'Добрые новости',ts:n.addedAt||Date.now(),read:true};});
+ return manual.concat(auto);
+}
 function appendRichText(el,text){
  var src=String(text||''),re=/(https?:\/\/[^\s]+)/g,last=0,m;
  while((m=re.exec(src))){
@@ -484,6 +506,7 @@ function appendRichText(el,text){
  if(last<src.length)el.appendChild(document.createTextNode(src.slice(last)));
 }
 function openNews(){
+ refreshAutoNews();
  messages.forEach(function(m){if(m.kind==='news')m.read=true;});saveMessages();renderHome();renderNews();showScreen('news');
 }
 function renderNews(){
@@ -491,7 +514,15 @@ function renderNews(){
  var arr=newsMessages().slice().sort(function(a,b){return b.ts-a.ts;});
  if(!arr.length){var e=document.createElement('div');e.className='muted';e.textContent='Пока новостей нет. Напишите первую семейную новость или поздравление.';box.appendChild(e);return;}
  arr.forEach(function(m){
-   var card=document.createElement('div');card.className='news-card';
+   var card=document.createElement('div');card.className='news-card'+(m.kind==='auto_news'?' auto-news':'');
+   if(m.kind==='auto_news'){
+     var src=document.createElement('div');src.className='auto-news-source';src.textContent='🌍 '+m.source+' · позитивная новость';
+     var title=document.createElement('div');title.className='auto-news-title';title.textContent=m.title;
+     card.append(src,title);
+     if(m.text){var at=document.createElement('div');at.className='news-text';at.textContent=m.text;card.appendChild(at);}
+     if(m.imageUrl){var ai=document.createElement('img');ai.className='auto-news-image';ai.src=m.imageUrl;ai.alt=m.title;card.appendChild(ai);}
+     box.appendChild(card);return;
+   }
    var head=document.createElement('div');head.className='news-head';
    var av=document.createElement('div');av.className='avatar';av.textContent=initials(NAMES[m.from]||m.from);
    var body=document.createElement('div'),author=document.createElement('div'),time=document.createElement('div');
