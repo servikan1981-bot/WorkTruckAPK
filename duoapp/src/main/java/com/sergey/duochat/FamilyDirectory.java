@@ -42,11 +42,11 @@ public final class FamilyDirectory {
     }
 
     public static String tag(String code, String role) {
-        return sha256("OurFamily-v4-tag|" + code + "|" + role).substring(0, 16);
+        return sha256("OurFamily-v4.2-tag|" + code + "|" + role).substring(0, 16);
     }
 
     public static String inboxTopic(String code, String role) {
-        return "of4-" + sha256("OurFamily-v4-inbox|" + code + "|" + role).substring(0, 48);
+        return "of42-" + sha256("OurFamily-v4.2-inbox|" + code + "|" + role).substring(0, 48);
     }
 
     public static String roleFromTag(String code, String tag) {
@@ -57,6 +57,6 @@ public final class FamilyDirectory {
     }
 
     public static String controlToken(String code, String callId, String action, String fromRole, String toRole) {
-        return sha256("OurFamily-v4-control|" + code + "|" + callId + "|" + action + "|" + fromRole + "|" + toRole).substring(0, 32);
+        return sha256("OurFamily-v4.2-control|" + code + "|" + callId + "|" + action + "|" + fromRole + "|" + toRole).substring(0, 32);
     }
 }
