@@ -1103,32 +1103,70 @@ window.__ourFamilyConsumeNativeAction=function(){consumeNativeAction();pollInbox
 
 function renderAdminArchive(){
  if(role!=='sergey')return;
- var box=$('adminPairs');box.innerHTML='',groups={};
- messages.filter(function(m){return m.kind==='admin';}).forEach(function(m){
-   var key=m.groupId?('g:'+m.groupId):('d:'+sortedMembers([m.from,m.to]).join('|'));
-   if(!groups[key])groups[key]=[];groups[key].push(m);
- });
- Object.keys(groups).sort(function(a,b){return lastMsg(groups[b]).ts-lastMsg(groups[a]).ts;}).forEach(function(key){
-   var arr=groups[key],last=lastMsg(arr),title='';
-   if(key.startsWith('g:'))title=(last.members||[]).map(function(x){return NAMES[x];}).join(', ');
-   else{var p=key.slice(2).split('|');title=p.map(function(x){return NAMES[x];}).join(' ↔ ');}
-   var b=document.createElement('button');b.className='thread';
-   b.innerHTML='<div class="tavatar">A</div><div class="tbody"><div class="tname">'+title+'</div><div class="preview">'+(NAMES[last.from]||last.from)+': '+escapeText(last.text)+'</div></div>';
-   b.addEventListener('click',function(){openAdminKey(key,arr,title);});box.appendChild(b);
- });
- if(!Object.keys(groups).length){var e=document.createElement('div');e.className='muted';e.textContent='Архив пока пуст';box.appendChild(e);}
+ var box=$('adminPairs');box.innerHTML='';
+ try{
+   var groups={};
+   messages.forEach(function(m){
+     var key='',titleMembers=[];
+     if(m.kind==='admin'){
+       if(m.groupId){key='g:'+m.groupId;titleMembers=m.members||[];}
+       else{titleMembers=sortedMembers([m.from,m.to].filter(Boolean));key='d:'+titleMembers.join('|');}
+     }else if(m.kind==='direct'){
+       titleMembers=sortedMembers([m.from,m.to].filter(Boolean));key='d:'+titleMembers.join('|');
+     }else if(m.kind==='group'){
+       titleMembers=m.members||[];key='g:'+m.groupId;
+     }else return;
+     if(!key)return;
+     if(!groups[key])groups[key]={items:[],members:titleMembers};
+     groups[key].items.push(m);
+   });
+
+   var keys=Object.keys(groups).sort(function(a,b){
+     var la=lastMsg(groups[a].items),lb=lastMsg(groups[b].items);
+     return (lb?lb.ts:0)-(la?la.ts:0);
+   });
+
+   keys.forEach(function(key){
+     var g=groups[key],arr=g.items,last=lastMsg(arr),title='';
+     if(key.startsWith('g:')){
+       title=(g.members||[]).map(function(x){return NAMES[x]||x;}).join(', ');
+     }else{
+       title=(g.members||[]).map(function(x){return NAMES[x]||x;}).join(' ↔ ');
+     }
+     if(!title)title='Семейный чат';
+     var b=document.createElement('button');b.className='thread';
+     var preview=last?((NAMES[last.from]||last.from||'')+': '+escapeText(messagePreview(last))):'';
+     b.innerHTML='<div class="tavatar">A</div><div class="tbody"><div class="tname">'+title+'</div><div class="preview">'+preview+'</div></div>';
+     b.addEventListener('click',function(){openAdminKey(key,arr,title);});box.appendChild(b);
+   });
+
+   if(!keys.length){
+     var e=document.createElement('div');e.className='muted';
+     e.textContent='Архив пока пуст. Здесь появятся семейные переписки.';
+     box.appendChild(e);
+   }
+ }catch(e){
+   var err=document.createElement('div');err.className='permission';
+   err.textContent='Архив открыт, но не удалось отобразить часть истории. Закройте и откройте раздел снова.';
+   box.appendChild(err);
+ }
+}
+function openAdminArchiveScreen(){
+ if(role!=='sergey'){toast('Доступ только администратору');return;}
+ showScreen('adminArchive');
+ renderAdminArchive();
 }
 function openAdminKey(key,arr,title){
  $('adminChatTitle').textContent=title;var box=$('adminMessages');box.innerHTML='';
- arr.slice().sort(function(a,b){return a.ts-b.ts;}).forEach(function(m){
-   var b=document.createElement('div');b.className='bubble theirs';var sn=document.createElement('div');sn.className='sender';sn.textContent=NAMES[m.from]||m.from;b.appendChild(sn);
+ arr.slice().sort(function(a,b){return (a.ts||0)-(b.ts||0);}).forEach(function(m){
+   var b=document.createElement('div');b.className='bubble theirs';
+   var sn=document.createElement('div');sn.className='sender';sn.textContent=NAMES[m.from]||m.from||'Семья';b.appendChild(sn);
    if(m.text){var t=document.createElement('div');t.className='msgtext';t.textContent=m.text;b.appendChild(t);}
    if(m.attachment)renderAttachmentInto(b,m.attachment);
-   var meta=document.createElement('div');meta.className='meta';meta.textContent=fmt(m.ts);b.appendChild(meta);box.appendChild(b);
+   var meta=document.createElement('div');meta.className='meta';meta.textContent=fmt(m.ts||Date.now());b.appendChild(meta);box.appendChild(b);
  });
  showScreen('adminChat');
 }
-
 function renderEmojiPanel(){
  var box=$('emojiPanel');box.innerHTML='';
  EMOJIS.forEach(function(e){
@@ -1181,7 +1219,7 @@ async function configure(){
  startPolling();consumeNativeAction();checkFullScreenPermission();
 }
 async function enter(){
- loadUiSettings();
+ loadUiSettings();refreshAutoNews();
  $('myName').textContent=NAMES[role];$('myAvatar').textContent=initials(NAMES[role]);loadMessages();renderHome();renderEmojiPanel();showScreen('home');
  if(!localStorage.getItem('of5_admin_notice_seen')){
    $('adminOnce').classList.remove('hidden');setTimeout(function(){$('adminOnce').classList.add('hidden');},5000);localStorage.setItem('of5_admin_notice_seen','1');
@@ -1254,17 +1292,22 @@ $('fileInput').addEventListener('change',function(){var f=this.files&&this.files
 
 $('newsPhotoBtn').addEventListener('click',function(){$('newsPhotoInput').click();});
 $('newsVideoBtn').addEventListener('click',function(){$('newsVideoInput').click();});
+$('newsCameraBtn').addEventListener('click',function(){$('newsCaptureMenu').classList.toggle('hidden');});
+$('capturePhotoBtn').addEventListener('click',function(){$('newsCaptureMenu').classList.add('hidden');$('newsCapturePhotoInput').click();});
+$('captureVideoBtn').addEventListener('click',function(){$('newsCaptureMenu').classList.add('hidden');$('newsCaptureVideoInput').click();});
 $('newsPhotoInput').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(f)setNewsDraft(f,true);});
 $('newsVideoInput').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(f)setNewsDraft(f,false);});
+$('newsCapturePhotoInput').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(f){setNewsDraft(f,true);sendNewsPost();}});
+$('newsCaptureVideoInput').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(f){setNewsDraft(f,false);sendNewsPost();}});
 $('newsSendBtn').addEventListener('click',sendNewsPost);
 
 $('fullScreenMenuBtn').addEventListener('click',function(){$('settingsPop').classList.add('hidden');requestFullScreen();});
 $('fullScreenPermissionBtn').addEventListener('click',requestFullScreen);
 $('resetBtn').addEventListener('click',function(){if(confirm('Сменить профиль и очистить локальную историю?')){try{AndroidBridge.clearProfile();}catch(e){}location.reload();}});
-$('adminArchiveBtn').addEventListener('click',function(){renderAdminArchive();showScreen('adminArchive');});
+$('adminArchiveBtn').addEventListener('click',openAdminArchiveScreen);
 $('adminBackBtn').addEventListener('click',function(){showScreen('home');});
-$('adminChatBackBtn').addEventListener('click',function(){renderAdminArchive();showScreen('adminArchive');});
-window.addEventListener('focus',function(){pollInbox();checkFullScreenPermission();});
+$('adminChatBackBtn').addEventListener('click',openAdminArchiveScreen);
+window.addEventListener('focus',function(){pollInbox();checkFullScreenPermission();refreshAutoNews();if(!$('news').classList.contains('hidden'))renderNews();});
 window.addEventListener('online',pollInbox);
 
 (async function init(){
