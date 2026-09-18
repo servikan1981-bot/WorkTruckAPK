@@ -199,6 +199,26 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String loadHistory() {
+            try {
+                String enc = getSharedPreferences(PREFS, MODE_PRIVATE).getString("history", "");
+                return enc.isEmpty() ? "[]" : decryptLocal(enc);
+            } catch (Exception e) {
+                return "[]";
+            }
+        }
+
+        @JavascriptInterface
+        public void saveHistory(String json) {
+            try {
+                if (json == null || json.length() > 1000000) return;
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                        .putString("history", encryptLocal(json))
+                        .apply();
+            } catch (Exception ignored) {}
+        }
+
+        @JavascriptInterface
         public void clearProfile() {
             getSharedPreferences(PREFS, MODE_PRIVATE).edit().clear().apply();
         }
