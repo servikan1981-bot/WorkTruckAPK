@@ -136,7 +136,7 @@ var packetChunks={},seenNtfy=new Set(),processedPayloads=new Set(),messages=[];
 var pc=null,localStream=null,currentCallId='',currentCallKind='video',callPeer='',incomingOffer=null,incomingInvite=null,acceptedCallId='',callTimeout=null,connectionWatchdog=null,isCaller=false,restartCount=0,pendingNativeAccept=null;
 var iceTypes=new Set(),pendingRemoteCandidates=[];
 
-try{(JSON.parse(localStorage.getItem('of4_seen')||'[]')||[]).slice(-1200).forEach(function(x){seenNtfy.add(x);});}catch(e){}
+try{(JSON.parse(localStorage.getItem('of42_seen')||'[]')||[]).slice(-1200).forEach(function(x){seenNtfy.add(x);});}catch(e){}
 
 function toast(t){var el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('show');},3000);}
 function initials(name){return name.slice(0,1).toUpperCase();}
@@ -148,13 +148,13 @@ async function derivePairKey(peer){
   if(cryptoKeys[peer])return cryptoKeys[peer];
   var pair=[role,peer].sort().join('|'),enc=new TextEncoder();
   var base=await crypto.subtle.importKey('raw',enc.encode(code),'PBKDF2',false,['deriveKey']);
-  cryptoKeys[peer]=await crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('OurFamily-v4-pair|'+pair),iterations:310000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+  cryptoKeys[peer]=await crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode('OurFamily-v4.2-pair|'+pair),iterations:310000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
   return cryptoKeys[peer];
 }
 async function encryptFor(peer,obj){var key=await derivePairKey(peer),iv=crypto.getRandomValues(new Uint8Array(12)),plain=new TextEncoder().encode(JSON.stringify(obj)),ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv:iv},key,plain)),all=new Uint8Array(iv.length+ct.length);all.set(iv);all.set(ct,iv.length);return bytesToB64(all);}
 async function decryptFrom(peer,data){var key=await derivePairKey(peer),all=b64ToBytes(data),iv=all.slice(0,12),ct=all.slice(12),plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv},key,ct);return JSON.parse(new TextDecoder().decode(plain));}
 function randomId(){var a=crypto.getRandomValues(new Uint8Array(16));return Array.from(a).map(function(x){return x.toString(16).padStart(2,'0');}).join('');}
-function saveSeen(){localStorage.setItem('of4_seen',JSON.stringify(Array.from(seenNtfy).slice(-1200)));}
+function saveSeen(){localStorage.setItem('of42_seen',JSON.stringify(Array.from(seenNtfy).slice(-1200)));}
 function rememberNtfy(id){if(!id)return;seenNtfy.add(id);if(seenNtfy.size>1400)seenNtfy=new Set(Array.from(seenNtfy).slice(-1000));saveSeen();}
 function saveMessages(){messages=messages.slice(-1200);try{AndroidBridge.saveHistory(JSON.stringify(messages));}catch(e){}}
 function loadMessages(){try{messages=JSON.parse(AndroidBridge.loadHistory()||'[]');if(!Array.isArray(messages))messages=[];}catch(e){messages=[];}}
@@ -259,10 +259,10 @@ function openChat(peer){
  messages.forEach(function(m){if(m.from===peer)m.read=true;});saveMessages();renderMessages();renderContacts();
 }
 
-async function roleTag(r){if(roleTags[r])return roleTags[r];roleTags[r]=(await sha256Hex('OurFamily-v4-tag|'+code+'|'+r)).slice(0,16);return roleTags[r];}
-async function inboxTopic(r){return 'of4-'+(await sha256Hex('OurFamily-v4-inbox|'+code+'|'+r)).slice(0,48);}
+async function roleTag(r){if(roleTags[r])return roleTags[r];roleTags[r]=(await sha256Hex('OurFamily-v4.2-tag|'+code+'|'+r)).slice(0,16);return roleTags[r];}
+async function inboxTopic(r){return 'of42-'+(await sha256Hex('OurFamily-v4.2-inbox|'+code+'|'+r)).slice(0,48);}
 async function roleFromTag(tag){for(var i=0;i<MEMBERS.length;i++){if(await roleTag(MEMBERS[i].id)===tag)return MEMBERS[i].id;}return '';}
-async function controlToken(callId,action,fromRole,toRole){return (await sha256Hex('OurFamily-v4-control|'+code+'|'+callId+'|'+action+'|'+fromRole+'|'+toRole)).slice(0,32);}
+async function controlToken(callId,action,fromRole,toRole){return (await sha256Hex('OurFamily-v4.2-control|'+code+'|'+callId+'|'+action+'|'+fromRole+'|'+toRole)).slice(0,32);}
 
 async function publishEnvelope(kind,data,priority,toRole,wireKind,callId){
  var recipientTag=await roleTag(toRole),topic=await inboxTopic(toRole);
@@ -270,7 +270,7 @@ async function publishEnvelope(kind,data,priority,toRole,wireKind,callId){
  var enc=await encryptFor(toRole,payload),size=1750,total=Math.ceil(enc.length/size),group=randomId();
  var wk=wireKind||kind,cid=callId||'-';
  for(var i=0;i<total;i++){
-   var wire='of4|'+ownTag+'|'+recipientTag+'|'+wk+'|'+cid+'|'+group+'|'+i+'|'+total+'|'+enc.slice(i*size,(i+1)*size);
+   var wire='of42|'+ownTag+'|'+recipientTag+'|'+wk+'|'+cid+'|'+group+'|'+i+'|'+total+'|'+enc.slice(i*size,(i+1)*size);
    var res=await fetch(relayBase+'/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic:topic,message:wire,priority:priority||3})});
    if(!res.ok)throw new Error('relay '+res.status);
  }
@@ -288,7 +288,7 @@ async function handleControl(parts){
 async function handleWireMessage(evt){
  if(!evt||evt.event!=='message'||!evt.message||seenNtfy.has(evt.id))return;rememberNtfy(evt.id);
  var p=evt.message.split('|');
- if(p[0]==='of4ctl'){await handleControl(p);return;}
+ if(p[0]==='of42ctl'){await handleControl(p);return;}
  if(p.length<9||p[0]!=='of4')return;
  var fromTag=p[1],toTag=p[2],kind=p[3],callId=p[4],group=p[5],index=parseInt(p[6],10),total=parseInt(p[7],10),chunk=p.slice(8).join('|');
  if(toTag!==ownTag||fromTag===ownTag||!Number.isFinite(index)||!Number.isFinite(total)||index<0||index>=total||total<1||total>80)return;
