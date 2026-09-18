@@ -145,7 +145,7 @@ var role='',code='',relayBase='https://ntfy.sh',turnUrl='',turnUser='',turnPass=
 var roleTags={},cryptoKeys={},packetChunks={},processedPayloads=new Set(),rawInFlight=new Set();
 var messages=[],currentThread=null,pickerMode='new',pickerSelected=new Set(),pollBusy=false,pollTimer=null;
 var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={};
-var activeCall=null,localStream=null,callPeers={},callTimeout=null;
+var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},callTimeout=null;
 
 function toast(t){var e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove('show');},3000);}
 function initials(n){return (n||'?').slice(0,1).toUpperCase();}
@@ -390,7 +390,9 @@ async function processPayload(p){
    return;
  }
  if(p.kind==='direct_accept'&&activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId&&activeCall.inviter===role){
-   await makeOffer(peer,false);return;
+   try{await prepareLocalMedia(activeCall.kind);await makeOffer(peer,false);}
+   catch(e){toast('Не удалось подготовить камеру');endCall(true);}
+   return;
  }
  if(p.kind==='direct_offer'&&activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId){await answerOffer(peer,d.sdp,false);return;}
  if(p.kind==='direct_answer'&&activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId){await applyAnswer(peer,d.sdp);return;}
@@ -457,12 +459,16 @@ function iceServers(){
 }
 async function prepareLocalMedia(kind){
  if(localStream)return localStream;
- localStream=await navigator.mediaDevices.getUserMedia({
+ if(localMediaPromise)return localMediaPromise;
+ localMediaPromise=navigator.mediaDevices.getUserMedia({
    audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
    video:kind==='video'?{facingMode:'user',width:{ideal:640},height:{ideal:480}}:false
- });
- ensureVideoTile(role,localStream,true,kind);
- return localStream;
+ }).then(function(stream){
+   localStream=stream;
+   ensureVideoTile(role,localStream,true,kind);
+   return localStream;
+ }).finally(function(){localMediaPromise=null;});
+ return localMediaPromise;
 }
 function showCall(title,state){
  $('callTitle').textContent=title;$('callState').textContent=state||'Соединение…';$('callOverlay').classList.remove('hidden');$('videoGrid').innerHTML='';
@@ -607,7 +613,7 @@ function endCall(send){
    }
  }
  Object.keys(callPeers).forEach(removePeer);callPeers={};
- if(localStream)localStream.getTracks().forEach(function(t){t.stop();});localStream=null;
+ if(localStream)localStream.getTracks().forEach(function(t){t.stop();});localStream=null;localMediaPromise=null;
  activeCall=null;$('videoGrid').innerHTML='';$('callOverlay').classList.add('hidden');$('callState').textContent='';pendingInvite=null;
 }
 
