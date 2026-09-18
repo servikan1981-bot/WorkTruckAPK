@@ -336,14 +336,24 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "5.1";
+            return "5.2";
         }
     }
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) webView.goBack();
-        else super.onBackPressed();
+        if (webView == null) {
+            super.onBackPressed();
+            return;
+        }
+        webView.evaluateJavascript(
+                "(window.__ourFamilyHandleBack && window.__ourFamilyHandleBack()) ? 'handled' : 'pass';",
+                value -> runOnUiThread(() -> {
+                    if (!"\"handled\"".equals(value)) {
+                        if (webView.canGoBack()) webView.goBack();
+                        else MainActivity.super.onBackPressed();
+                    }
+                }));
     }
 
     @Override
