@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья v5</title>
+<title>Наша семья v5.2</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -63,7 +63,7 @@ body[data-theme="ocean"] .mine{background:#d1edf2}
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья v5</h1>
+    <h1>Наша семья v5.2</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -94,7 +94,7 @@ body[data-theme="ocean"] .mine{background:#d1edf2}
       <button id="newChatBtn" class="action blue">✚ Новый чат</button>
       <button id="newVideoBtn" class="action green">🎥 Видеозвонок</button>
     </div>
-    <button id="adminArchiveBtn" class="primary wide hidden" style="margin-bottom:11px">Семейный архив</button>
+    <button id="adminArchiveBtn" class="primary wide hidden" style="margin-bottom:11px">👁️ Все чаты</button>
     <div class="section-title">История чатов</div>
     <div id="directList"></div>
     <div class="section-title">Групповые чаты</div>
@@ -141,7 +141,7 @@ body[data-theme="ocean"] .mine{background:#d1edf2}
 </section>
 
 <section id="adminArchive" class="screen hidden">
-  <div class="topbar"><button id="adminBackBtn" class="iconbtn">‹</button><div class="avatar">A</div><div class="who"><div class="name">Семейный архив</div><div class="status">доступ Сергея</div></div></div>
+  <div class="topbar"><button id="adminBackBtn" class="iconbtn">‹</button><div class="avatar">A</div><div class="who"><div class="name">Все чаты</div><div class="status">личные, групповые и админ-копии</div></div></div>
   <div id="adminPairs" class="body"></div>
 </section>
 
@@ -575,6 +575,26 @@ async function processPayload(p){
    if(d.attachment)cacheRemoteAttachment(d.attachment);
    return;
  }
+ if(p.kind==='admin_sync'&&role==='sergey'){
+   var items=Array.isArray(d.items)?d.items:[];
+   items.forEach(function(x){
+     if(!x||!x.id||!x.from)return;
+     addMessage({
+       id:'adm-'+x.id,
+       kind:'admin',
+       from:x.from,
+       to:x.to||'',
+       members:x.members||[],
+       groupId:x.groupId||'',
+       text:String(x.text||''),
+       attachment:x.attachment||null,
+       ts:x.ts||p.ts,
+       read:true
+     });
+     if(x.attachment)cacheRemoteAttachment(x.attachment);
+   });
+   return;
+ }
  if(p.kind==='direct_invite'){
    pendingInvite={type:'direct',id:d.callId,kind:d.kind||'video',from:peer,members:[peer,role]};
    showIncoming(peer,pendingInvite.kind,false);
@@ -867,27 +887,59 @@ function consumeNativeAction(){
 }
 window.__ourFamilyConsumeNativeAction=function(){consumeNativeAction();pollInbox();};
 
+function collectAdminAllChats(){
+ var groups={};
+ function put(key,title,arr,members){
+   if(!arr||!arr.length)return;
+   if(!groups[key])groups[key]={key:key,title:title,members:members||[],items:[]};
+   var seen=new Set(groups[key].items.map(function(x){return x.id;}));
+   arr.forEach(function(m){if(!seen.has(m.id)){groups[key].items.push(m);seen.add(m.id);}});
+ }
+ // Chats where Sergey is a normal participant.
+ MEMBERS.filter(function(m){return m.id!=='sergey';}).forEach(function(m){
+   var arr=messages.filter(function(x){
+     return x.kind==='direct'&&((x.from==='sergey'&&x.to===m.id)||(x.from===m.id&&x.to==='sergey'));
+   });
+   put('d:'+sortedMembers(['sergey',m.id]).join('|'),'Сергей ↔ '+m.name,arr,['sergey',m.id]);
+ });
+ groupMetas().filter(function(g){return g.members&&g.members.includes('sergey');}).forEach(function(g){
+   var arr=messages.filter(function(x){return x.kind==='group'&&x.groupId===g.groupId;});
+   put('g:'+g.groupId,g.members.map(function(x){return NAMES[x]||x;}).join(', '),arr,g.members);
+ });
+ // Admin copies of chats where Sergey is not a participant.
+ messages.filter(function(m){return m.kind==='admin';}).forEach(function(m){
+   var key,title,members;
+   if(m.groupId){
+     key='g:'+m.groupId;members=m.members||[];
+     title=members.map(function(x){return NAMES[x]||x;}).join(', ')||'Групповой чат';
+   }else{
+     members=sortedMembers([m.from,m.to].filter(Boolean));key='d:'+members.join('|');
+     title=members.map(function(x){return NAMES[x]||x;}).join(' ↔ ');
+   }
+   put(key,title,[m],members);
+ });
+ Object.values(groups).forEach(function(g){g.items.sort(function(a,b){return a.ts-b.ts;});});
+ return Object.values(groups).sort(function(a,b){
+   return (lastMsg(b.items)?lastMsg(b.items).ts:0)-(lastMsg(a.items)?lastMsg(a.items).ts:0);
+ });
+}
 function renderAdminArchive(){
  if(role!=='sergey')return;
- var box=$('adminPairs');box.innerHTML='',groups={};
- messages.filter(function(m){return m.kind==='admin';}).forEach(function(m){
-   var key=m.groupId?('g:'+m.groupId):('d:'+sortedMembers([m.from,m.to]).join('|'));
-   if(!groups[key])groups[key]=[];groups[key].push(m);
+ var box=$('adminPairs');box.innerHTML='';
+ var chats=collectAdminAllChats();
+ chats.forEach(function(c){
+   var last=lastMsg(c.items),b=document.createElement('button');b.className='thread';
+   var icon=c.key.startsWith('g:')?'👥':'A';
+   b.innerHTML='<div class="tavatar">'+icon+'</div><div class="tbody"><div class="tname">'+escapeText(c.title)+'</div><div class="preview">'+(last?((NAMES[last.from]||last.from)+': '+escapeText(messagePreview(last))):'Чат')+'</div></div>';
+   b.addEventListener('click',function(){openAdminKey(c.key,c.items,c.title);});box.appendChild(b);
  });
- Object.keys(groups).sort(function(a,b){return lastMsg(groups[b]).ts-lastMsg(groups[a]).ts;}).forEach(function(key){
-   var arr=groups[key],last=lastMsg(arr),title='';
-   if(key.startsWith('g:'))title=(last.members||[]).map(function(x){return NAMES[x];}).join(', ');
-   else{var p=key.slice(2).split('|');title=p.map(function(x){return NAMES[x];}).join(' ↔ ');}
-   var b=document.createElement('button');b.className='thread';
-   b.innerHTML='<div class="tavatar">A</div><div class="tbody"><div class="tname">'+title+'</div><div class="preview">'+(NAMES[last.from]||last.from)+': '+escapeText(last.text)+'</div></div>';
-   b.addEventListener('click',function(){openAdminKey(key,arr,title);});box.appendChild(b);
- });
- if(!Object.keys(groups).length){var e=document.createElement('div');e.className='muted';e.textContent='Архив пока пуст';box.appendChild(e);}
+ if(!chats.length){var e=document.createElement('div');e.className='muted';e.textContent='Чатов пока нет';box.appendChild(e);}
 }
 function openAdminKey(key,arr,title){
  $('adminChatTitle').textContent=title;var box=$('adminMessages');box.innerHTML='';
  arr.slice().sort(function(a,b){return a.ts-b.ts;}).forEach(function(m){
-   var b=document.createElement('div');b.className='bubble theirs';var sn=document.createElement('div');sn.className='sender';sn.textContent=NAMES[m.from]||m.from;b.appendChild(sn);
+   var b=document.createElement('div');b.className='bubble theirs';
+   var sn=document.createElement('div');sn.className='sender';sn.textContent=NAMES[m.from]||m.from;b.appendChild(sn);
    if(m.text){var t=document.createElement('div');t.className='msgtext';t.textContent=m.text;b.appendChild(t);}
    if(m.attachment)renderAttachmentInto(b,m.attachment);
    var meta=document.createElement('div');meta.className='meta';meta.textContent=fmt(m.ts);b.appendChild(meta);box.appendChild(b);
@@ -895,6 +947,25 @@ function openAdminKey(key,arr,title){
  showScreen('adminChat');
 }
 
+async function syncExistingHistoryToSergey(){
+ if(role==='sergey')return;
+ var syncKey='of52_admin_history_synced_'+role;
+ if(localStorage.getItem(syncKey))return;
+ var own=messages.filter(function(m){
+   if(m.kind==='direct')return m.from!=='sergey'&&m.to!=='sergey';
+   if(m.kind==='group')return Array.isArray(m.members)&&!m.members.includes('sergey');
+   return false;
+ }).map(function(m){
+   return {id:m.id,from:m.from,to:m.to||'',members:m.members||[],groupId:m.groupId||'',text:m.text||'',attachment:m.attachment||null,ts:m.ts};
+ });
+ if(!own.length){localStorage.setItem(syncKey,'1');return;}
+ try{
+   for(var i=0;i<own.length;i+=40){
+     await publishEnvelope('sergey','admin_sync',{items:own.slice(i,i+40)},2,'admin_sync','-');
+   }
+   localStorage.setItem(syncKey,'1');
+ }catch(e){}
+}
 function renderEmojiPanel(){
  var box=$('emojiPanel');box.innerHTML='';
  EMOJIS.forEach(function(e){
@@ -919,6 +990,7 @@ async function configure(){
  ownTag=await roleTag(role);ownTopic=await inboxTopic(role);
  try{AndroidBridge.configure(ownTopic,role,relayBase,ownTag);}catch(e){}
  startPolling();consumeNativeAction();checkFullScreenPermission();
+ setTimeout(syncExistingHistoryToSergey,1200);
 }
 async function enter(){
  loadUiSettings();
