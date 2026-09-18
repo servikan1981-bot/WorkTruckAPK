@@ -5,10 +5,10 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.sergey.duochat.v51'
+        applicationId 'com.sergey.duochat.v52'
         minSdk 24
         targetSdk 35
-        versionCode 51
-        versionName '5.1-media-themes-history'
+        versionCode 52
+        versionName '5.2-news-camera-back'
     }
 }
