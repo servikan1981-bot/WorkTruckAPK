@@ -1,0 +1,23 @@
+# Our Chat v3 private relay + TURN server
+# Intended for an Ubuntu DigitalOcean Droplet.
+services:
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    command: ["serve"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:2586:80"
+    volumes:
+      - ./ntfy-cache:/var/cache/ntfy
+      - ./ntfy-config:/etc/ntfy
+    environment:
+      TZ: UTC
+
+  coturn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    command: ["-c", "/etc/coturn/turnserver.conf"]
