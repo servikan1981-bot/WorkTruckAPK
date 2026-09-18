@@ -12,6 +12,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -27,6 +28,8 @@ import java.nio.charset.StandardCharsets;
 public class MainActivity extends Activity {
     private WebView webView;
     private static final int PERMISSION_REQUEST = 2001;
+    private static final int FILE_CHOOSER_REQUEST = 2002;
+    private ValueCallback<Uri[]> filePathCallback;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,6 +43,7 @@ public class MainActivity extends Activity {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setAllowContentAccess(true);
         settings.setAllowFileAccess(true);
@@ -57,6 +61,23 @@ public class MainActivity extends Activity {
                     }
                 });
             }
+
+            @Override
+            public boolean onShowFileChooser(
+                    WebView webView,
+                    ValueCallback<Uri[]> filePathCallbackNew,
+                    FileChooserParams fileChooserParams) {
+                if (filePathCallback != null) filePathCallback.onReceiveValue(null);
+                filePathCallback = filePathCallbackNew;
+                try {
+                    Intent intent = fileChooserParams.createIntent();
+                    startActivityForResult(intent, FILE_CHOOSER_REQUEST);
+                    return true;
+                } catch (Exception e) {
+                    filePathCallback = null;
+                    return false;
+                }
+            }
         });
 
         requestPermissionsIfNeeded();
@@ -73,6 +94,19 @@ public class MainActivity extends Activity {
             webView.post(() -> webView.evaluateJavascript(
                     "window.__ourFamilyConsumeNativeAction && window.__ourFamilyConsumeNativeAction();", null));
         }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == FILE_CHOOSER_REQUEST) {
+            if (filePathCallback != null) {
+                Uri[] result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+                filePathCallback.onReceiveValue(result);
+                filePathCallback = null;
+            }
+            return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void captureCallAction(Intent intent) {
@@ -186,20 +220,52 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String loadHistory() {
+            SharedPreferences p = SecureStore.prefs(MainActivity.this);
+            String[] keys = {"history_v51", "history", "history_v51_backup"};
+            for (String key : keys) {
+                try {
+                    String enc = p.getString(key, "");
+                    if (!enc.isEmpty()) {
+                        String value = SecureStore.decrypt(enc);
+                        if (value.startsWith("[")) return value;
+                    }
+                } catch (Exception ignored) {}
+            }
+            return "[]";
+        }
+
+        @JavascriptInterface
+        public boolean saveHistory(String json) {
             try {
-                String enc = SecureStore.prefs(MainActivity.this).getString("history", "");
-                return enc.isEmpty() ? "[]" : SecureStore.decrypt(enc);
-            } catch (Exception e) {
-                return "[]";
+                if (json == null || json.length() > 2500000) return false;
+                SharedPreferences p = SecureStore.prefs(MainActivity.this);
+                String previous = p.getString("history_v51", "");
+                String encrypted = SecureStore.encrypt(json);
+                SharedPreferences.Editor ed = p.edit().putString("history_v51", encrypted);
+                if (!previous.isEmpty()) ed.putString("history_v51_backup", previous);
+                ed.apply();
+                return true;
+            } catch (Exception ignored) {
+                return false;
             }
         }
 
         @JavascriptInterface
-        public void saveHistory(String json) {
+        public String loadUiSettings() {
             try {
-                if (json == null || json.length() > 2000000) return;
+                String enc = SecureStore.prefs(MainActivity.this).getString("ui_settings_v51", "");
+                return enc.isEmpty() ? "{}" : SecureStore.decrypt(enc);
+            } catch (Exception e) {
+                return "{}";
+            }
+        }
+
+        @JavascriptInterface
+        public void saveUiSettings(String json) {
+            try {
+                if (json == null || json.length() > 20000) return;
                 SecureStore.prefs(MainActivity.this).edit()
-                        .putString("history", SecureStore.encrypt(json))
+                        .putString("ui_settings_v51", SecureStore.encrypt(json))
                         .apply();
             } catch (Exception ignored) {}
         }
@@ -270,7 +336,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "5.0";
+            return "5.1";
         }
     }
 
@@ -282,6 +348,10 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (filePathCallback != null) {
+            filePathCallback.onReceiveValue(null);
+            filePathCallback = null;
+        }
         if (webView != null) {
             webView.loadUrl("about:blank");
             webView.destroy();
