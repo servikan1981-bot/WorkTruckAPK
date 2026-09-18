@@ -167,6 +167,11 @@ public class MainActivity extends Activity {
                 o.put("role", role);
                 o.put("code", decryptLocal(enc));
                 o.put("relay", relay);
+                o.put("turnUrl", p.getString("turn_url", ""));
+                String tu = p.getString("turn_user", "");
+                String tp = p.getString("turn_pass", "");
+                o.put("turnUser", tu.isEmpty() ? "" : decryptLocal(tu));
+                o.put("turnPass", tp.isEmpty() ? "" : decryptLocal(tp));
                 return o.toString();
             } catch (Exception e) {
                 return "";
@@ -174,16 +179,19 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public boolean saveProfile(String role, String code, String relayBase) {
+        public boolean saveProfile(String role, String code, String relayBase, String turnUrl, String turnUser, String turnPass) {
             try {
                 if (!("sergey".equals(role) || "wife".equals(role))) return false;
                 if (code == null || code.length() < 14) return false;
                 if (relayBase == null || !relayBase.startsWith("https://")) return false;
-                getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                SharedPreferences.Editor ed = getSharedPreferences(PREFS, MODE_PRIVATE).edit()
                         .putString("role", role)
                         .putString("pair_secret", encryptLocal(code))
                         .putString("relay_base", relayBase.replaceAll("/+$", ""))
-                        .apply();
+                        .putString("turn_url", turnUrl == null ? "" : turnUrl.trim());
+                if (turnUser != null && !turnUser.isEmpty()) ed.putString("turn_user", encryptLocal(turnUser)); else ed.remove("turn_user");
+                if (turnPass != null && !turnPass.isEmpty()) ed.putString("turn_pass", encryptLocal(turnPass)); else ed.remove("turn_pass");
+                ed.apply();
                 return true;
             } catch (Exception e) {
                 return false;
