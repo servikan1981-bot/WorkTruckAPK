@@ -17,6 +17,7 @@ import android.widget.TextView;
 import org.json.JSONObject;
 
 public class IncomingCallActivity extends Activity {
+    public static final String ACTION_ACCEPT = "com.sergey.duochat.v4.ACCEPT";
     public static final String EXTRA_CALL_ID = "call_id";
     public static final String EXTRA_CALLER_ROLE = "caller_role";
     public static final String EXTRA_KIND = "call_kind";
@@ -43,6 +44,7 @@ public class IncomingCallActivity extends Activity {
         }
 
         readExtras(getIntent());
+        if (ACTION_ACCEPT.equals(getIntent().getAction())) { accept(); return; }
         buildUi();
     }
 
@@ -51,6 +53,7 @@ public class IncomingCallActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         readExtras(intent);
+        if (ACTION_ACCEPT.equals(intent.getAction())) { accept(); return; }
         buildUi();
     }
 
