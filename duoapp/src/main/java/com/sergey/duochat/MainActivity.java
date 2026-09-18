@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.NotificationManager;
 import android.content.Intent;
+import android.content.ContentValues;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -12,6 +13,7 @@ import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.provider.MediaStore;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
@@ -32,6 +34,7 @@ public class MainActivity extends Activity {
     private static final int PERMISSION_REQUEST = 2001;
     private static final int FILE_CHOOSER_REQUEST = 2002;
     private ValueCallback<Uri[]> filePathCallback;
+    private Uri cameraOutputUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,11 +75,30 @@ public class MainActivity extends Activity {
                 if (filePathCallback != null) filePathCallback.onReceiveValue(null);
                 filePathCallback = filePathCallbackNew;
                 try {
+                    if (fileChooserParams.isCaptureEnabled()) {
+                        String joined = String.join(",", fileChooserParams.getAcceptTypes()).toLowerCase();
+                        boolean video = joined.contains("video");
+                        Intent intent = new Intent(video ? MediaStore.ACTION_VIDEO_CAPTURE : MediaStore.ACTION_IMAGE_CAPTURE);
+                        ContentValues values = new ContentValues();
+                        values.put(MediaStore.MediaColumns.DISPLAY_NAME, "OurFamily_" + System.currentTimeMillis() + (video ? ".mp4" : ".jpg"));
+                        values.put(MediaStore.MediaColumns.MIME_TYPE, video ? "video/mp4" : "image/jpeg");
+                        cameraOutputUri = getContentResolver().insert(
+                                video ? MediaStore.Video.Media.EXTERNAL_CONTENT_URI : MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                values);
+                        if (cameraOutputUri != null) {
+                            intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraOutputUri);
+                            intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        }
+                        if (video) intent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, 12);
+                        startActivityForResult(intent, FILE_CHOOSER_REQUEST);
+                        return true;
+                    }
                     Intent intent = fileChooserParams.createIntent();
                     startActivityForResult(intent, FILE_CHOOSER_REQUEST);
                     return true;
                 } catch (Exception e) {
                     filePathCallback = null;
+                    cameraOutputUri = null;
                     return false;
                 }
             }
@@ -103,8 +125,12 @@ public class MainActivity extends Activity {
         if (requestCode == FILE_CHOOSER_REQUEST) {
             if (filePathCallback != null) {
                 Uri[] result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+                if ((result == null || result.length == 0) && resultCode == RESULT_OK && cameraOutputUri != null) {
+                    result = new Uri[] { cameraOutputUri };
+                }
                 filePathCallback.onReceiveValue(result);
                 filePathCallback = null;
+                cameraOutputUri = null;
             }
             return;
         }
