@@ -30,6 +30,33 @@ h1{font-size:27px;margin:0 0 7px}.sub{color:var(--muted);line-height:1.4;margin:
 .incoming-card{position:fixed;left:16px;right:16px;bottom:24px;background:#fff;border-radius:23px;padding:18px;box-shadow:var(--shadow);z-index:90}.incoming-name{font-size:21px;font-weight:900}.incoming-kind{color:var(--muted);margin:5px 0 16px}.incoming-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.accept,.decline{border:0;border-radius:15px;padding:14px;color:#fff;font-weight:900}.accept{background:var(--green)}.decline{background:var(--red)}
 .toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:#111b2d;color:#fff;padding:10px 13px;border-radius:13px;font-size:13px;z-index:150;opacity:0;pointer-events:none;transition:.2s;max-width:90%;text-align:center}.toast.show{opacity:1}
 .admin-once{position:fixed;left:15px;right:15px;top:max(18px,env(safe-area-inset-top));background:#172033;color:white;border-radius:15px;padding:12px;text-align:center;font-size:13px;font-weight:800;z-index:160;box-shadow:var(--shadow)}
+
+/* v5.1 themes */
+body[data-theme="dark"]{--bg:#0d1420;--card:#172130;--ink:#f1f5fb;--muted:#9caabd;--line:#2b3748;--blue:#78a3ff;--green:#45ca91;--red:#ff6c74;--amber:#d9a74b;--shadow:0 12px 30px rgba(0,0,0,.35)}
+body[data-theme="ocean"]{--bg:#eaf5f7;--card:#f8feff;--ink:#17343a;--muted:#64838a;--line:#cee4e8;--blue:#177d91;--green:#168866;--red:#d75b63;--amber:#a67c28;--shadow:0 10px 26px rgba(28,86,96,.13)}
+body[data-theme="dark"] .card,body[data-theme="dark"] .topbar,body[data-theme="dark"] .thread,body[data-theme="dark"] .pickrow,body[data-theme="dark"] .composer,body[data-theme="dark"] .settings-pop,body[data-theme="dark"] .bubble.theirs,body[data-theme="dark"] .modal-card{background:var(--card);color:var(--ink)}
+body[data-theme="dark"] .role,body[data-theme="dark"] .code,body[data-theme="dark"] .iconbtn,body[data-theme="dark"] .settings-pop button,body[data-theme="dark"] .composer textarea{background:#111a27;color:var(--ink);border-color:var(--line)}
+body[data-theme="dark"] .mine{background:#243b65}
+body[data-theme="ocean"] .card,body[data-theme="ocean"] .topbar,body[data-theme="ocean"] .thread,body[data-theme="ocean"] .pickrow,body[data-theme="ocean"] .composer,body[data-theme="ocean"] .settings-pop,body[data-theme="ocean"] .bubble.theirs,body[data-theme="ocean"] .modal-card{background:var(--card);color:var(--ink)}
+body[data-theme="ocean"] .mine{background:#d1edf2}
+.modal-backdrop{position:fixed;inset:0;background:rgba(5,10,20,.52);z-index:170;display:grid;place-items:center;padding:20px}
+.modal-card{width:min(430px,100%);background:#fff;border-radius:22px;padding:18px;box-shadow:var(--shadow)}
+.modal-title{font-size:19px;font-weight:900;margin-bottom:12px}.option-list{display:grid;gap:8px}.option-btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:14px;padding:13px;text-align:left;font-weight:800}.option-btn.active{border-color:var(--blue);box-shadow:0 0 0 2px color-mix(in srgb,var(--blue) 20%,transparent)}
+.composer .mini{width:42px;height:42px;border:0;border-radius:13px;background:#eef3fb;font-size:20px;flex:none}
+.attach-menu{position:fixed;left:10px;bottom:74px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:7px;box-shadow:var(--shadow);z-index:120}
+.attach-menu button{display:block;width:100%;border:0;background:transparent;color:var(--ink);padding:11px 13px;text-align:left;border-radius:10px;font-weight:800}
+.emoji-panel{position:fixed;left:8px;right:8px;bottom:72px;max-height:42vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:10px;box-shadow:var(--shadow);z-index:125;display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.emoji-panel button{border:0;background:transparent;font-size:24px;padding:7px 2px;border-radius:10px}
+.attachment-card{margin-top:7px;border:1px solid var(--line);border-radius:13px;padding:8px;background:color-mix(in srgb,var(--card) 92%,var(--blue) 8%)}
+.attachment-img{display:block;max-width:240px;max-height:260px;border-radius:11px;object-fit:cover;background:#111}
+.attachment-file{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--ink);text-decoration:none}.attachment-size{font-size:10px;color:var(--muted);margin-top:3px}
+#videoGrid.layout-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:1fr}
+#videoGrid.layout-stack{display:grid;grid-template-columns:1fr;grid-template-rows:repeat(2,minmax(0,1fr))}
+#videoGrid.layout-pip{display:block;position:relative;padding:6px}
+#videoGrid.layout-pip .videoTile{position:absolute;inset:6px;min-height:0}
+#videoGrid.layout-pip .videoTile:first-child{inset:auto 14px auto auto;right:14px;top:14px;width:31%;height:31%;min-height:120px;z-index:3;border:2px solid rgba(255,255,255,.7);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#videoGrid.layout-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(150px,1fr)}
+@media(max-width:420px){.emoji-panel{grid-template-columns:repeat(7,1fr)}}
 </style>
 </head>
 <body>
@@ -98,7 +125,19 @@ h1{font-size:27px;margin:0 0 7px}.sub{color:var(--muted);line-height:1.4;margin:
     <button id="videoBtn" class="iconbtn">🎥</button>
   </div>
   <div id="messages"></div>
-  <div class="composer"><textarea id="messageInput" rows="1" placeholder="Сообщение…"></textarea><button id="sendBtn" class="send">➤</button></div>
+  <div class="composer">
+    <button id="attachBtn" class="mini" aria-label="Вложение">＋</button>
+    <button id="emojiBtn" class="mini" aria-label="Смайлы">😊</button>
+    <textarea id="messageInput" rows="1" placeholder="Сообщение…"></textarea>
+    <button id="sendBtn" class="send">➤</button>
+  </div>
+  <input id="photoInput" type="file" accept="image/*" class="hidden">
+  <input id="fileInput" type="file" class="hidden">
+  <div id="attachMenu" class="attach-menu hidden">
+    <button id="pickPhotoBtn">🖼️ Фото из галереи</button>
+    <button id="pickFileBtn">📎 Файл с телефона</button>
+  </div>
+  <div id="emojiPanel" class="emoji-panel hidden"></div>
 </section>
 
 <section id="adminArchive" class="screen hidden">
@@ -112,8 +151,34 @@ h1{font-size:27px;margin:0 0 7px}.sub{color:var(--muted);line-height:1.4;margin:
 </section>
 
 <div id="settingsPop" class="settings-pop hidden">
+  <button id="videoLayoutMenuBtn">🎥 Варианты видео</button>
+  <button id="themeMenuBtn">🎨 Тема</button>
   <button id="fullScreenMenuBtn">Разрешение экрана звонка</button>
   <button id="resetBtn">Сменить профиль / код</button>
+</div>
+
+<div id="videoLayoutModal" class="modal-backdrop hidden">
+  <div class="modal-card">
+    <div class="modal-title">Варианты видео</div>
+    <div class="option-list">
+      <button class="option-btn" data-layout="side">Слева / справа</button>
+      <button class="option-btn" data-layout="stack">Сверху / снизу</button>
+      <button class="option-btn" data-layout="pip">Окно в окне</button>
+    </div>
+    <button id="closeVideoLayoutBtn" class="primary wide" style="margin-top:12px">Готово</button>
+  </div>
+</div>
+
+<div id="themeModal" class="modal-backdrop hidden">
+  <div class="modal-card">
+    <div class="modal-title">Тема</div>
+    <div class="option-list">
+      <button class="option-btn" data-theme-choice="light">☀️ Светлая</button>
+      <button class="option-btn" data-theme-choice="dark">🌙 Тёмная</button>
+      <button class="option-btn" data-theme-choice="ocean">🌊 Океан</button>
+    </div>
+    <button id="closeThemeBtn" class="primary wide" style="margin-top:12px">Готово</button>
+  </div>
 </div>
 
 <section id="callOverlay" class="hidden">
