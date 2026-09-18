@@ -76,7 +76,11 @@ public class MainActivity extends Activity {
                 filePathCallback = filePathCallbackNew;
                 try {
                     if (fileChooserParams.isCaptureEnabled()) {
-                        String joined = String.join(",", fileChooserParams.getAcceptTypes()).toLowerCase();
+                        StringBuilder joinedBuilder = new StringBuilder();
+                        for (String type : fileChooserParams.getAcceptTypes()) {
+                            if (type != null) joinedBuilder.append(type).append(",");
+                        }
+                        String joined = joinedBuilder.toString().toLowerCase();
                         boolean video = joined.contains("video");
                         Intent intent = new Intent(video ? MediaStore.ACTION_VIDEO_CAPTURE : MediaStore.ACTION_IMAGE_CAPTURE);
                         ContentValues values = new ContentValues();
