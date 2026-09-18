@@ -1,0 +1,89 @@
+name: Build Our Family v5.2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-v5-2-news-camera ]
+    paths:
+      - 'duoapp/**'
+      - 'settings-duo.gradle'
+      - '.github/workflows/build-family-v52.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Validate JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text()
+          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
+          assert blocks
+          Path('/tmp/family-v52.js').write_text('\n'.join(blocks))
+          PY
+          node --check /tmp/family-v52.js
+
+      - name: Validate back and popup behavior
+        run: |
+          HTML=duoapp/src/main/assets/index.html
+          grep -q "__ourFamilyHandleBack" "$HTML"
+          grep -q "hideTransientPanels" "$HTML"
+          grep -q "document.addEventListener('click'" "$HTML"
+          grep -q "__ourFamilyHandleBack" duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+
+      - name: Validate news feed and media
+        run: |
+          HTML=duoapp/src/main/assets/index.html
+          for token in "Семейные новости" "news_post" "renderNews" "sendNewsPost" "newsPhotoInput" "newsVideoInput" "Видео с телефона" "attachment-video"; do
+            grep -q "$token" "$HTML"
+          done
+          grep -q '"news_post".equals(kind)' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+
+      - name: Validate camera switch and existing features
+        run: |
+          HTML=duoapp/src/main/assets/index.html
+          grep -q "switchCamera" "$HTML"
+          grep -q "replaceTrack" "$HTML"
+          grep -q "currentFacing" "$HTML"
+          for token in direct_chat group_chat direct_invite direct_offer direct_answer direct_candidate group_invite group_join group_offer group_answer group_candidate "История чатов" "layout-side" "layout-stack" "layout-pip" "data-theme-choice=\"dark\"" "EMOJIS"; do
+            grep -q "$token" "$HTML"
+          done
+          grep -q "RelayInbox.enqueue" duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+
+      - name: Build APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK=duoapp/build/outputs/apk/debug/duoapp-debug.apk
+          test -f "$APK"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья v5.2"
+          unzip -p "$APK" assets/index.html | grep -q "Семейные новости"
+          unzip -p "$APK" assets/index.html | grep -q "switchCamera"
+          unzip -p "$APK" assets/index.html | grep -q "Видео с телефона"
+          ls -lh "$APK"
+
+      - name: Rename APK
+        run: cp duoapp/build/outputs/apk/debug/duoapp-debug.apk OurFamily_v5_2.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_v5_2
+          path: OurFamily_v5_2.apk
+          if-no-files-found: error
