@@ -94,7 +94,9 @@ public class IncomingCallActivity extends Activity {
         root.addView(name, nameLp);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("audio".equals(kind) ? "Входящий аудиозвонок" : "Входящий видеозвонок");
+        if ("group_audio".equals(kind)) subtitle.setText("Входящий групповой аудиозвонок");
+        else if ("group_video".equals(kind)) subtitle.setText("Входящий групповой видеозвонок");
+        else subtitle.setText("audio".equals(kind) ? "Входящий аудиозвонок" : "Входящий видеозвонок");
         subtitle.setTextColor(Color.rgb(190, 202, 220));
         subtitle.setTextSize(18);
         subtitle.setGravity(Gravity.CENTER);
