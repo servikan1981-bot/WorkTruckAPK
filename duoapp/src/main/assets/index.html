@@ -744,21 +744,35 @@ async function sendCurrentMessage(){
  }
 }
 
+async function prepareAttachment(file,isPhoto,context){
+ if(!file)throw new Error('no file');
+ if(isPhoto)file=await compressPhoto(file);
+ var limit=maxAttachmentSize();
+ if(file.size>limit)throw new Error('too_large:'+limit);
+
+ var id=randomId(),plain=await file.arrayBuffer();
+ var encrypted=await encryptAttachmentBytes(plain,context);
+ await cacheAttachmentBytes(id,encrypted);
+ var url=await uploadEncryptedAttachment(encrypted);
+ return {
+   id:id,
+   name:file.name||'file',
+   mime:file.type||'application/octet-stream',
+   size:file.size,
+   url:url,
+   context:context
+ };
+}
+
 async function sendAttachment(file,isPhoto){
  if(!currentThread||!file)return;
  $('attachMenu').classList.add('hidden');$('emojiPanel').classList.add('hidden');
- try{
-   if(isPhoto)file=await compressPhoto(file);
-   var limit=maxAttachmentSize();
-   if(file.size>limit){toast('Файл слишком большой. Лимит: '+formatBytes(limit));return;}
-   toast('Подготавливаю '+(isPhoto?'фото':'файл')+'…');
 
-   var context=attachmentContextForThread(currentThread),id=randomId(),plain=await file.arrayBuffer();
-   var encrypted=await encryptAttachmentBytes(plain,context);
-   await cacheAttachmentBytes(id,encrypted);
-   var url=await uploadEncryptedAttachment(encrypted);
-   var att={id:id,name:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,url:url,context:context};
-   var ts=Date.now();
+ try{
+   toast('Подготавливаю '+(isPhoto?'фото':((file.type||'').startsWith('video/')?'видео':'файл'))+'…');
+   var context=attachmentContextForThread(currentThread);
+   var att=await prepareAttachment(file,isPhoto,context);
+   var id=att.id,ts=Date.now();
 
    if(currentThread.type==='direct'){
      var peer=currentThread.peer;
@@ -778,9 +792,14 @@ async function sendAttachment(file,isPhoto){
      }
    }
    toast('Отправлено');
- }catch(e){toast('Не удалось отправить вложение');}
+ }catch(e){
+   var msg=String(e&&e.message||e);
+   if(msg.indexOf('too_large:')===0){
+     var lim=parseInt(msg.split(':')[1],10)||maxAttachmentSize();
+     toast('Файл слишком большой. Лимит: '+formatBytes(lim));
+   }else toast('Не удалось отправить вложение');
+ }
 }
-
 function iceServers(){
  var list=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}];
  if(turnUrl&&turnUser&&turnPass)list.unshift({urls:turnUrl,username:turnUser,credential:turnPass});
