@@ -401,22 +401,29 @@ function showScreen(id){
  $('settingsPop').classList.add('hidden');
 }
 function renderHome(){
- if(role) {$('myName').textContent=NAMES[role];$('myAvatar').textContent=initials(NAMES[role]);}
+ if(role){$('myName').textContent=NAMES[role];$('myAvatar').textContent=initials(NAMES[role]);}
+
  var dl=$('directList');dl.innerHTML='';
- MEMBERS.filter(function(m){return m.id!==role;}).forEach(function(m){
-   var arr=directMessages(m.id),last=lastMsg(arr),unread=arr.filter(function(x){return x.from===m.id&&!x.read;}).length;
-   var b=document.createElement('button');b.className='thread';
-   b.innerHTML='<div class="tavatar">'+initials(m.name)+'</div><div class="tbody"><div class="tname">'+m.name+'</div><div class="preview">'+(last?((last.from===role?'Вы: ':'')+escapeText(last.text)):'Личный чат')+'</div></div>';
-   if(unread){var u=document.createElement('div');u.className='badge';u.textContent=unread>99?'99+':unread;b.appendChild(u);}
+ var directThreads=MEMBERS.filter(function(m){return m.id!==role;}).map(function(m){
+   var arr=directMessages(m.id),last=lastMsg(arr);
+   return {member:m,arr:arr,last:last,unread:arr.filter(function(x){return x.from===m.id&&!x.read;}).length};
+ }).filter(function(x){return !!x.last;}).sort(function(a,b){return b.last.ts-a.last.ts;});
+
+ directThreads.forEach(function(x){
+   var m=x.member,last=x.last,b=document.createElement('button');b.className='thread';
+   b.innerHTML='<div class="tavatar">'+initials(m.name)+'</div><div class="tbody"><div class="tname">'+m.name+'</div><div class="preview">'+(last.from===role?'Вы: ':'')+escapeText(messagePreview(last))+'</div></div>';
+   if(x.unread){var u=document.createElement('div');u.className='badge';u.textContent=x.unread>99?'99+':x.unread;b.appendChild(u);}
    b.addEventListener('click',function(){openDirect(m.id);});dl.appendChild(b);
  });
+ if(!directThreads.length){var de=document.createElement('div');de.className='muted';de.style.padding='5px 3px 14px';de.textContent='Пока нет личных переписок. Нажмите «Новый чат».';dl.appendChild(de);}
+
  var gl=$('groupList');gl.innerHTML='';
  var groups=groupMetas().filter(function(g){return g.members&&g.members.includes(role);});
  groups.sort(function(a,b){var la=lastMsg(groupMessages(a.groupId)),lb=lastMsg(groupMessages(b.groupId));return (lb?lb.ts:b.ts)-(la?la.ts:a.ts);});
  groups.forEach(function(g){
    var others=g.members.filter(function(x){return x!==role;}),arr=groupMessages(g.groupId),last=lastMsg(arr),unread=arr.filter(function(x){return x.from!==role&&!x.read;}).length;
    var b=document.createElement('button');b.className='thread';
-   b.innerHTML='<div class="tavatar">👥</div><div class="tbody"><div class="tname">'+others.map(function(x){return NAMES[x];}).join(', ')+'</div><div class="preview">'+(last?((NAMES[last.from]||last.from)+': '+escapeText(last.text)):'Групповой чат')+'</div></div>';
+   b.innerHTML='<div class="tavatar">👥</div><div class="tbody"><div class="tname">'+others.map(function(x){return NAMES[x];}).join(', ')+'</div><div class="preview">'+(last?((NAMES[last.from]||last.from)+': '+escapeText(messagePreview(last))):'Групповой чат')+'</div></div>';
    if(unread){var u=document.createElement('div');u.className='badge';u.textContent=unread>99?'99+':unread;b.appendChild(u);}
    b.addEventListener('click',function(){openGroup(g.groupId,g.members);});gl.appendChild(b);
  });
@@ -424,6 +431,7 @@ function renderHome(){
  $('adminArchiveBtn').classList.toggle('hidden',role!=='sergey');
 }
 function escapeText(t){return String(t||'').replace(/[<>&]/g,function(c){return {'<':'‹','>':'›','&':'＆'}[c];});}
+function messagePreview(m){if(!m)return '';if(m.text)return m.text;if(m.attachment)return '📎 '+(m.attachment.name||'Вложение');return 'Сообщение';}
 
 function openDirect(peer){
  currentThread={type:'direct',peer:peer};
@@ -445,9 +453,10 @@ function renderMessages(){
  var arr=currentThread.type==='direct'?directMessages(currentThread.peer):groupMessages(currentThread.groupId);
  arr.sort(function(a,b){return a.ts-b.ts;}).slice(-500).forEach(function(m){
    var b=document.createElement('div');b.className='bubble '+(m.from===role?'mine':'theirs');
-   if(currentThread.type==='group'&&m.from!==role){var s=document.createElement('div');s.className='sender';s.textContent=NAMES[m.from]||m.from;b.appendChild(s);}
-   var t=document.createElement('div');t.className='msgtext';t.textContent=m.text;
-   var meta=document.createElement('div');meta.className='meta';meta.textContent=fmt(m.ts);b.append(t,meta);box.appendChild(b);
+   if(currentThread.type==='group'&&m.from!==role){var sn=document.createElement('div');sn.className='sender';sn.textContent=NAMES[m.from]||m.from;b.appendChild(sn);}
+   if(m.text){var t=document.createElement('div');t.className='msgtext';t.textContent=m.text;b.appendChild(t);}
+   if(m.attachment)renderAttachmentInto(b,m.attachment);
+   var meta=document.createElement('div');meta.className='meta';meta.textContent=fmt(m.ts);b.appendChild(meta);box.appendChild(b);
  });
  requestAnimationFrame(function(){box.scrollTop=box.scrollHeight;});
 }
@@ -550,17 +559,20 @@ async function processPayload(p){
  var d=p.data||{},peer=p.from;
 
  if(p.kind==='direct_chat'){
-   addMessage({id:d.messageId||p.id,kind:'direct',from:peer,to:role,text:String(d.text||''),ts:d.ts||p.ts,read:currentThread&&currentThread.type==='direct'&&currentThread.peer===peer});
+   addMessage({id:d.messageId||p.id,kind:'direct',from:peer,to:role,text:String(d.text||''),attachment:d.attachment||null,ts:d.ts||p.ts,read:currentThread&&currentThread.type==='direct'&&currentThread.peer===peer});
+   if(d.attachment)cacheRemoteAttachment(d.attachment).then(function(){if(currentThread)renderMessages();});
    return;
  }
  if(p.kind==='group_chat'){
    var members=sortedMembers(d.members||[]);if(!members.includes(role))return;
    ensureGroup(members,d.groupId);
-   addMessage({id:d.messageId||p.id,kind:'group',groupId:d.groupId,members:members,from:peer,text:String(d.text||''),ts:d.ts||p.ts,read:currentThread&&currentThread.type==='group'&&currentThread.groupId===d.groupId});
+   addMessage({id:d.messageId||p.id,kind:'group',groupId:d.groupId,members:members,from:peer,text:String(d.text||''),attachment:d.attachment||null,ts:d.ts||p.ts,read:currentThread&&currentThread.type==='group'&&currentThread.groupId===d.groupId});
+   if(d.attachment)cacheRemoteAttachment(d.attachment).then(function(){if(currentThread)renderMessages();});
    return;
  }
  if(p.kind==='admin_copy'&&role==='sergey'){
-   addMessage({id:'adm-'+(d.messageId||p.id),kind:'admin',from:d.originalFrom,to:d.originalTo||'',members:d.originalMembers||[],groupId:d.groupId||'',text:String(d.text||''),ts:d.ts||p.ts,read:true});
+   addMessage({id:'adm-'+(d.messageId||p.id),kind:'admin',from:d.originalFrom,to:d.originalTo||'',members:d.originalMembers||[],groupId:d.groupId||'',text:String(d.text||''),attachment:d.attachment||null,ts:d.ts||p.ts,read:true});
+   if(d.attachment)cacheRemoteAttachment(d.attachment);
    return;
  }
  if(p.kind==='direct_invite'){
@@ -638,6 +650,43 @@ async function sendCurrentMessage(){
      publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalMembers:members,groupId:gid,text:text,ts:ts},2,'admin_copy','-').catch(function(){});
    }
  }
+}
+
+async function sendAttachment(file,isPhoto){
+ if(!currentThread||!file)return;
+ $('attachMenu').classList.add('hidden');$('emojiPanel').classList.add('hidden');
+ try{
+   if(isPhoto)file=await compressPhoto(file);
+   var limit=maxAttachmentSize();
+   if(file.size>limit){toast('Файл слишком большой. Лимит: '+formatBytes(limit));return;}
+   toast('Подготавливаю '+(isPhoto?'фото':'файл')+'…');
+
+   var context=attachmentContextForThread(currentThread),id=randomId(),plain=await file.arrayBuffer();
+   var encrypted=await encryptAttachmentBytes(plain,context);
+   await cacheAttachmentBytes(id,encrypted);
+   var url=await uploadEncryptedAttachment(encrypted);
+   var att={id:id,name:file.name||'file',mime:file.type||'application/octet-stream',size:file.size,url:url,context:context};
+   var ts=Date.now();
+
+   if(currentThread.type==='direct'){
+     var peer=currentThread.peer;
+     addMessage({id:id,kind:'direct',from:role,to:peer,text:'',attachment:att,ts:ts,read:true});
+     await publishEnvelope(peer,'direct_chat',{messageId:id,text:'',attachment:att,ts:ts},3,'direct_chat','-');
+     if(role!=='sergey'&&peer!=='sergey'){
+       publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalTo:peer,text:'',attachment:att,ts:ts},2,'admin_copy','-').catch(function(){});
+     }
+   }else{
+     var members=currentThread.members.slice(),gid=currentThread.groupId,recipients=members.filter(function(x){return x!==role;});
+     addMessage({id:id,kind:'group',groupId:gid,members:members,from:role,text:'',attachment:att,ts:ts,read:true});
+     for(var i=0;i<recipients.length;i++){
+       publishEnvelope(recipients[i],'group_chat',{messageId:id,text:'',attachment:att,ts:ts,groupId:gid,members:members},3,'group_chat','-').catch(function(){});
+     }
+     if(role!=='sergey'&&!members.includes('sergey')){
+       publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalMembers:members,groupId:gid,text:'',attachment:att,ts:ts},2,'admin_copy','-').catch(function(){});
+     }
+   }
+   toast('Отправлено');
+ }catch(e){toast('Не удалось отправить вложение');}
 }
 
 function iceServers(){
