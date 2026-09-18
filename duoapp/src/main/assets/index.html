@@ -443,7 +443,7 @@ function lastMsg(arr){return arr.length?arr.slice().sort(function(a,b){return a.
 
 function hideTransientPanels(){
  var changed=false;
- ['settingsPop','attachMenu','emojiPanel','videoLayoutModal','themeModal'].forEach(function(id){
+ ['settingsPop','attachMenu','emojiPanel','newsCaptureMenu','videoLayoutModal','themeModal'].forEach(function(id){
    var el=$(id);if(el&&!el.classList.contains('hidden')){el.classList.add('hidden');changed=true;}
  });
  return changed;
@@ -1209,6 +1209,7 @@ document.addEventListener('click',function(e){
  if(!t.closest('#settingsPop')&&!t.closest('#menuBtn'))$('settingsPop').classList.add('hidden');
  if(!t.closest('#emojiPanel')&&!t.closest('#emojiBtn'))$('emojiPanel').classList.add('hidden');
  if(!t.closest('#attachMenu')&&!t.closest('#attachBtn'))$('attachMenu').classList.add('hidden');
+ if(!t.closest('#newsCaptureMenu')&&!t.closest('#newsCameraBtn'))$('newsCaptureMenu').classList.add('hidden');
 });
 
 function checkFullScreenPermission(){try{$('permissionBanner').classList.toggle('hidden',!!AndroidBridge.canUseFullScreenCall());}catch(e){$('permissionBanner').classList.add('hidden');}}
