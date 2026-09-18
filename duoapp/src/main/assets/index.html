@@ -708,7 +708,11 @@ async function prepareLocalMedia(kind){
  return localMediaPromise;
 }
 function showCall(title,state){
- $('callTitle').textContent=title;$('callState').textContent=state||'Соединение…';$('callOverlay').classList.remove('hidden');$('videoGrid').innerHTML='';
+ $('callTitle').textContent=title;
+ $('callState').textContent=state||'Соединение…';
+ $('callOverlay').classList.remove('hidden');
+ $('videoGrid').innerHTML='';
+ applyVideoLayout();
 }
 function ensureVideoTile(member,stream,isLocal,kind){
  var id='tile-'+member,box=$(id);
@@ -719,6 +723,7 @@ function ensureVideoTile(member,stream,isLocal,kind){
    var l=document.createElement('div');l.className='videoLabel';l.textContent=(NAMES[member]||member)+(isLocal?' · Вы':'');box.appendChild(l);$('videoGrid').appendChild(box);
  }
  var vid=box.querySelector('video');if(vid&&stream){vid.srcObject=stream;var p=vid.play();if(p&&p.catch)p.catch(function(){});}
+ applyVideoLayout();
  return box;
 }
 function callSignalKind(base){return activeCall&&activeCall.type==='group'?'group_'+base:'direct_'+base;}
@@ -882,12 +887,32 @@ function renderAdminArchive(){
 function openAdminKey(key,arr,title){
  $('adminChatTitle').textContent=title;var box=$('adminMessages');box.innerHTML='';
  arr.slice().sort(function(a,b){return a.ts-b.ts;}).forEach(function(m){
-   var b=document.createElement('div');b.className='bubble theirs';var s=document.createElement('div');s.className='sender';s.textContent=NAMES[m.from]||m.from;
-   var t=document.createElement('div');t.className='msgtext';t.textContent=m.text;var meta=document.createElement('div');meta.className='meta';meta.textContent=fmt(m.ts);b.append(s,t,meta);box.appendChild(b);
+   var b=document.createElement('div');b.className='bubble theirs';var sn=document.createElement('div');sn.className='sender';sn.textContent=NAMES[m.from]||m.from;b.appendChild(sn);
+   if(m.text){var t=document.createElement('div');t.className='msgtext';t.textContent=m.text;b.appendChild(t);}
+   if(m.attachment)renderAttachmentInto(b,m.attachment);
+   var meta=document.createElement('div');meta.className='meta';meta.textContent=fmt(m.ts);b.appendChild(meta);box.appendChild(b);
  });
  showScreen('adminChat');
 }
 
+function renderEmojiPanel(){
+ var box=$('emojiPanel');box.innerHTML='';
+ EMOJIS.forEach(function(e){
+   var b=document.createElement('button');b.type='button';b.textContent=e;
+   b.addEventListener('click',function(){
+     var inp=$('messageInput'),start=inp.selectionStart==null?inp.value.length:inp.selectionStart,end=inp.selectionEnd==null?start:inp.selectionEnd;
+     inp.value=inp.value.slice(0,start)+e+inp.value.slice(end);
+     inp.focus();var pos=start+e.length;try{inp.setSelectionRange(pos,pos);}catch(x){}
+   });
+   box.appendChild(b);
+ });
+}
+function openVideoLayoutSettings(){
+ $('settingsPop').classList.add('hidden');$('videoLayoutModal').classList.remove('hidden');applyVideoLayout();
+}
+function openThemeSettings(){
+ $('settingsPop').classList.add('hidden');$('themeModal').classList.remove('hidden');applyTheme();
+}
 function checkFullScreenPermission(){try{$('permissionBanner').classList.toggle('hidden',!!AndroidBridge.canUseFullScreenCall());}catch(e){$('permissionBanner').classList.add('hidden');}}
 function requestFullScreen(){try{AndroidBridge.requestFullScreenCallPermission();}catch(e){}}
 async function configure(){
@@ -896,7 +921,8 @@ async function configure(){
  startPolling();consumeNativeAction();checkFullScreenPermission();
 }
 async function enter(){
- $('myName').textContent=NAMES[role];$('myAvatar').textContent=initials(NAMES[role]);loadMessages();renderHome();showScreen('home');
+ loadUiSettings();
+ $('myName').textContent=NAMES[role];$('myAvatar').textContent=initials(NAMES[role]);loadMessages();renderHome();renderEmojiPanel();showScreen('home');
  if(!localStorage.getItem('of5_admin_notice_seen')){
    $('adminOnce').classList.remove('hidden');setTimeout(function(){$('adminOnce').classList.add('hidden');},5000);localStorage.setItem('of5_admin_notice_seen','1');
  }
@@ -940,6 +966,26 @@ $('hangBtn').addEventListener('click',function(){endCall(true);});
 $('muteBtn').addEventListener('click',function(){if(!localStream)return;var t=localStream.getAudioTracks()[0];if(t){t.enabled=!t.enabled;$('muteBtn').textContent=t.enabled?'🎙️':'🔇';}});
 $('camBtn').addEventListener('click',function(){if(!localStream)return;var t=localStream.getVideoTracks()[0];if(t){t.enabled=!t.enabled;$('camBtn').textContent=t.enabled?'📷':'🚫';}});
 $('menuBtn').addEventListener('click',function(){$('settingsPop').classList.toggle('hidden');});
+$('videoLayoutMenuBtn').addEventListener('click',openVideoLayoutSettings);
+$('themeMenuBtn').addEventListener('click',openThemeSettings);
+document.querySelectorAll('[data-layout]').forEach(function(b){
+ b.addEventListener('click',function(){uiSettings.videoLayout=b.dataset.layout;saveUiSettings();applyVideoLayout();});
+});
+document.querySelectorAll('[data-theme-choice]').forEach(function(b){
+ b.addEventListener('click',function(){uiSettings.theme=b.dataset.themeChoice;saveUiSettings();applyTheme();});
+});
+$('closeVideoLayoutBtn').addEventListener('click',function(){$('videoLayoutModal').classList.add('hidden');});
+$('closeThemeBtn').addEventListener('click',function(){$('themeModal').classList.add('hidden');});
+$('videoLayoutModal').addEventListener('click',function(e){if(e.target===$('videoLayoutModal'))$('videoLayoutModal').classList.add('hidden');});
+$('themeModal').addEventListener('click',function(e){if(e.target===$('themeModal'))$('themeModal').classList.add('hidden');});
+
+$('attachBtn').addEventListener('click',function(){$('attachMenu').classList.toggle('hidden');$('emojiPanel').classList.add('hidden');});
+$('emojiBtn').addEventListener('click',function(){$('emojiPanel').classList.toggle('hidden');$('attachMenu').classList.add('hidden');});
+$('pickPhotoBtn').addEventListener('click',function(){$('attachMenu').classList.add('hidden');$('photoInput').click();});
+$('pickFileBtn').addEventListener('click',function(){$('attachMenu').classList.add('hidden');$('fileInput').click();});
+$('photoInput').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(f)sendAttachment(f,true);});
+$('fileInput').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(f)sendAttachment(f,false);});
+
 $('fullScreenMenuBtn').addEventListener('click',function(){$('settingsPop').classList.add('hidden');requestFullScreen();});
 $('fullScreenPermissionBtn').addEventListener('click',requestFullScreen);
 $('resetBtn').addEventListener('click',function(){if(confirm('Сменить профиль и очистить локальную историю?')){try{AndroidBridge.clearProfile();}catch(e){}location.reload();}});
@@ -949,7 +995,10 @@ $('adminChatBackBtn').addEventListener('click',function(){renderAdminArchive();s
 window.addEventListener('focus',function(){pollInbox();checkFullScreenPermission();});
 window.addEventListener('online',pollInbox);
 
-(async function init(){if(loadProfile())await enter();else{populateSetup();showScreen('setup');}})();
+(async function init(){
+ loadUiSettings();renderEmojiPanel();
+ if(loadProfile())await enter();else{populateSetup();showScreen('setup');}
+})();
 })();
 </script>
 </body>
