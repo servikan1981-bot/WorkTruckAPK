@@ -25,10 +25,10 @@ import java.net.URL;
 
 public class MessagingService extends Service {
     public static final String ACTION_RESTART = "com.sergey.duochat.RESTART_LISTENER";
-    private static final String CH_SERVICE = "family_service_v4";
-    private static final String CH_MESSAGES = "family_messages_v4";
-    private static final String CH_CALLS = "family_calls_v4";
-    private static final int FG_ID = 7401;
+    private static final String CH_SERVICE = "family_service_v41";
+    private static final String CH_MESSAGES = "family_messages_v41";
+    private static final String CH_CALLS = "family_calls_v41";
+    private static final int FG_ID = 7411;
 
     private volatile boolean running = false;
     private volatile HttpURLConnection activeConnection;
@@ -54,7 +54,7 @@ public class MessagingService extends Service {
 
     private void startWorker() {
         if (worker != null && worker.isAlive()) return;
-        worker = new Thread(this::listenLoop, "OurFamilyV4Relay");
+        worker = new Thread(this::listenLoop, "OurFamilyV41Relay");
         worker.start();
     }
 
@@ -124,13 +124,18 @@ public class MessagingService extends Service {
             long eventTime = obj.optLong("time", 0L) * 1000L;
             long age = eventTime > 0 ? System.currentTimeMillis() - eventTime : 0L;
 
-            if ("call_offer".equals(kind)) {
+            if ("call_invite".equals(kind) || "call_audio_invite".equals(kind)) {
                 if (age > 120000L) return;
-                notifyIncomingCall(senderRole, callId, "video", id);
-            } else if ("call_audio_offer".equals(kind)) {
+                notifyIncomingCall(senderRole, callId,
+                        "call_audio_invite".equals(kind) ? "audio" : "video", id);
+            } else if ("call_offer".equals(kind) || "call_audio_offer".equals(kind)) {
+                // Backward compatibility with v4 callers.
                 if (age > 120000L) return;
-                notifyIncomingCall(senderRole, callId, "audio", id);
+                notifyIncomingCall(senderRole, callId,
+                        "call_audio_offer".equals(kind) ? "audio" : "video", id);
             } else if ("chat".equals(kind)) {
+                notifyMessage(senderRole, id);
+            } else if ("admin_copy".equals(kind) && "sergey".equals(SecureStore.role(this))) {
                 notifyMessage(senderRole, id);
             }
         } catch (Exception ignored) {}
@@ -209,7 +214,7 @@ public class MessagingService extends Service {
                 .setOngoing(true)
                 .setAutoCancel(false)
                 .setCategory(Notification.CATEGORY_CALL)
-                .setVisibility(Notification.VISIBILITY_PRIVATE)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
                 .setPriority(Notification.PRIORITY_MAX)
                 .setTimeoutAfter(70000);
 
@@ -266,7 +271,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья")
+                .setContentTitle("Наша семья 4.1")
                 .setContentText("Фоновая связь включена")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
