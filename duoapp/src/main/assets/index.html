@@ -662,6 +662,11 @@ async function processPayload(p){
    if(d.attachment)cacheRemoteAttachment(d.attachment).then(function(){if(currentThread)renderMessages();});
    return;
  }
+ if(p.kind==='news_post'){
+   addMessage({id:d.messageId||p.id,kind:'news',from:peer,text:String(d.text||''),attachment:d.attachment||null,ts:d.ts||p.ts,read:!$('news').classList.contains('hidden')});
+   if(d.attachment)cacheRemoteAttachment(d.attachment).then(function(){if(!$('news').classList.contains('hidden'))renderNews();});
+   return;
+ }
  if(p.kind==='admin_copy'&&role==='sergey'){
    addMessage({id:'adm-'+(d.messageId||p.id),kind:'admin',from:d.originalFrom,to:d.originalTo||'',members:d.originalMembers||[],groupId:d.groupId||'',text:String(d.text||''),attachment:d.attachment||null,ts:d.ts||p.ts,read:true});
    if(d.attachment)cacheRemoteAttachment(d.attachment);
@@ -810,7 +815,7 @@ async function prepareLocalMedia(kind){
  if(localMediaPromise)return localMediaPromise;
  localMediaPromise=navigator.mediaDevices.getUserMedia({
    audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
-   video:kind==='video'?{facingMode:'user',width:{ideal:640},height:{ideal:480}}:false
+   video:kind==='video'?{facingMode:{ideal:currentFacing},width:{ideal:640},height:{ideal:480}}:false
  }).then(function(stream){
    localStream=stream;
    ensureVideoTile(role,localStream,true,kind);
@@ -823,6 +828,7 @@ function showCall(title,state){
  $('callState').textContent=state||'Соединение…';
  $('callOverlay').classList.remove('hidden');
  $('videoGrid').innerHTML='';
+ $('switchCamBtn').style.display=(activeCall&&activeCall.kind==='video')?'':'none';
  applyVideoLayout();
 }
 function ensureVideoTile(member,stream,isLocal,kind){
@@ -836,6 +842,28 @@ function ensureVideoTile(member,stream,isLocal,kind){
  var vid=box.querySelector('video');if(vid&&stream){vid.srcObject=stream;var p=vid.play();if(p&&p.catch)p.catch(function(){});}
  applyVideoLayout();
  return box;
+}
+async function switchCamera(){
+ if(cameraSwitchBusy||!activeCall||activeCall.kind!=='video'||!localStream)return;
+ cameraSwitchBusy=true;
+ try{
+   var next=currentFacing==='user'?'environment':'user';
+   var temp=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:next},width:{ideal:640},height:{ideal:480}}});
+   var newTrack=temp.getVideoTracks()[0];if(!newTrack)throw new Error('no camera');
+   var oldTrack=localStream.getVideoTracks()[0]||null;
+   var peers=Object.keys(callPeers);
+   for(var i=0;i<peers.length;i++){
+     var senders=callPeers[peers[i]].pc.getSenders(),sender=senders.find(function(x){return x.track&&x.track.kind==='video';});
+     if(sender)await sender.replaceTrack(newTrack);
+   }
+   var tracks=localStream.getAudioTracks().concat([newTrack]);
+   localStream=new MediaStream(tracks);
+   ensureVideoTile(role,localStream,true,'video');
+   if(oldTrack)oldTrack.stop();
+   currentFacing=next;
+   toast(next==='user'?'Передняя камера':'Задняя камера');
+ }catch(e){toast('Не удалось переключить камеру');}
+ cameraSwitchBusy=false;
 }
 function callSignalKind(base){return activeCall&&activeCall.type==='group'?'group_'+base:'direct_'+base;}
 function createPeer(peer){
@@ -966,7 +994,7 @@ function endCall(send){
    }
  }
  Object.keys(callPeers).forEach(removePeer);callPeers={};
- if(localStream)localStream.getTracks().forEach(function(t){t.stop();});localStream=null;localMediaPromise=null;
+ if(localStream)localStream.getTracks().forEach(function(t){t.stop();});localStream=null;localMediaPromise=null;cameraSwitchBusy=false;
  activeCall=null;$('videoGrid').innerHTML='';$('callOverlay').classList.add('hidden');$('callState').textContent='';pendingInvite=null;
 }
 
