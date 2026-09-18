@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.media.AudioDeviceInfo;
+import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -335,8 +337,63 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean setSpeakerphone(boolean enabled) {
+            try {
+                AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+                if (am == null) return false;
+                am.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                if (Build.VERSION.SDK_INT >= 31) {
+                    AudioDeviceInfo target = null;
+                    for (AudioDeviceInfo d : am.getAvailableCommunicationDevices()) {
+                        if (enabled && d.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) { target = d; break; }
+                        if (!enabled && d.getType() == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) { target = d; break; }
+                    }
+                    if (target != null) return am.setCommunicationDevice(target);
+                    if (!enabled) { am.clearCommunicationDevice(); return true; }
+                    return false;
+                } else {
+                    am.setSpeakerphoneOn(enabled);
+                    return true;
+                }
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public boolean isSpeakerphoneOn() {
+            try {
+                AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+                if (am == null) return false;
+                if (Build.VERSION.SDK_INT >= 31) {
+                    AudioDeviceInfo d = am.getCommunicationDevice();
+                    return d != null && d.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER;
+                }
+                return am.isSpeakerphoneOn();
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public void resetAudioRoute() {
+            try {
+                AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+                if (am == null) return;
+                if (Build.VERSION.SDK_INT >= 31) am.clearCommunicationDevice();
+                else am.setSpeakerphoneOn(false);
+                am.setMode(AudioManager.MODE_NORMAL);
+            } catch (Exception ignored) {}
+        }
+
+        @JavascriptInterface
+        public String loadAutoNews() {
+            return PositiveNewsFetcher.load(MainActivity.this);
+        }
+
+        @JavascriptInterface
         public String getVersion() {
-            return "5.2";
+            return "5.3";
         }
     }
 
