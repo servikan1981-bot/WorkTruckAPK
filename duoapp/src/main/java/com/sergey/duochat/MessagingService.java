@@ -141,7 +141,7 @@ public class MessagingService extends Service {
                         id);
             } else if ("direct_chat".equals(kind) || "group_chat".equals(kind)) {
                 notifyMessage(senderRole, id, "Новое семейное сообщение");
-            } else if ("admin_copy".equals(kind) && "sergey".equals(SecureStore.role(this))) {
+            } else if (("admin_copy".equals(kind) || "admin_sync".equals(kind)) && "sergey".equals(SecureStore.role(this))) {
                 notifyMessage(senderRole, id, "Новое сообщение в семейном архиве");
             }
         } catch (Exception ignored) {}
@@ -281,7 +281,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья v5.1")
+                .setContentTitle("Наша семья v5.2")
                 .setContentText("Фоновая связь включена")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
