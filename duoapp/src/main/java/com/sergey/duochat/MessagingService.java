@@ -25,10 +25,10 @@ import java.net.URL;
 
 public class MessagingService extends Service {
     public static final String ACTION_RESTART = "com.sergey.duochat.RESTART_LISTENER";
-    private static final String CH_SERVICE = "family_service_v41";
-    private static final String CH_MESSAGES = "family_messages_v41";
-    private static final String CH_CALLS = "family_calls_v41";
-    private static final int FG_ID = 7411;
+    private static final String CH_SERVICE = "family_service_v42";
+    private static final String CH_MESSAGES = "family_messages_v42";
+    private static final String CH_CALLS = "family_calls_v42";
+    private static final int FG_ID = 7421;
 
     private volatile boolean running = false;
     private volatile HttpURLConnection activeConnection;
@@ -125,14 +125,16 @@ public class MessagingService extends Service {
             long age = eventTime > 0 ? System.currentTimeMillis() - eventTime : 0L;
 
             if ("call_invite".equals(kind) || "call_audio_invite".equals(kind)) {
-                if (age > 120000L) return;
+                if (age > 120000L || callId.isEmpty()) return;
+
+                // A call is announced exactly once. SDP offers, ICE restarts and
+                // trickle candidates must never create another incoming-call UI.
+                String callSeenKey = "call_notified_" + callId;
+                if (prefs.getBoolean(callSeenKey, false)) return;
+                prefs.edit().putBoolean(callSeenKey, true).apply();
+
                 notifyIncomingCall(senderRole, callId,
                         "call_audio_invite".equals(kind) ? "audio" : "video", id);
-            } else if ("call_offer".equals(kind) || "call_audio_offer".equals(kind)) {
-                // Backward compatibility with v4 callers.
-                if (age > 120000L) return;
-                notifyIncomingCall(senderRole, callId,
-                        "call_audio_offer".equals(kind) ? "audio" : "video", id);
             } else if ("chat".equals(kind)) {
                 notifyMessage(senderRole, id);
             } else if ("admin_copy".equals(kind) && "sergey".equals(SecureStore.role(this))) {
@@ -271,7 +273,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья 4.1")
+                .setContentTitle("Наша семья 4.2")
                 .setContentText("Фоновая связь включена")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
