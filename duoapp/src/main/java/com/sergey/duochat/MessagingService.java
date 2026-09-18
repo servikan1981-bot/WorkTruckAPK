@@ -25,10 +25,10 @@ import java.net.URL;
 
 public class MessagingService extends Service {
     public static final String ACTION_RESTART = "com.sergey.duochat.RESTART_LISTENER";
-    private static final String CH_SERVICE = "family_service_v42";
-    private static final String CH_MESSAGES = "family_messages_v42";
-    private static final String CH_CALLS = "family_calls_v42";
-    private static final int FG_ID = 7421;
+    private static final String CH_SERVICE = "family_service_v5";
+    private static final String CH_MESSAGES = "family_messages_v5";
+    private static final String CH_CALLS = "family_calls_v5";
+    private static final int FG_ID = 7501;
 
     private volatile boolean running = false;
     private volatile HttpURLConnection activeConnection;
@@ -54,7 +54,7 @@ public class MessagingService extends Service {
 
     private void startWorker() {
         if (worker != null && worker.isAlive()) return;
-        worker = new Thread(this::listenLoop, "OurFamilyV41Relay");
+        worker = new Thread(this::listenLoop, "OurFamilyV5Relay");
         worker.start();
     }
 
@@ -66,7 +66,7 @@ public class MessagingService extends Service {
             String relay = prefs.getString("relay_base", "https://ntfy.sh");
 
             if (topic.isEmpty() || myTag.isEmpty()) {
-                sleep(3000);
+                sleep(1500);
                 continue;
             }
 
@@ -89,7 +89,7 @@ public class MessagingService extends Service {
                 try { if (activeConnection != null) activeConnection.disconnect(); } catch (Exception ignored) {}
                 activeConnection = null;
             }
-            sleep(2500);
+            sleep(1200);
         }
     }
 
@@ -98,15 +98,19 @@ public class MessagingService extends Service {
             JSONObject obj = new JSONObject(line);
             if (!"message".equals(obj.optString("event"))) return;
 
-            String id = obj.optString("id");
-            if (id.isEmpty() || prefs.getBoolean("seen_" + id, false)) return;
-            prefs.edit().putBoolean("seen_" + id, true).apply();
+            String id = obj.optString("id", "");
+            if (RelayInbox.seenAndMark(this, id)) return;
 
             String msg = obj.optString("message", "");
-            if (msg.startsWith("of42ctl|")) return;
+            if (msg.isEmpty()) return;
+
+            long eventTime = obj.optLong("time", 0L) * 1000L;
+            RelayInbox.enqueue(this, id, eventTime, msg);
+
+            if (msg.startsWith("of5ctl|")) return;
 
             String[] p = msg.split("\\|", 9);
-            if (p.length < 9 || !"of42".equals(p[0])) return;
+            if (p.length < 9 || !"of5".equals(p[0])) return;
 
             String senderTag = p[1];
             String recipientTag = p[2];
@@ -121,29 +125,29 @@ public class MessagingService extends Service {
             String senderRole = FamilyDirectory.roleFromTag(code, senderTag);
             if (senderRole.isEmpty()) return;
 
-            long eventTime = obj.optLong("time", 0L) * 1000L;
             long age = eventTime > 0 ? System.currentTimeMillis() - eventTime : 0L;
 
-            if ("call_invite".equals(kind) || "call_audio_invite".equals(kind)) {
+            if ("direct_invite".equals(kind) || "group_invite".equals(kind) ||
+                    "direct_audio_invite".equals(kind) || "group_audio_invite".equals(kind)) {
                 if (age > 120000L || callId.isEmpty()) return;
-
-                // A call is announced exactly once. SDP offers, ICE restarts and
-                // trickle candidates must never create another incoming-call UI.
-                String callSeenKey = "call_notified_" + callId;
+                String callSeenKey = "v5_call_notified_" + callId;
                 if (prefs.getBoolean(callSeenKey, false)) return;
                 prefs.edit().putBoolean(callSeenKey, true).apply();
 
+                boolean group = kind.startsWith("group_");
+                boolean audio = kind.contains("audio");
                 notifyIncomingCall(senderRole, callId,
-                        "call_audio_invite".equals(kind) ? "audio" : "video", id);
-            } else if ("chat".equals(kind)) {
-                notifyMessage(senderRole, id);
+                        group ? (audio ? "group_audio" : "group_video") : (audio ? "audio" : "video"),
+                        id);
+            } else if ("direct_chat".equals(kind) || "group_chat".equals(kind)) {
+                notifyMessage(senderRole, id, "Новое семейное сообщение");
             } else if ("admin_copy".equals(kind) && "sergey".equals(SecureStore.role(this))) {
-                notifyMessage(senderRole, id);
+                notifyMessage(senderRole, id, "Новое сообщение в семейном архиве");
             }
         } catch (Exception ignored) {}
     }
 
-    private void notifyMessage(String senderRole, String eventId) {
+    private void notifyMessage(String senderRole, String eventId, String text) {
         Intent open = new Intent(this, MainActivity.class);
         open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pi = PendingIntent.getActivity(
@@ -156,7 +160,7 @@ public class MessagingService extends Service {
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
                 .setContentTitle(FamilyDirectory.name(senderRole))
-                .setContentText("Новое защищённое сообщение")
+                .setContentText(text)
                 .setContentIntent(pi)
                 .setAutoCancel(true)
                 .setCategory(Notification.CATEGORY_MESSAGE)
@@ -170,6 +174,8 @@ public class MessagingService extends Service {
 
     private void notifyIncomingCall(String callerRole, String callId, String kind, String eventId) {
         int notificationId = 9000 + Math.abs(callId.hashCode() % 900);
+        boolean group = kind.startsWith("group_");
+        boolean audio = kind.contains("audio");
 
         Intent full = new Intent(this, IncomingCallActivity.class);
         full.putExtra(IncomingCallActivity.EXTRA_CALL_ID, callId);
@@ -208,9 +214,13 @@ public class MessagingService extends Service {
                 ? new Notification.Builder(this, CH_CALLS)
                 : new Notification.Builder(this);
 
+        String label = group
+                ? (audio ? "Групповой аудиозвонок" : "Групповой видеозвонок")
+                : (audio ? "Аудиозвонок" : "Видеозвонок");
+
         b.setSmallIcon(R.drawable.ic_launcher)
                 .setContentTitle(FamilyDirectory.name(callerRole) + " звонит")
-                .setContentText("audio".equals(kind) ? "Аудиозвонок" : "Видеозвонок")
+                .setContentText(label)
                 .setContentIntent(fullPi)
                 .setFullScreenIntent(fullPi, true)
                 .setOngoing(true)
@@ -241,12 +251,11 @@ public class MessagingService extends Service {
 
         NotificationChannel service = new NotificationChannel(
                 CH_SERVICE, "Наша семья — фоновая связь", NotificationManager.IMPORTANCE_LOW);
-        service.setDescription("Поддерживает получение сообщений и звонков");
+        service.setDescription("Получение семейных сообщений и звонков");
         nm.createNotificationChannel(service);
 
         NotificationChannel messages = new NotificationChannel(
                 CH_MESSAGES, "Семейные сообщения", NotificationManager.IMPORTANCE_HIGH);
-        messages.setDescription("Новые сообщения от членов семьи");
         messages.enableVibration(true);
         nm.createNotificationChannel(messages);
 
@@ -257,8 +266,7 @@ public class MessagingService extends Service {
                 .build();
 
         NotificationChannel calls = new NotificationChannel(
-                CH_CALLS, "Входящие семейные звонки", NotificationManager.IMPORTANCE_MAX);
-        calls.setDescription("Полноэкранные уведомления о входящих звонках");
+                CH_CALLS, "Семейные звонки", NotificationManager.IMPORTANCE_MAX);
         calls.enableVibration(true);
         calls.enableLights(true);
         calls.setLightColor(Color.GREEN);
@@ -273,7 +281,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья 4.2")
+                .setContentTitle("Наша семья v5")
                 .setContentText("Фоновая связь включена")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
