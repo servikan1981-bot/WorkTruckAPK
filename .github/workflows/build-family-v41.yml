@@ -1,0 +1,50 @@
+name: Build Our Family v4.1 APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-v4-1-callfix-admin ]
+    paths:
+      - 'duoapp/**'
+      - 'settings-duo.gradle'
+      - '.github/workflows/build-family-v41.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Build APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleDebug
+      - name: Verify APK and v4.1 assets
+        run: |
+          APK=duoapp/build/outputs/apk/debug/duoapp-debug.apk
+          test -f "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/index.html | grep -q "Сергей — админ, имеет доступ ко всему приложению."
+          unzip -p "$APK" assets/index.html | grep -q "call_invite"
+          unzip -p "$APK" assets/index.html | grep -q "call_accept"
+          unzip -p "$APK" assets/index.html | grep -q "Семейный архив"
+          ls -lh "$APK"
+      - name: Rename APK
+        run: cp duoapp/build/outputs/apk/debug/duoapp-debug.apk OurFamily_v4_1.apk
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_v4_1
+          path: OurFamily_v4_1.apk
+          if-no-files-found: error
