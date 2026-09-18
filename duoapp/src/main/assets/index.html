@@ -16,7 +16,7 @@ h1{font-size:27px;margin:0 0 7px}.sub{color:var(--muted);line-height:1.4;margin:
 .code{width:100%;border:1px solid var(--line);border-radius:14px;padding:13px 14px;outline:none}.primary{border:0;border-radius:15px;background:var(--blue);color:#fff;font-weight:850;padding:14px}.wide{width:100%}.hint{font-size:12px;color:var(--muted);line-height:1.4;margin-top:10px}
 .topbar{background:#fff;border-bottom:1px solid var(--line);padding:11px 12px;padding-top:max(11px,env(safe-area-inset-top));display:flex;align-items:center;gap:9px}.avatar{width:43px;height:43px;border-radius:50%;background:#eaf0ff;color:#2f6fed;display:grid;place-items:center;font-weight:900;flex:none}.who{min-width:0;flex:1}.name{font-weight:900;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.status{font-size:12px;color:var(--muted)}.status.ok{color:var(--green)}.iconbtn{width:41px;height:41px;border:0;border-radius:13px;background:#f3f6fa;font-size:20px;flex:none}
 .body{flex:1;overflow:auto;padding:13px}.section-title{font-size:13px;color:var(--muted);font-weight:850;text-transform:uppercase;letter-spacing:.04em;margin:13px 3px 8px}
-#home,#chat,#picker,#adminArchive,#adminChat{display:flex;flex-direction:column}
+#home,#chat,#picker,#news,#adminArchive,#adminChat{display:flex;flex-direction:column}
 .actionbar{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}.action{border:0;border-radius:16px;padding:13px;font-weight:850}.action.blue{background:#e9f0ff;color:#245aca}.action.green{background:#e5f7ef;color:#0c8252}
 .thread{width:100%;border:0;background:#fff;border-radius:18px;padding:11px;margin-bottom:8px;display:flex;align-items:center;gap:11px;text-align:left;box-shadow:0 3px 10px rgba(30,45,70,.05)}.tavatar{width:48px;height:48px;border-radius:50%;background:#edf3ff;color:#2f6fed;display:grid;place-items:center;font-weight:900;flex:none}.tbody{flex:1;min-width:0}.tname{font-weight:850}.preview{font-size:12px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.badge{min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--blue);color:white;font-size:11px;font-weight:900;display:grid;place-items:center}
 .permission{background:#fff4d8;border:1px solid #efd487;border-radius:15px;padding:12px;font-size:13px;line-height:1.4;margin-bottom:10px}.permission button{border:0;border-radius:11px;background:#172033;color:white;padding:8px 11px;font-weight:800;margin-top:8px}
@@ -56,7 +56,15 @@ body[data-theme="ocean"] .mine{background:#d1edf2}
 #videoGrid.layout-pip .videoTile{position:absolute;inset:6px;min-height:0}
 #videoGrid.layout-pip .videoTile:first-child{inset:auto 14px auto auto;right:14px;top:14px;width:31%;height:31%;min-height:120px;z-index:3;border:2px solid rgba(255,255,255,.7);box-shadow:0 8px 24px rgba(0,0,0,.35)}
 #videoGrid.layout-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(150px,1fr)}
-@media(max-width:420px){.emoji-panel{grid-template-columns:repeat(7,1fr)}}
+.news-action{width:100%;border:0;border-radius:16px;padding:13px;margin-bottom:13px;background:linear-gradient(135deg,#fff1cc,#ffe2e9);color:#7f4a18;font-weight:900;text-align:left}
+body[data-theme="dark"] .news-action{background:linear-gradient(135deg,#3a3020,#39242c);color:#ffd78b}
+body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,#def3e6);color:#17616b}
+.news-feed{flex:1;overflow:auto;padding:13px}.news-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;margin-bottom:10px;box-shadow:0 3px 10px rgba(30,45,70,.05)}
+.news-head{display:flex;align-items:center;gap:9px;margin-bottom:9px}.news-author{font-weight:900}.news-time{font-size:11px;color:var(--muted)}.news-text{font-size:15px;line-height:1.42;white-space:pre-wrap;word-break:break-word}.news-text a{color:var(--blue);font-weight:750;text-decoration:none}
+.news-composer{background:var(--card);border-top:1px solid var(--line);padding:9px 9px max(9px,env(safe-area-inset-bottom));display:grid;grid-template-columns:auto auto 1fr auto;gap:7px;align-items:end}
+.news-composer textarea{resize:none;min-height:44px;max-height:110px;border:1px solid var(--line);border-radius:16px;padding:10px 11px;background:var(--card);color:var(--ink)}
+.attachment-video{display:block;max-width:260px;max-height:300px;border-radius:11px;background:#000}
+@media(max-width:420px){.emoji-panel{grid-template-columns:repeat(7,1fr)}.news-composer{grid-template-columns:auto auto 1fr auto}}
 </style>
 </head>
 <body>
@@ -94,6 +102,7 @@ body[data-theme="ocean"] .mine{background:#d1edf2}
       <button id="newChatBtn" class="action blue">✚ Новый чат</button>
       <button id="newVideoBtn" class="action green">🎥 Видеозвонок</button>
     </div>
+    <button id="newsBtn" class="news-action">📰 Семейные новости · ссылки · фото · видео · поздравления</button>
     <button id="adminArchiveBtn" class="primary wide hidden" style="margin-bottom:11px">Семейный архив</button>
     <div class="section-title">История чатов</div>
     <div id="directList"></div>
@@ -132,12 +141,31 @@ body[data-theme="ocean"] .mine{background:#d1edf2}
     <button id="sendBtn" class="send">➤</button>
   </div>
   <input id="photoInput" type="file" accept="image/*" class="hidden">
+  <input id="videoInput" type="file" accept="video/*" class="hidden">
   <input id="fileInput" type="file" class="hidden">
   <div id="attachMenu" class="attach-menu hidden">
     <button id="pickPhotoBtn">🖼️ Фото из галереи</button>
+    <button id="pickVideoBtn">🎬 Видео с телефона</button>
     <button id="pickFileBtn">📎 Файл с телефона</button>
   </div>
   <div id="emojiPanel" class="emoji-panel hidden"></div>
+</section>
+
+<section id="news" class="screen hidden">
+  <div class="topbar">
+    <button id="newsBackBtn" class="iconbtn">‹</button>
+    <div class="avatar">📰</div>
+    <div class="who"><div class="name">Семейные новости</div><div class="status">Общая лента для всей семьи</div></div>
+  </div>
+  <div id="newsList" class="news-feed"></div>
+  <div class="news-composer">
+    <button id="newsPhotoBtn" class="mini">🖼️</button>
+    <button id="newsVideoBtn" class="mini">🎬</button>
+    <textarea id="newsInput" rows="1" placeholder="Новость, поздравление или ссылка…"></textarea>
+    <button id="newsSendBtn" class="send">➤</button>
+  </div>
+  <input id="newsPhotoInput" type="file" accept="image/*" class="hidden">
+  <input id="newsVideoInput" type="file" accept="video/*" class="hidden">
 </section>
 
 <section id="adminArchive" class="screen hidden">
@@ -184,7 +212,7 @@ body[data-theme="ocean"] .mine{background:#d1edf2}
 <section id="callOverlay" class="hidden">
   <div class="call-head"><div id="callTitle" class="call-title">Видеозвонок</div><div id="callState" class="call-state">Соединение…</div></div>
   <div id="videoGrid"></div>
-  <div class="call-actions"><button id="muteBtn" class="callbtn">🎙️</button><button id="camBtn" class="callbtn">📷</button><button id="hangBtn" class="callbtn hang">✕</button></div>
+  <div class="call-actions"><button id="muteBtn" class="callbtn">🎙️</button><button id="camBtn" class="callbtn">📷</button><button id="switchCamBtn" class="callbtn">🔄</button><button id="hangBtn" class="callbtn hang">✕</button></div>
 </section>
 
 <div id="incomingCard" class="incoming-card hidden">
