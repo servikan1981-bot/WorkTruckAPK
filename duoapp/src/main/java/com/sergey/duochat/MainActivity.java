@@ -228,8 +228,13 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public String drainRelayInbox() {
-            return RelayInbox.drain(MainActivity.this);
+        public String readRelayInbox() {
+            return RelayInbox.read(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void ackRelayInbox(String idsJson) {
+            RelayInbox.ack(MainActivity.this, idsJson);
         }
 
         @JavascriptInterface
