@@ -33,6 +33,7 @@ public class MessagingService extends Service {
     private volatile boolean running = false;
     private volatile HttpURLConnection activeConnection;
     private Thread worker;
+    private Thread newsWorker;
 
     @Override
     public void onCreate() {
@@ -41,6 +42,7 @@ public class MessagingService extends Service {
         startAsForeground();
         running = true;
         startWorker();
+        startNewsWorker();
     }
 
     @Override
@@ -56,6 +58,17 @@ public class MessagingService extends Service {
         if (worker != null && worker.isAlive()) return;
         worker = new Thread(this::listenLoop, "OurFamilyV5Relay");
         worker.start();
+    }
+
+    private void startNewsWorker() {
+        if (newsWorker != null && newsWorker.isAlive()) return;
+        newsWorker = new Thread(() -> {
+            while (running) {
+                try { PositiveNewsFetcher.checkAndStore(MessagingService.this); } catch (Exception ignored) {}
+                sleep(30L * 60L * 1000L);
+            }
+        }, "OurFamilyPositiveNews");
+        newsWorker.start();
     }
 
     private void listenLoop() {
@@ -283,7 +296,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья v5.2")
+                .setContentTitle("Наша семья v5.3")
                 .setContentText("Фоновая связь включена")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
