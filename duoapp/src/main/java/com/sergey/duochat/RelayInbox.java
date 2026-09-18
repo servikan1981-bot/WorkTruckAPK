@@ -6,7 +6,6 @@ import android.content.SharedPreferences;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -15,7 +14,7 @@ public final class RelayInbox {
     private static final String KEY_SEEN = "relay_seen_v5";
     private static final Object LOCK = new Object();
     private static final int MAX_QUEUE = 700;
-    private static final int MAX_SEEN = 800;
+    private static final int MAX_SEEN = 900;
 
     private RelayInbox() {}
 
@@ -33,10 +32,7 @@ public final class RelayInbox {
             } catch (Exception ignored) {}
             if (seen.contains(id)) return true;
             seen.add(id);
-            while (seen.size() > MAX_SEEN) {
-                String first = seen.iterator().next();
-                seen.remove(first);
-            }
+            while (seen.size() > MAX_SEEN) seen.remove(seen.iterator().next());
             JSONArray out = new JSONArray();
             for (String s : seen) out.put(s);
             p.edit().putString(KEY_SEEN, out.toString()).apply();
@@ -73,12 +69,37 @@ public final class RelayInbox {
         }
     }
 
-    public static String drain(Context c) {
+    public static String read(Context c) {
         synchronized (LOCK) {
-            SharedPreferences p = SecureStore.prefs(c);
-            String value = p.getString(KEY_QUEUE, "[]");
-            p.edit().putString(KEY_QUEUE, "[]").apply();
+            String value = SecureStore.prefs(c).getString(KEY_QUEUE, "[]");
             return value == null || value.isEmpty() ? "[]" : value;
+        }
+    }
+
+    public static void ack(Context c, String idsJson) {
+        synchronized (LOCK) {
+            Set<String> ackIds = new LinkedHashSet<>();
+            try {
+                JSONArray ids = new JSONArray(idsJson == null ? "[]" : idsJson);
+                for (int i = 0; i < ids.length(); i++) {
+                    String id = ids.optString(i, "");
+                    if (!id.isEmpty()) ackIds.add(id);
+                }
+            } catch (Exception ignored) {}
+            if (ackIds.isEmpty()) return;
+
+            SharedPreferences p = SecureStore.prefs(c);
+            JSONArray q;
+            try { q = new JSONArray(p.getString(KEY_QUEUE, "[]")); }
+            catch (Exception e) { q = new JSONArray(); }
+
+            JSONArray keep = new JSONArray();
+            for (int i = 0; i < q.length(); i++) {
+                JSONObject item = q.optJSONObject(i);
+                if (item == null) continue;
+                if (!ackIds.contains(item.optString("id", ""))) keep.put(item);
+            }
+            p.edit().putString(KEY_QUEUE, keep.toString()).apply();
         }
     }
 }
