@@ -9,6 +9,10 @@
         <activity android:name=".TourActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".GameActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".ClientHubActivity" android:screenOrientation="portrait" android:exported="false" />
+        <activity android:name=".ServiceActivity" android:screenOrientation="portrait" android:exported="false" />
+        <activity android:name=".VehicleJournalActivity" android:screenOrientation="portrait" android:exported="false" />
+        <activity android:name=".SosActivity" android:screenOrientation="portrait" android:exported="false" />
+        <activity android:name=".ErrorGuideActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".MultiLookupActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".ScaniaChatActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".DiagnosticActivity" android:screenOrientation="portrait" android:exported="false" />
