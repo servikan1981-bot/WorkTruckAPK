@@ -30,8 +30,9 @@ public class MoreActivity extends Activity {
 
         ScrollView sv=new ScrollView(this);LinearLayout body=col();body.setPadding(dp(14),dp(14),dp(14),dp(24));
         TextView intro=tv("Дополнительные возможности",23,DARK,true);body.addView(intro);
-        TextView sub=tv("Диагностика, тур и игра — без дублирования основных разделов.",13,MUTED,false);sub.setPadding(0,dp(5),0,dp(14));body.addView(sub);
+        TextView sub=tv("Общение владельцев Scania, диагностика, тур и игра.",13,MUTED,false);sub.setPadding(0,dp(5),0,dp(14));body.addView(sub);
 
+        body.addView(menu("CHAT","Чат владельцев Scania","Общий чат, 5 серия, ремонт, запчасти и дорога",()->startActivity(new Intent(this,ScaniaChatActivity.class))));
         body.addView(menu("OBD","Диагностика ELM327","Подключить Bluetooth-адаптер, считать ошибки и параметры",()->startActivity(new Intent(this,DiagnosticActivity.class))));
         body.addView(menu("◎","Экскурсия по Work Truck","Панорамный тур по территории",()->startActivity(new Intent(this,TourActivity.class))));
         body.addView(menu("?","Игра · Угадай запчасть","10 вопросов и тестовый приз",()->startActivity(new Intent(this,GameActivity.class))));
