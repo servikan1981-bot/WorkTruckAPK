@@ -30,15 +30,25 @@ public class MoreActivity extends Activity {
 
         ScrollView sv=new ScrollView(this);LinearLayout body=col();body.setPadding(dp(14),dp(14),dp(14),dp(24));
         TextView intro=tv("Дополнительные возможности",23,DARK,true);body.addView(intro);
-        TextView sub=tv("Подбор по VIN, общение владельцев Scania, диагностика, тур и игра.",13,MUTED,false);sub.setPadding(0,dp(5),0,dp(14));body.addView(sub);
+        TextView sub=tv("Сервис, журнал автомобиля, SOS, диагностика, подбор по VIN и сообщество.",13,MUTED,false);sub.setPadding(0,dp(5),0,dp(14));body.addView(sub);
 
+        body.addView(section("АВТОМОБИЛЬ И СЕРВИС"));
+        body.addView(menu("SVC","Сервис Work Truck","Запись на сервис и статус ремонта",()->startActivity(new Intent(this,ServiceActivity.class))));
+        body.addView(menu("LOG","Журнал автомобиля и ТО","Пробег, ремонты, обслуживание и напоминания",()->startActivity(new Intent(this,VehicleJournalActivity.class))));
+        body.addView(menu("SOS","Машина встала · SOS","Собрать данные поломки и быстро связаться с Work Truck",()->startActivity(new Intent(this,SosActivity.class))));
+        body.addView(menu("ERR","Справочник ошибок Scania","Поиск кодов, подсказки и переход к диагностике",()->startActivity(new Intent(this,ErrorGuideActivity.class))));
         body.addView(menu("VIN","Подбор по VIN · Scania Multi","Официальный каталог Scania + проверка наличия Work Truck",()->startActivity(new Intent(this,MultiLookupActivity.class))));
-        body.addView(menu("CHAT","Чат владельцев Scania","Общий чат, 5 серия, ремонт, запчасти и дорога",()->startActivity(new Intent(this,ScaniaChatActivity.class))));
         body.addView(menu("OBD","Диагностика ELM327","Подключить Bluetooth-адаптер, считать ошибки и параметры",()->startActivity(new Intent(this,DiagnosticActivity.class))));
+        body.addView(section("СООБЩЕСТВО И WORK TRUCK"));
+        body.addView(menu("CHAT","Чат владельцев Scania","Общий чат, 5 серия, ремонт, запчасти и дорога",()->startActivity(new Intent(this,ScaniaChatActivity.class))));
         body.addView(menu("◎","Экскурсия по Work Truck","Панорамный тур по территории",()->startActivity(new Intent(this,TourActivity.class))));
         body.addView(menu("?","Игра · Угадай запчасть","10 вопросов и тестовый приз",()->startActivity(new Intent(this,GameActivity.class))));
 
         sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
+    }
+
+    private View section(String title){
+        TextView t=tv(title,12,MUTED,true);t.setPadding(dp(4),dp(12),0,dp(8));return t;
     }
 
     private View menu(String icon,String title,String sub,Runnable action){
