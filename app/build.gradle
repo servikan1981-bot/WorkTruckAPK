@@ -4,10 +4,10 @@ android {
     namespace 'com.worktruck.catalog'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.worktruck.catalog.v61'
+        applicationId 'com.worktruck.catalog.v62'
         minSdk 24
         targetSdk 29
-        versionCode 17
-        versionName '6.1-blue-optimized-ui'
+        versionCode 18
+        versionName '6.2-elm327-diagnostics'
     }
 }
