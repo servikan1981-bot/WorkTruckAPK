@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare V6.3 UI and chat
+      - name: Prepare V6.4 UI and navigation
         run: python3 tools/prepare_v60.py
 
       - name: Prepare panorama resources
@@ -30,23 +30,14 @@ jobs:
         run: |
           grep -q 'ScaniaChatActivity' app/src/main/AndroidManifest.xml
           grep -q 'Чат владельцев Scania' app/src/main/java/com/worktruck/catalog/MoreActivity.java
-          grep -q 'Общий чат' app/src/main/java/com/worktruck/catalog/ScaniaChatActivity.java
-          grep -q '5 серия Scania' app/src/main/java/com/worktruck/catalog/ScaniaChatActivity.java
-          grep -q 'ChatBackendContract' app/src/main/java/com/worktruck/catalog/ChatBackendContract.java
           grep -q 'DiagnosticActivity' app/src/main/AndroidManifest.xml
-          grep -q 'BLUETOOTH_CONNECT' app/src/main/AndroidManifest.xml
+          grep -q 'BLUETOOTH_SCAN' app/src/main/AndroidManifest.xml
+          grep -q 'ACTION_FOUND' app/src/main/java/com/worktruck/catalog/DiagnosticActivity.java
+          grep -q 'startDiscovery' app/src/main/java/com/worktruck/catalog/DiagnosticActivity.java
+          grep -q 'createBond' app/src/main/java/com/worktruck/catalog/DiagnosticActivity.java
+          grep -q 'НАЙТИ НОВЫЕ УСТРОЙСТВА' app/src/main/java/com/worktruck/catalog/DiagnosticActivity.java
           grep -q 'МОИ МАШИНЫ' app/src/main/java/com/worktruck/catalog/V53Activity.java
           grep -q 'НОВЫЕ ПОСТУПЛЕНИЯ' app/src/main/java/com/worktruck/catalog/V53Activity.java
-          grep -q 'Диагностика ELM327' app/src/main/java/com/worktruck/catalog/MoreActivity.java
-          grep -q 'createRfcommSocketToServiceRecord' app/src/main/java/com/worktruck/catalog/DiagnosticActivity.java
-          grep -q 'СЧИТАТЬ ОШИБКИ И ПАРАМЕТРЫ' app/src/main/java/com/worktruck/catalog/DiagnosticActivity.java
-          grep -q 'parseDtcs' app/src/main/java/com/worktruck/catalog/DiagnosticActivity.java
-          grep -q 'Экскурсия по Work Truck' app/src/main/java/com/worktruck/catalog/MoreActivity.java
-          grep -q 'Игра · Угадай запчасть' app/src/main/java/com/worktruck/catalog/MoreActivity.java
-          grep -q 'Бонусный кошелёк' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
-          grep -q 'Сообщить о поступлении' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
-          grep -q 'Где мой заказ' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
-          grep -q 'Персональный менеджер' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -76,11 +67,11 @@ jobs:
           ls -lh "$APK"
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V6_3_ScaniaChat.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V6_4_ELM327_Discovery.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: WorkTruck_V6_3_ScaniaChat
-          path: WorkTruck_V6_3_ScaniaChat.apk
+          name: WorkTruck_V6_4_ELM327_Discovery
+          path: WorkTruck_V6_4_ELM327_Discovery.apk
           if-no-files-found: error
