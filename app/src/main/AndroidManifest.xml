@@ -1,9 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <application android:theme="@style/AppTheme" android:label="Ворк Трак" android:icon="@drawable/brand_logo" android:roundIcon="@drawable/brand_logo" android:allowBackup="true" android:supportsRtl="true">
         <activity android:name=".TourActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".GameActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".ClientHubActivity" android:screenOrientation="portrait" android:exported="false" />
+        <activity android:name=".DiagnosticActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".MoreActivity" android:screenOrientation="portrait" android:exported="false" />
         <activity android:name=".V53Activity" android:screenOrientation="portrait" android:exported="true">
             <intent-filter>
