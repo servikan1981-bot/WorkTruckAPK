@@ -4,10 +4,10 @@ android {
     namespace 'com.worktruck.catalog'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.worktruck.catalog.v63'
+        applicationId 'com.worktruck.catalog.v64'
         minSdk 24
         targetSdk 29
-        versionCode 19
-        versionName '6.3-scania-owners-chat'
+        versionCode 20
+        versionName '6.4-elm327-discovery'
     }
 }
