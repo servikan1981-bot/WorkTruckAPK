@@ -30,8 +30,9 @@ public class MoreActivity extends Activity {
 
         ScrollView sv=new ScrollView(this);LinearLayout body=col();body.setPadding(dp(14),dp(14),dp(14),dp(24));
         TextView intro=tv("Дополнительные возможности",23,DARK,true);body.addView(intro);
-        TextView sub=tv("Здесь только те разделы, которые не дублируются в нижней навигации.",13,MUTED,false);sub.setPadding(0,dp(5),0,dp(14));body.addView(sub);
+        TextView sub=tv("Диагностика, тур и игра — без дублирования основных разделов.",13,MUTED,false);sub.setPadding(0,dp(5),0,dp(14));body.addView(sub);
 
+        body.addView(menu("OBD","Диагностика ELM327","Подключить Bluetooth-адаптер, считать ошибки и параметры",()->startActivity(new Intent(this,DiagnosticActivity.class))));
         body.addView(menu("◎","Экскурсия по Work Truck","Панорамный тур по территории",()->startActivity(new Intent(this,TourActivity.class))));
         body.addView(menu("?","Игра · Угадай запчасть","10 вопросов и тестовый приз",()->startActivity(new Intent(this,GameActivity.class))));
 
@@ -41,7 +42,7 @@ public class MoreActivity extends Activity {
     private View menu(String icon,String title,String sub,Runnable action){
         LinearLayout c=col();c.setPadding(dp(15),dp(13),dp(15),dp(13));c.setBackground(round(Color.WHITE,18));c.setOnClickListener(v->action.run());
         LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.CENTER_VERTICAL);
-        TextView ic=tv(icon,24,GREEN,true);ic.setGravity(Gravity.CENTER);r.addView(ic,new LinearLayout.LayoutParams(dp(50),dp(50)));
+        TextView ic=tv(icon,18,GREEN,true);ic.setGravity(Gravity.CENTER);r.addView(ic,new LinearLayout.LayoutParams(dp(54),dp(50)));
         LinearLayout txt=col();txt.addView(tv(title,17,DARK,true));TextView s=tv(sub,12,MUTED,false);s.setPadding(0,dp(3),0,0);txt.addView(s);r.addView(txt,new LinearLayout.LayoutParams(0,-2,1));
         TextView arr=tv("›",28,GREEN,true);arr.setGravity(Gravity.CENTER);r.addView(arr,new LinearLayout.LayoutParams(dp(28),dp(50)));c.addView(r);
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,0,0,dp(10));c.setLayoutParams(p);return c;
