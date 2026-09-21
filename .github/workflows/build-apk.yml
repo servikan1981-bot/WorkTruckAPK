@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare V6.5 UI and Multi VIN
+      - name: Prepare V6.6 owner services
         run: python3 tools/prepare_v60.py
 
       - name: Prepare panorama resources
@@ -28,6 +28,16 @@ jobs:
 
       - name: Verify prepared source
         run: |
+          grep -q 'ServiceActivity' app/src/main/AndroidManifest.xml
+          grep -q 'VehicleJournalActivity' app/src/main/AndroidManifest.xml
+          grep -q 'SosActivity' app/src/main/AndroidManifest.xml
+          grep -q 'ErrorGuideActivity' app/src/main/AndroidManifest.xml
+          grep -q 'Сервис Work Truck' app/src/main/java/com/worktruck/catalog/MoreActivity.java
+          grep -q 'Журнал автомобиля и ТО' app/src/main/java/com/worktruck/catalog/MoreActivity.java
+          grep -q 'Машина встала · SOS' app/src/main/java/com/worktruck/catalog/MoreActivity.java
+          grep -q 'Справочник ошибок Scania' app/src/main/java/com/worktruck/catalog/MoreActivity.java
+          grep -q 'OwnerServicesBackendContract' app/src/main/java/com/worktruck/catalog/OwnerServicesBackendContract.java
+          grep -q 'last_report' app/src/main/java/com/worktruck/catalog/DiagnosticActivity.java
           grep -q 'MultiLookupActivity' app/src/main/AndroidManifest.xml
           grep -q 'Подбор по VIN · Scania Multi' app/src/main/java/com/worktruck/catalog/MoreActivity.java
           grep -q 'SCANNIA' app/src/main/java/com/worktruck/catalog/MultiLookupActivity.java || true
@@ -73,11 +83,11 @@ jobs:
           ls -lh "$APK"
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V6_5_ScaniaMulti.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V6_6_OwnerServices.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: WorkTruck_V6_5_ScaniaMulti
+          name: WorkTruck_V6_6_OwnerServices
           path: WorkTruck_V6_5_ScaniaMulti.apk
           if-no-files-found: error
