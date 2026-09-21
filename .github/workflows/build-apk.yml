@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare V6.1 UI and navigation
+      - name: Prepare V6.2 UI and navigation
         run: python3 tools/prepare_v60.py
 
       - name: Prepare panorama resources
@@ -25,12 +25,16 @@ jobs:
 
       - name: Verify prepared source
         run: |
-          grep -q 'MoreActivity' app/src/main/AndroidManifest.xml
+          grep -q 'DiagnosticActivity' app/src/main/AndroidManifest.xml
+          grep -q 'BLUETOOTH_CONNECT' app/src/main/AndroidManifest.xml
           grep -q 'МОИ МАШИНЫ' app/src/main/java/com/worktruck/catalog/V53Activity.java
           grep -q 'НОВЫЕ ПОСТУПЛЕНИЯ' app/src/main/java/com/worktruck/catalog/V53Activity.java
+          grep -q 'Диагностика ELM327' app/src/main/java/com/worktruck/catalog/MoreActivity.java
+          grep -q 'createRfcommSocketToServiceRecord' app/src/main/java/com/worktruck/catalog/DiagnosticActivity.java
+          grep -q 'СЧИТАТЬ ОШИБКИ И ПАРАМЕТРЫ' app/src/main/java/com/worktruck/catalog/DiagnosticActivity.java
+          grep -q 'parseDtcs' app/src/main/java/com/worktruck/catalog/DiagnosticActivity.java
           grep -q 'Экскурсия по Work Truck' app/src/main/java/com/worktruck/catalog/MoreActivity.java
           grep -q 'Игра · Угадай запчасть' app/src/main/java/com/worktruck/catalog/MoreActivity.java
-          grep -q 'Мой автопарк' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
           grep -q 'Бонусный кошелёк' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
           grep -q 'Сообщить о поступлении' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
           grep -q 'Где мой заказ' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
@@ -65,11 +69,11 @@ jobs:
           ls -lh "$APK"
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V6_1_blue_optimized.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V6_2_ELM327.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: WorkTruck_V6_1_blue_optimized
-          path: WorkTruck_V6_1_blue_optimized.apk
+          name: WorkTruck_V6_2_ELM327
+          path: WorkTruck_V6_2_ELM327.apk
           if-no-files-found: error
