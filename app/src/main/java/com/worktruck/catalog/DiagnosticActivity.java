@@ -242,7 +242,7 @@ public class DiagnosticActivity extends Activity {
 
     private String cleanResponse(String s){
         if(s==null)return "—";
-        return s.replace(">","").replace("\r"," ").replace("\n"," ").replace("SEARCHING...","").replaceAll("\s+"," ").trim();
+        return s.replace(">","").replace("\r"," ").replace("\n"," ").replace("SEARCHING...","").replaceAll("\\s+"," ").trim();
     }
 
     private String parsePid(String raw,int pid){
