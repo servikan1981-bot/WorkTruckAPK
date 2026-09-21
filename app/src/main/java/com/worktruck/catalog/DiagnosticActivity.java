@@ -297,6 +297,7 @@ public class DiagnosticActivity extends Activity {
                 if(dtcs.isEmpty())r.append("Стандартные DTC: не обнаружены\n");
                 else{r.append("Ошибки:\n");for(String d:dtcs)r.append("• ").append(d).append(" — ").append(dtcHint(d)).append("\n");}
                 report.setLength(0);report.append(r);
+                getSharedPreferences("wt_diagnostics",MODE_PRIVATE).edit().putString("last_report",r.toString()).putString("last_vin",vin).putLong("last_time",System.currentTimeMillis()).apply();
 
                 runOnUiThread(()->showResults(vin,voltage,rpm,coolant,load,dtcs));
             }catch(Throwable e){
