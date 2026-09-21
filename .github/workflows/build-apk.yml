@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare V6.7 manager and SOS location
+      - name: Prepare V6.8 deduplicated navigation
         run: python3 tools/prepare_v60.py
 
       - name: Prepare panorama resources
@@ -29,10 +29,16 @@ jobs:
       - name: Verify prepared source
         run: |
           grep -q 'ACCESS_FINE_LOCATION' app/src/main/AndroidManifest.xml
+          grep -q 'V6.8 DEDUPLICATED' tools/prepare_v60.py
+          grep -q 'sosNav' tools/prepare_v60.py
+          grep -q 'hero("КАТАЛОГ"' tools/prepare_v60.py
+          grep -q 'sosMenu' app/src/main/java/com/worktruck/catalog/MoreActivity.java
+          grep -q 'Мои заявки' app/src/main/java/com/worktruck/catalog/MoreActivity.java
+          grep -q 'Профиль' app/src/main/java/com/worktruck/catalog/MoreActivity.java
           grep -q 'Сергей Аникинов' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
           grep -q '79503512841' app/src/main/java/com/worktruck/catalog/ClientHubActivity.java
           grep -q 'LocationManager' app/src/main/java/com/worktruck/catalog/SosActivity.java
-          grep -q 'maps.google.com/?q=' app/src/main/java/com/worktruck/catalog/SosActivity.java
+          grep -q 'yandex.ru/maps/?pt=' app/src/main/java/com/worktruck/catalog/SosActivity.java
           grep -q 'tg://resolve?phone=' app/src/main/java/com/worktruck/catalog/SosActivity.java
           grep -q 'ServiceActivity' app/src/main/AndroidManifest.xml
           grep -q 'VehicleJournalActivity' app/src/main/AndroidManifest.xml
@@ -89,11 +95,11 @@ jobs:
           ls -lh "$APK"
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V6_7_ManagerSOS.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk WorkTruck_V6_8_NewNavigation.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: WorkTruck_V6_7_ManagerSOS
+          name: WorkTruck_V6_8_NewNavigation
           path: WorkTruck_V6_7_ManagerSOS.apk
           if-no-files-found: error
