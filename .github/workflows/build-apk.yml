@@ -89,5 +89,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: WorkTruck_V6_6_OwnerServices
-          path: WorkTruck_V6_5_ScaniaMulti.apk
+          path: WorkTruck_V6_6_OwnerServices.apk
           if-no-files-found: error
