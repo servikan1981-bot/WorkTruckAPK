@@ -101,5 +101,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: WorkTruck_V6_8_NewNavigation
-          path: WorkTruck_V6_7_ManagerSOS.apk
+          path: WorkTruck_V6_8_NewNavigation.apk
           if-no-files-found: error
