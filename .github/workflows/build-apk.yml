@@ -82,5 +82,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: WorkTruck_V6_3_ScaniaChat
-          path: WorkTruck_V6_2_ELM327.apk
+          path: WorkTruck_V6_3_ScaniaChat.apk
           if-no-files-found: error
