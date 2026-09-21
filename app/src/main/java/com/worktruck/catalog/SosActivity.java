@@ -199,7 +199,7 @@ public class SosActivity extends Activity {
         s.append("Проблема: ").append(problem.getSelectedItem()).append("\n");
         if(loc!=null){
             String coords=String.format(Locale.US,"%.6f,%.6f",loc.getLatitude(),loc.getLongitude());
-            s.append("Геопозиция: https://maps.google.com/?q=").append(coords).append("\n");
+            s.append("Геопозиция в Яндекс Картах: https://yandex.ru/maps/?pt=").append(String.format(Locale.US,"%.6f,%.6f",loc.getLongitude(),loc.getLatitude())).append("&z=16&l=map\n");
             s.append("Координаты: ").append(coords).append("\n");
         }else s.append("Геопозиция: не получена\n");
         String p=place.getText().toString().trim();if(!p.isEmpty())s.append("Ориентир: ").append(p).append("\n");
