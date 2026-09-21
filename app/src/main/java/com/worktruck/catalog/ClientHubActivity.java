@@ -132,10 +132,34 @@ public class ClientHubActivity extends Activity {
         base("Персональный менеджер",this::showHub);
         ScrollView sv=new ScrollView(this);LinearLayout body=col();body.setPadding(dp(14),dp(14),dp(14),dp(24));
         LinearLayout c=card();
-        TextView avatar=tv("WT",28,Color.WHITE,true);avatar.setGravity(Gravity.CENTER);avatar.setBackground(round(BLUE,40));c.addView(avatar,new LinearLayout.LayoutParams(dp(76),dp(76)));
-        TextView name=tv("Ваш персональный менеджер",20,DARK,true);name.setPadding(0,dp(12),0,dp(4));c.addView(name);c.addView(tv("После авторизации ERP здесь появятся имя, фото и прямые контакты закреплённого менеджера.",13,MUTED,false));body.addView(wrapMargin(c,0,0,0,12));
-        Button call=greenButton("ПОЗВОНИТЬ 8 800 550-96-38");call.setOnClickListener(v->startActivity(new Intent(Intent.ACTION_DIAL, Uri.parse("tel:88005509638"))));body.addView(call,new LinearLayout.LayoutParams(-1,dp(54)));
-        Button msg=lightButton("Написать в WhatsApp");msg.setOnClickListener(v->{try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://wa.me/78005509638")));}catch(Throwable e){toast("WhatsApp не найден");}});body.addView(wrapMargin(msg,0,10,0,0));
+        TextView avatar=tv("СА",28,Color.WHITE,true);avatar.setGravity(Gravity.CENTER);avatar.setBackground(round(BLUE,40));c.addView(avatar,new LinearLayout.LayoutParams(dp(76),dp(76)));
+        TextView name=tv("Сергей Аникинов",21,DARK,true);name.setPadding(0,dp(12),0,dp(3));c.addView(name);
+        c.addView(tv("Персональный менеджер Work Truck",13,MUTED,false));
+        TextView phone=tv("8-950-351-28-41",17,BLUE,true);phone.setPadding(0,dp(8),0,0);c.addView(phone);
+        body.addView(wrapMargin(c,0,0,0,12));
+
+        Button call=greenButton("ПОЗВОНИТЬ СЕРГЕЮ · 8-950-351-28-41");
+        call.setOnClickListener(v->startActivity(new Intent(Intent.ACTION_DIAL,Uri.parse("tel:+79503512841"))));
+        body.addView(call,new LinearLayout.LayoutParams(-1,dp(54)));
+
+        Button tg=lightButton("Написать Сергею в Telegram");
+        tg.setOnClickListener(v->{
+            try{
+                String text=Uri.encode("Здравствуйте, Сергей. Пишу из приложения Work Truck.");
+                Intent i=new Intent(Intent.ACTION_VIEW,Uri.parse("tg://resolve?phone=79503512841&text="+text));
+                startActivity(i);
+            }catch(Throwable e){
+                try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://t.me/+79503512841")));}catch(Throwable ignored){toast("Telegram не найден");}
+            }
+        });
+        body.addView(wrapMargin(tg,0,10,0,0));
+
+        Button msg=lightButton("Написать Сергею в WhatsApp");
+        msg.setOnClickListener(v->{try{startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://wa.me/79503512841")));}catch(Throwable e){toast("WhatsApp не найден");}});
+        body.addView(wrapMargin(msg,0,8,0,0));
+
+        LinearLayout general=card();general.addView(tv("Общий номер Work Truck",14,DARK,true));general.addView(tv("8 800 550-96-38",16,BLUE,true));general.setOnClickListener(v->startActivity(new Intent(Intent.ACTION_DIAL,Uri.parse("tel:88005509638"))));body.addView(wrapMargin(general,0,12,0,0));
+
         sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
     }
 
