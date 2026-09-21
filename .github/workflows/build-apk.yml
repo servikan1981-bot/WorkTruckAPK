@@ -79,5 +79,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: WorkTruck_V6_5_ScaniaMulti
-          path: WorkTruck_V6_4_ELM327_Discovery.apk
+          path: WorkTruck_V6_5_ScaniaMulti.apk
           if-no-files-found: error
