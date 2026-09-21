@@ -95,5 +95,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: WorkTruck_V6_7_ManagerSOS
-          path: WorkTruck_V6_6_OwnerServices.apk
+          path: WorkTruck_V6_7_ManagerSOS.apk
           if-no-files-found: error
