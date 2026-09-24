@@ -38,9 +38,11 @@ public class MessagingService extends Service {
 
     private volatile boolean running = false;
     private volatile HttpURLConnection activeConnection;
+    private volatile HttpURLConnection activePresenceConnection;
     private Thread worker;
     private Thread newsWorker;
-    private Thread presenceWorker;
+    private Thread presenceSenderWorker;
+    private Thread presenceListenerWorker;
     private Thread updateWorker;
     private final Map<String, Set<Integer>> chatChunks = new HashMap<>();
 
@@ -52,7 +54,8 @@ public class MessagingService extends Service {
         running = true;
         startWorker();
         startNewsWorker();
-        startPresenceWorker();
+        startPresenceSender();
+        startPresenceListener();
         startUpdateWorker();
     }
 
@@ -60,10 +63,12 @@ public class MessagingService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && ACTION_RESTART.equals(intent.getAction())) {
             try { if (activeConnection != null) activeConnection.disconnect(); } catch (Exception ignored) {}
+            try { if (activePresenceConnection != null) activePresenceConnection.disconnect(); } catch (Exception ignored) {}
         }
         if (worker == null || !worker.isAlive()) startWorker();
         if (newsWorker == null || !newsWorker.isAlive()) startNewsWorker();
-        if (presenceWorker == null || !presenceWorker.isAlive()) startPresenceWorker();
+        if (presenceSenderWorker == null || !presenceSenderWorker.isAlive()) startPresenceSender();
+        if (presenceListenerWorker == null || !presenceListenerWorker.isAlive()) startPresenceListener();
         if (updateWorker == null || !updateWorker.isAlive()) startUpdateWorker();
         return START_STICKY;
     }
@@ -74,53 +79,72 @@ public class MessagingService extends Service {
         worker.start();
     }
 
-    private void startPresenceWorker() {
-        if (presenceWorker != null && presenceWorker.isAlive()) return;
-        presenceWorker = new Thread(() -> {
+    private void startPresenceSender() {
+        if (presenceSenderWorker != null && presenceSenderWorker.isAlive()) return;
+        presenceSenderWorker = new Thread(() -> {
             while (running) {
                 try { sendPresenceHeartbeat(); } catch (Exception ignored) {}
-                try { pollPresenceNative(); } catch (Exception ignored) {}
-                sleep(20_000L);
+                sleep(25_000L);
             }
-        }, "OurFamilyPresence");
-        presenceWorker.start();
+        }, "OurFamilyPresenceSender");
+        presenceSenderWorker.start();
     }
 
-    private void pollPresenceNative() {
-        SharedPreferences prefs = SecureStore.prefs(this);
-        String code = SecureStore.familyCode(this);
-        String relay = prefs.getString("relay_base", "https://ntfy.sh");
-        if (code.isEmpty() || relay.isEmpty()) return;
+    private void startPresenceListener() {
+        if (presenceListenerWorker != null && presenceListenerWorker.isAlive()) return;
+        presenceListenerWorker = new Thread(this::presenceListenLoop, "OurFamilyPresenceListener");
+        presenceListenerWorker.start();
+    }
 
-        HttpURLConnection c = null;
-        BufferedReader reader = null;
-        try {
-            URL url = new URL(relay + "/" + FamilyDirectory.presenceTopic(code) + "/json?poll=1&since=120s");
-            c = (HttpURLConnection) url.openConnection();
-            c.setConnectTimeout(10000);
-            c.setReadTimeout(12000);
-            c.setRequestProperty("Accept", "application/x-ndjson");
-            c.setUseCaches(false);
-            c.connect();
-            reader = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                try {
-                    JSONObject o = new JSONObject(line);
-                    if (!"message".equals(o.optString("event"))) continue;
-                    String msg = o.optString("message", "");
-                    if (!msg.startsWith("of5p|")) continue;
-                    String[] p = msg.split("\\|", 3);
-                    if (p.length < 3) continue;
-                    String member = FamilyDirectory.roleFromTag(code, p[1]);
-                    long ts = Long.parseLong(p[2]);
-                    if (!member.isEmpty()) PresenceStore.update(this, member, ts);
-                } catch (Exception ignored) {}
+    private void presenceListenLoop() {
+        while (running) {
+            SharedPreferences prefs = SecureStore.prefs(this);
+            String code = SecureStore.familyCode(this);
+            String relay = prefs.getString("relay_base", "https://ntfy.sh");
+
+            if (code.isEmpty() || relay.isEmpty()) {
+                sleep(1500L);
+                continue;
             }
-        } catch (Exception ignored) {
-        } finally {
-            try { if (reader != null) reader.close(); } catch (Exception ignored) {}
-            try { if (c != null) c.disconnect(); } catch (Exception ignored) {}
+
+            BufferedReader reader = null;
+            HttpURLConnection c = null;
+            try {
+                URL url = new URL(relay + "/" + FamilyDirectory.presenceTopic(code) + "/json?since=2m");
+                c = (HttpURLConnection) url.openConnection();
+                activePresenceConnection = c;
+                c.setConnectTimeout(15000);
+                c.setReadTimeout(0);
+                c.setUseCaches(false);
+                c.setRequestProperty("Accept", "application/x-ndjson");
+                c.connect();
+
+                reader = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
+                String line;
+                while (running && (line = reader.readLine()) != null) {
+                    try {
+                        JSONObject o = new JSONObject(line);
+                        if (!"message".equals(o.optString("event"))) continue;
+                        long serverTime = o.optLong("time", 0L) * 1000L;
+                        if (serverTime > 0L && System.currentTimeMillis() - serverTime > 150_000L) continue;
+
+                        String msg = o.optString("message", "");
+                        if (!msg.startsWith("of5p|")) continue;
+                        String[] p = msg.split("\\|", 3);
+                        if (p.length < 3) continue;
+                        String member = FamilyDirectory.roleFromTag(code, p[1]);
+                        if (!member.isEmpty()) {
+                            PresenceStore.update(this, member, System.currentTimeMillis());
+                        }
+                    } catch (Exception ignored) {}
+                }
+            } catch (Exception ignored) {
+            } finally {
+                try { if (reader != null) reader.close(); } catch (Exception ignored) {}
+                try { if (c != null) c.disconnect(); } catch (Exception ignored) {}
+                activePresenceConnection = null;
+            }
+            sleep(1200L);
         }
     }
 
@@ -228,7 +252,17 @@ public class MessagingService extends Service {
             long eventTime = obj.optLong("time", 0L) * 1000L;
             RelayInbox.enqueue(this, id, eventTime, msg);
 
-            if (msg.startsWith("of5ctl|") || msg.startsWith("of5ack|")) return;
+            if (msg.startsWith("of5ctl|") || msg.startsWith("of5ack|")) {
+                try {
+                    String[] cp = msg.split("\\|");
+                    if (cp.length > 1) {
+                        String code = SecureStore.familyCode(this);
+                        String senderRole = FamilyDirectory.roleFromTag(code, cp[1]);
+                        if (!senderRole.isEmpty()) PresenceStore.update(this, senderRole, System.currentTimeMillis());
+                    }
+                } catch (Exception ignored) {}
+                return;
+            }
 
             String[] p = msg.split("\\|", 9);
             if (p.length < 9 || !"of5".equals(p[0])) return;
@@ -247,6 +281,7 @@ public class MessagingService extends Service {
             if (code.isEmpty()) return;
             String senderRole = FamilyDirectory.roleFromTag(code, senderTag);
             if (senderRole.isEmpty()) return;
+            PresenceStore.update(this, senderRole, System.currentTimeMillis());
 
             long age = eventTime > 0 ? System.currentTimeMillis() - eventTime : 0L;
 
@@ -463,7 +498,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья 6.0.2")
+                .setContentTitle("Наша семья 6.0.3")
                 .setContentText("Фоновая связь и статус в сети включены")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
