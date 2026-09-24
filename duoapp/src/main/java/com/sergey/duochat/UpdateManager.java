@@ -15,6 +15,7 @@ import android.util.Base64InputStream;
 import android.widget.Toast;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -27,6 +28,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.util.Locale;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class UpdateManager {
     public static final String UPDATE_MANIFEST =
@@ -102,7 +105,16 @@ public final class UpdateManager {
             i.versionCode = o.getLong("versionCode");
             i.versionName = o.optString("versionName", "");
             i.notes = o.optString("notes", "");
-            i.apkBase64Url = o.getString("apkBase64Url");
+            JSONArray parts = o.optJSONArray("apkBase64Parts");
+            if (parts != null) {
+                for (int p = 0; p < parts.length(); p++) {
+                    String u = parts.optString(p, "");
+                    if (!u.isEmpty()) i.apkBase64Parts.add(u);
+                }
+            }
+            String single = o.optString("apkBase64Url", "");
+            if (i.apkBase64Parts.isEmpty() && !single.isEmpty()) i.apkBase64Parts.add(single);
+            if (i.apkBase64Parts.isEmpty()) throw new Exception("В манифесте нет файла обновления");
             i.sha256 = o.getString("sha256").toLowerCase(Locale.US).replace(":", "").trim();
             return i;
         } finally {
@@ -170,25 +182,28 @@ public final class UpdateManager {
                 if (!dir.exists() && !dir.mkdirs()) throw new Exception("Не удалось создать папку обновления");
                 File apk = new File(dir, "OurFamily_update.apk");
 
-                HttpURLConnection c = (HttpURLConnection) new URL(
-                        info.apkBase64Url + "?t=" + System.currentTimeMillis()).openConnection();
-                c.setConnectTimeout(15000);
-                c.setReadTimeout(30000);
-                c.setRequestProperty("Cache-Control", "no-cache");
-
-                try (InputStream raw = new BufferedInputStream(c.getInputStream());
-                     Base64InputStream decoded = new Base64InputStream(raw, Base64.DEFAULT);
-                     OutputStream out = new BufferedOutputStream(new FileOutputStream(apk))) {
+                long total = 0;
+                try (OutputStream out = new BufferedOutputStream(new FileOutputStream(apk))) {
                     byte[] buf = new byte[32 * 1024];
-                    int n;
-                    long total = 0;
-                    while ((n = decoded.read(buf)) > 0) {
-                        total += n;
-                        if (total > 100L * 1024L * 1024L) throw new Exception("Файл обновления слишком большой");
-                        out.write(buf, 0, n);
+                    for (String partUrl : info.apkBase64Parts) {
+                        HttpURLConnection c = (HttpURLConnection) new URL(
+                                partUrl + "?t=" + System.currentTimeMillis()).openConnection();
+                        c.setConnectTimeout(15000);
+                        c.setReadTimeout(30000);
+                        c.setRequestProperty("Cache-Control", "no-cache");
+                        try (InputStream raw = new BufferedInputStream(c.getInputStream());
+                             Base64InputStream decoded = new Base64InputStream(raw, Base64.DEFAULT)) {
+                            int n;
+                            while ((n = decoded.read(buf)) > 0) {
+                                total += n;
+                                if (total > 100L * 1024L * 1024L)
+                                    throw new Exception("Файл обновления слишком большой");
+                                out.write(buf, 0, n);
+                            }
+                        } finally {
+                            c.disconnect();
+                        }
                     }
-                } finally {
-                    c.disconnect();
                 }
 
                 String actual = sha256(apk);
@@ -283,7 +298,7 @@ public final class UpdateManager {
         long versionCode;
         String versionName = "";
         String notes = "";
-        String apkBase64Url = "";
+        final List<String> apkBase64Parts = new ArrayList<>();
         String sha256 = "";
 
         JSONObject toJson() throws Exception {
@@ -291,7 +306,9 @@ public final class UpdateManager {
             o.put("versionCode", versionCode);
             o.put("versionName", versionName);
             o.put("notes", notes);
-            o.put("apkBase64Url", apkBase64Url);
+            JSONArray parts = new JSONArray();
+            for (String u : apkBase64Parts) parts.put(u);
+            o.put("apkBase64Parts", parts);
             o.put("sha256", sha256);
             return o;
         }
@@ -301,7 +318,15 @@ public final class UpdateManager {
             i.versionCode = o.getLong("versionCode");
             i.versionName = o.optString("versionName", "");
             i.notes = o.optString("notes", "");
-            i.apkBase64Url = o.getString("apkBase64Url");
+            JSONArray parts = o.optJSONArray("apkBase64Parts");
+            if (parts != null) {
+                for (int p = 0; p < parts.length(); p++) {
+                    String u = parts.optString(p, "");
+                    if (!u.isEmpty()) i.apkBase64Parts.add(u);
+                }
+            }
+            String single = o.optString("apkBase64Url", "");
+            if (i.apkBase64Parts.isEmpty() && !single.isEmpty()) i.apkBase64Parts.add(single);
             i.sha256 = o.getString("sha256");
             return i;
         }
