@@ -1,4 +1,4 @@
-name: Build Our Family 6.0.2 Stable
+name: Build Our Family 6.0.3 Stable
 
 on:
   workflow_dispatch:
@@ -32,9 +32,9 @@ jobs:
       - name: Validate stable identity
         run: |
           grep -q "applicationId 'com.sergey.ourfamily'" duoapp/build.gradle
-          grep -q "versionCode 6002" duoapp/build.gradle
-          grep -q "versionName '6.0.2'" duoapp/build.gradle
-          grep -q 'android:label="Наша семья 6.0.2"' duoapp/src/main/AndroidManifest.xml
+          grep -q "versionCode 6003" duoapp/build.gradle
+          grep -q "versionName '6.0.3'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.3"' duoapp/src/main/AndroidManifest.xml
           grep -q 'REQUEST_INSTALL_PACKAGES' duoapp/src/main/AndroidManifest.xml
           grep -q 'UpdateFileProvider' duoapp/src/main/AndroidManifest.xml
 
@@ -47,7 +47,7 @@ jobs:
           blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
           assert blocks
           Path('/tmp/family6.js').write_text('\n'.join(blocks))
-          assert "APP_VERSION='6.0.2'" in h
+          assert "APP_VERSION='6.0.3'" in h
           PY
           node --check /tmp/family6.js
           H=duoapp/src/main/assets/index.html
@@ -92,8 +92,15 @@ jobs:
           U=duoapp/src/main/java/com/sergey/duochat/UpdateManager.java
           H=duoapp/src/main/assets/index.html
           grep -q "presence_native_v602" "$P"
-          grep -q "pollPresenceNative" "$S"
-          grep -q "PresenceStore.update" "$S"
+          grep -q "startPresenceSender" "$S"
+          grep -q "startPresenceListener" "$S"
+          grep -q "presenceListenLoop" "$S"
+          grep -q "activePresenceConnection" "$S"
+          grep -q "PresenceStore.update(this, senderRole" "$S"
+          if grep -q "pollPresenceNative" "$S"; then
+            echo "Old short-poll presence code must be removed"
+            exit 1
+          fi
           grep -q "UpdateManager.checkBackground" "$S"
           grep -q "15L \* 60L \* 1000L" "$S"
           grep -q "family_updates_v6" "$U"
@@ -126,13 +133,13 @@ jobs:
           test -f "$APK"
           test -s "$APK"
           unzip -t "$APK" >/dev/null
-          unzip -p "$APK" assets/index.html | grep -q "Наша семья 6.0.2"
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья 6.0.3"
           sha256sum "$APK"
           ls -lh "$APK"
 
       - name: Upload unsigned release
         uses: actions/upload-artifact@v4
         with:
-          name: OurFamily_6_0_2_unsigned
+          name: OurFamily_6_0_3_unsigned
           path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
           if-no-files-found: error
