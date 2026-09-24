@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         captureCallAction(getIntent());
+        captureMessageNavigation(getIntent());
 
         webView = new WebView(this);
         setContentView(webView);
@@ -118,6 +119,7 @@ public class MainActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         captureCallAction(intent);
+        captureMessageNavigation(intent);
         if (webView != null) {
             webView.post(() -> webView.evaluateJavascript(
                     "window.__ourFamilyConsumeNativeAction && window.__ourFamilyConsumeNativeAction();", null));
@@ -157,6 +159,24 @@ public class MainActivity extends Activity {
             o.put("kind", kind == null ? "video" : kind);
             SecureStore.prefs(this).edit()
                     .putString("pending_call_action", o.toString())
+                    .apply();
+        } catch (Exception ignored) {}
+    }
+
+    private void captureMessageNavigation(Intent intent) {
+        if (intent == null) return;
+        String messageId = intent.getStringExtra("open_message_id");
+        String senderRole = intent.getStringExtra("open_sender_role");
+        String messageKind = intent.getStringExtra("open_message_kind");
+        if (messageId == null || messageId.isEmpty()) return;
+
+        try {
+            JSONObject o = new JSONObject();
+            o.put("messageId", messageId);
+            o.put("senderRole", senderRole == null ? "" : senderRole);
+            o.put("kind", messageKind == null ? "" : messageKind);
+            SecureStore.prefs(this).edit()
+                    .putString("pending_message_navigation", o.toString())
                     .apply();
         } catch (Exception ignored) {}
     }
@@ -344,6 +364,14 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String consumePendingNavigation() {
+            SharedPreferences p = SecureStore.prefs(MainActivity.this);
+            String value = p.getString("pending_message_navigation", "");
+            if (!value.isEmpty()) p.edit().remove("pending_message_navigation").apply();
+            return value;
+        }
+
+        @JavascriptInterface
         public boolean canUseFullScreenCall() {
             if (Build.VERSION.SDK_INT < 34) return true;
             NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -423,7 +451,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "5.5";
+            return "5.6";
         }
     }
 
