@@ -1,15 +1,15 @@
 {
-  "versionCode": 6004,
-  "versionName": "6.0.4",
+  "versionCode": 6005,
+  "versionName": "6.0.5",
   "apkBase64Parts": [
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_00.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_01.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_02.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_03.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_04.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_05.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_06.b64"
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_06.b64"
   ],
-  "sha256": "3ef752e9e53406d10853c35a0c6178d47b1497d1c8ae0e7f411974b55a2f4174",
-  "notes": "Исправлен базовый транспорт приложения. Отправка сообщений, звонков, реакций и вложений переведена из WebView в нативный Android HTTP-клиент. Online теперь передаётся по тем же персональным inbox-каналам, что и сообщения, без отдельного presence-канала. Это устраняет одновременные ошибки отправки (!) и ложный offline."
+  "sha256": "58815b81ca01ed404c106d5fc65a94bdf344f644adee33d55564330e3ba44639",
+  "notes": "Исправлен сбой транспорта 6.0.4: персональные heartbeat-запросы превышали rate limit ntfy.sh и вызывали HTTP 429, из-за чего сообщения получали ! и участники становились offline. В 6.0.5 один общий presence-heartbeat раз в 2 минуты, постоянный нативный presence-stream и корректный backoff при 429. Сообщения, звонки, реакции и вложения остаются на нативном Android-транспорте."
 }
