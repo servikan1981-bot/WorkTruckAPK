@@ -1,4 +1,4 @@
-name: Build Our Family 6.0.5 Stable
+name: Build Our Family 6.0.6 Stable
 
 on:
   workflow_dispatch:
@@ -32,9 +32,9 @@ jobs:
       - name: Validate stable identity
         run: |
           grep -q "applicationId 'com.sergey.ourfamily'" duoapp/build.gradle
-          grep -q "versionCode 6005" duoapp/build.gradle
-          grep -q "versionName '6.0.5'" duoapp/build.gradle
-          grep -q 'android:label="Наша семья 6.0.5"' duoapp/src/main/AndroidManifest.xml
+          grep -q "versionCode 6006" duoapp/build.gradle
+          grep -q "versionName '6.0.6'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.6"' duoapp/src/main/AndroidManifest.xml
           grep -q 'REQUEST_INSTALL_PACKAGES' duoapp/src/main/AndroidManifest.xml
           grep -q 'UpdateFileProvider' duoapp/src/main/AndroidManifest.xml
 
@@ -47,7 +47,7 @@ jobs:
           blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
           assert blocks
           Path('/tmp/family6.js').write_text('\n'.join(blocks))
-          assert "APP_VERSION='6.0.5'" in h
+          assert "APP_VERSION='6.0.6'" in h
           PY
           node --check /tmp/family6.js
           H=duoapp/src/main/assets/index.html
@@ -97,8 +97,6 @@ jobs:
           grep -q "startPresenceListener" "$S"
           grep -q "presenceListenLoop" "$S"
           grep -q "FamilyDirectory.presenceTopic" "$S"
-          grep -q "120_000L" "$S"
-          grep -q "postOnce" "$S"
           grep -q "ERR:http:429" "$R"
           grep -q "5500L" "$R"
           if grep -q "for (String member : FamilyDirectory.MEMBERS.keySet())" "$S"; then
@@ -123,7 +121,7 @@ jobs:
           R=duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
           A=duoapp/src/main/java/com/sergey/duochat/NativeAttachmentTransport.java
           if grep -q "fetch(" "$H"; then
-            echo "WebView network fetch must not remain in stable 6.0.5"
+            echo "WebView network fetch must not remain in stable 6.0.6"
             exit 1
           fi
           grep -q "AndroidBridge.sendRelay" "$H"
@@ -133,7 +131,10 @@ jobs:
           grep -q "postBlocking" "$R"
           grep -q "uploadBase64" "$A"
           grep -q "downloadBase64" "$A"
-          grep -q "of5presence|" "$S"
+          if grep -q "NativeRelayTransport.postOnce(this, topic, wire, 1)" "$S"; then
+            echo "Presence must not consume the publishing quota"
+            exit 1
+          fi
           grep -q "presenceListenLoop" "$S"
 
       - name: Validate update system
@@ -159,7 +160,7 @@ jobs:
           test -f "$APK"
           test -s "$APK"
           unzip -t "$APK" >/dev/null
-          unzip -p "$APK" assets/index.html | grep -q "Наша семья 6.0.5"
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья 6.0.6"
           sha256sum "$APK"
           ls -lh "$APK"
 

@@ -80,14 +80,8 @@ public class MessagingService extends Service {
     }
 
     private void startPresenceSender() {
-        if (presenceSenderWorker != null && presenceSenderWorker.isAlive()) return;
-        presenceSenderWorker = new Thread(() -> {
-            while (running) {
-                try { sendPresenceHeartbeat(); } catch (Exception ignored) {}
-                sleep(120_000L);
-            }
-        }, "OurFamilyPresenceSender");
-        presenceSenderWorker.start();
+        // Public ntfy.sh has a daily publishing quota. Presence heartbeats
+        // consumed it and prevented real chat messages from being delivered.
     }
 
     private void startPresenceListener() {
@@ -156,18 +150,7 @@ public class MessagingService extends Service {
     }
 
     private void sendPresenceHeartbeat() {
-        SharedPreferences prefs = SecureStore.prefs(this);
-        String code = SecureStore.familyCode(this);
-        String myTag = prefs.getString("sender_tag", "");
-        String myRole = SecureStore.role(this);
-        if (code.isEmpty() || myTag.isEmpty() || myRole.isEmpty()) return;
-
-        long now = System.currentTimeMillis();
-        PresenceStore.update(this, myRole, now);
-
-        String topic = FamilyDirectory.presenceTopic(code);
-        String wire = "of5presence|" + myTag + "|" + now;
-        NativeRelayTransport.postOnce(this, topic, wire, 1);
+        // Disabled for the same reason as startPresenceSender().
     }
 
     private void startNewsWorker() {
