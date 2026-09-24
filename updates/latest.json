@@ -1,15 +1,15 @@
 {
-  "versionCode": 6003,
-  "versionName": "6.0.3",
+  "versionCode": 6004,
+  "versionName": "6.0.4",
   "apkBase64Parts": [
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_00.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_01.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_02.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_03.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_04.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_05.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_06.b64"
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v604_06.b64"
   ],
-  "sha256": "65c7fc8d1e3384853d393f6466119b937894238f837649f6119a1b6a1a549513",
-  "notes": "Исправлен статус «в сети»: отдельный постоянный native presence-stream вместо коротких опросов. Любое входящее сообщение, вызов или подтверждение также сразу обновляет online-статус отправителя. Сохранены системные входящие звонки Android Telecom и автоматические уведомления о новых версиях."
+  "sha256": "3ef752e9e53406d10853c35a0c6178d47b1497d1c8ae0e7f411974b55a2f4174",
+  "notes": "Исправлен базовый транспорт приложения. Отправка сообщений, звонков, реакций и вложений переведена из WebView в нативный Android HTTP-клиент. Online теперь передаётся по тем же персональным inbox-каналам, что и сообщения, без отдельного presence-канала. Это устраняет одновременные ошибки отправки (!) и ложный offline."
 }
