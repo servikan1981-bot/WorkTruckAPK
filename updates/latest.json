@@ -1,15 +1,15 @@
 {
-  "versionCode": 6005,
-  "versionName": "6.0.5",
+  "versionCode": 6006,
+  "versionName": "6.0.6",
   "apkBase64Parts": [
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_00.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_01.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_02.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_03.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_04.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_05.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v605_06.b64"
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_06.b64"
   ],
-  "sha256": "58815b81ca01ed404c106d5fc65a94bdf344f644adee33d55564330e3ba44639",
-  "notes": "Исправлен сбой транспорта 6.0.4: персональные heartbeat-запросы превышали rate limit ntfy.sh и вызывали HTTP 429, из-за чего сообщения получали ! и участники становились offline. В 6.0.5 один общий presence-heartbeat раз в 2 минуты, постоянный нативный presence-stream и корректный backoff при 429. Сообщения, звонки, реакции и вложения остаются на нативном Android-транспорте."
+  "sha256": "0f2640ae1f6da4f6598f5f21d1ab62640f6dde5c163471d35d9a6fb7646c5fef",
+  "notes": "Исправлено отсутствие публикации сообщений из-за фоновых запросов к ntfy.sh. Отключены автоматические heartbeat-сообщения присутствия, добавлен повтор отправки нажатием на красный !. Статус в сети временно недоступен."
 }
