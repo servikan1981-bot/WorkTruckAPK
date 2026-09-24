@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья v5.5</title>
+<title>Наша семья v5.6</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -68,7 +68,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 .videoTile.local-self{touch-action:none}
 .videoTile.local-self.floating-self{position:absolute!important;width:32%!important;height:30%!important;min-height:110px!important;z-index:8;box-shadow:0 8px 24px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.75)}
 .auto-news{border-left:4px solid var(--green)}.auto-news-source{font-size:11px;color:var(--green);font-weight:850;margin-bottom:6px}.auto-news-title{font-size:17px;font-weight:900;line-height:1.25;margin-bottom:6px}.auto-news-image{display:block;width:100%;max-height:260px;object-fit:cover;border-radius:12px;margin-top:9px;background:#111}
-.presence-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:14px}.presence-person{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:9px 10px;display:flex;align-items:center;gap:8px}.presence-dot{width:9px;height:9px;border-radius:50%;background:#9aa5b1;flex:none}.presence-dot.online{background:#1fb36b;box-shadow:0 0 0 3px rgba(31,179,107,.12)}.presence-name{font-size:13px;font-weight:850}.presence-state{font-size:10px;color:var(--muted)}
+.presence-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:14px}.presence-person{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:9px 10px;display:flex;align-items:center;gap:8px}.presence-dot{width:9px;height:9px;border-radius:50%;background:#9aa5b1;flex:none}.presence-dot.online{background:#1fb36b;box-shadow:0 0 0 3px rgba(31,179,107,.12)}.presence-name{font-size:13px;font-weight:850}.presence-state{font-size:10px;color:var(--muted)}.presence-person{width:100%;text-align:left;color:var(--ink);font:inherit}.presence-person .badge{margin-left:auto}.message-highlight{animation:messageFlash 1.8s ease}@keyframes messageFlash{0%,35%{box-shadow:0 0 0 4px rgba(47,111,237,.32)}100%{box-shadow:0 2px 7px rgba(25,35,55,.05)}}
 .receipt{display:inline-block;margin-left:4px;font-weight:900;letter-spacing:-2px;color:var(--ink);opacity:.78}.receipt.read{color:#1687ff}.receipt.failed{color:var(--red);letter-spacing:0}
 .about-version{font-size:26px;font-weight:950;margin:8px 0}.about-copy{color:var(--muted);line-height:1.45}.about-logo{font-size:42px}
 .react-open{border:0;background:transparent;color:var(--muted);font-size:15px;padding:0 4px;margin-left:5px;vertical-align:middle}.reaction-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}.reaction-chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:3px 7px;font-size:13px;line-height:1}.reaction-chip.mine-reaction{border-color:var(--blue);background:color-mix(in srgb,var(--card) 78%,var(--blue) 22%)}
@@ -81,7 +81,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья v5.5</h1>
+    <h1>Наша семья v5.6</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -284,7 +284,7 @@ var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={};
 var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},callTimeout=null,currentFacing='user',cameraSwitchBusy=false,speakerOn=false;
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[];
 var presenceMap={},presenceTimer=null,presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='5.5',reactionTargetId='';
+var APP_VERSION='5.6',reactionTargetId='',pendingMessageNavigation=null;
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'light',videoLayout:'side'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
@@ -598,8 +598,15 @@ async function pollPresence(){
 function renderPresence(){
  var box=$('presenceList');if(!box)return;box.innerHTML='';
  MEMBERS.forEach(function(m){
-   var on=onlineNow(m.id),row=document.createElement('div');row.className='presence-person';
-   row.innerHTML='<span class="presence-dot '+(on?'online':'')+'"></span><div><div class="presence-name">'+m.name+(m.id===role?' · Вы':'')+'</div><div class="presence-state">'+(on?'в сети':'не в сети')+'</div></div>';
+   var on=onlineNow(m.id),row=document.createElement(m.id===role?'div':'button');row.className='presence-person';
+   var unread=m.id===role?0:directMessages(m.id).filter(function(x){return x.from===m.id&&!x.read;}).length;
+   var dot=document.createElement('span');dot.className='presence-dot '+(on?'online':'');
+   var info=document.createElement('div'),name=document.createElement('div'),state=document.createElement('div');
+   name.className='presence-name';name.textContent=m.name+(m.id===role?' · Вы':'');
+   state.className='presence-state';state.textContent=on?'в сети':'не в сети';
+   info.append(name,state);row.append(dot,info);
+   if(unread){var badge=document.createElement('div');badge.className='badge';badge.textContent=unread>99?'99+':unread;row.appendChild(badge);}
+   if(m.id!==role){row.type='button';row.addEventListener('click',function(){openDirect(m.id);});}
    box.appendChild(row);
  });
  if(currentThread&&currentThread.type==='direct')$('chatSubtitle').textContent=presenceLabel(currentThread.peer);
@@ -610,8 +617,7 @@ function renderPresence(){
 }
 function startPresence(){
  clearInterval(presenceTimer);clearInterval(presencePollTimer);
- sendPresence();pollPresence();
- presenceTimer=setInterval(sendPresence,20000);
+ presenceMap[role]=Date.now();pollPresence();
  presencePollTimer=setInterval(pollPresence,12000);
 }
 function saveMessages(){
@@ -627,6 +633,7 @@ function addMessage(m){
  messages.push(m);saveMessages();renderHome();
  if(currentThread&&messageBelongs(m,currentThread))renderMessages();
  if(m.kind==='news'&&!$('news').classList.contains('hidden'))renderNews();
+ if(pendingMessageNavigation)tryOpenPendingMessage();
 }
 function ensureGroup(members,groupId){
  members=sortedMembers(members);
@@ -764,6 +771,42 @@ async function sendNewsPost(){
    }
    $('newsInput').value='';setNewsDraft(null,false);renderNews();toast('Опубликовано');
  }catch(e){toast('Не удалось опубликовать');}
+}
+
+function scrollToMessage(messageId){
+ if(!messageId)return;
+ var tries=0;
+ function go(){
+   var el=document.querySelector('[data-message-id="'+messageId+'"]');
+   if(el){
+     try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){el.scrollIntoView();}
+     el.classList.add('message-highlight');setTimeout(function(){el.classList.remove('message-highlight');},1900);
+     return;
+   }
+   if(++tries<8)setTimeout(go,100);
+ }
+ setTimeout(go,40);
+}
+function tryOpenPendingMessage(){
+ if(!pendingMessageNavigation||!pendingMessageNavigation.messageId)return false;
+ var id=pendingMessageNavigation.messageId,m=messages.find(function(x){return x.id===id;});
+ if(!m)return false;
+ pendingMessageNavigation=null;
+ if(m.kind==='direct'){
+   var peer=m.from===role?m.to:m.from;openDirect(peer);scrollToMessage(id);return true;
+ }
+ if(m.kind==='group'&&m.groupId){
+   openGroup(m.groupId,m.members||[]);scrollToMessage(id);return true;
+ }
+ return false;
+}
+function consumeNativeNavigation(){
+ try{
+   var raw=AndroidBridge.consumePendingNavigation();if(!raw)return;
+   var n=JSON.parse(raw);if(!n.messageId)return;
+   pendingMessageNavigation=n;
+   if(!tryOpenPendingMessage()){pollInbox();setTimeout(tryOpenPendingMessage,350);setTimeout(tryOpenPendingMessage,900);}
+ }catch(e){}
 }
 
 function openDirect(peer){
@@ -1342,7 +1385,7 @@ function consumeNativeAction(){
    var a=JSON.parse(raw);if(a.action==='accept'){pendingNativeAccept=a;maybeAutoAccept();}
  }catch(e){}
 }
-window.__ourFamilyConsumeNativeAction=function(){consumeNativeAction();pollInbox();};
+window.__ourFamilyConsumeNativeAction=function(){consumeNativeAction();consumeNativeNavigation();pollInbox();};
 
 function renderAdminArchive(){
  if(role!=='sergey')return;
@@ -1460,7 +1503,7 @@ function requestFullScreen(){try{AndroidBridge.requestFullScreenCallPermission()
 async function configure(){
  ownTag=await roleTag(role);ownTopic=await inboxTopic(role);presenceTopic=await familyPresenceTopic();
  try{AndroidBridge.configure(ownTopic,role,relayBase,ownTag);}catch(e){}
- startPolling();startPresence();consumeNativeAction();checkFullScreenPermission();
+ startPolling();startPresence();consumeNativeAction();consumeNativeNavigation();checkFullScreenPermission();
 }
 async function enter(){
  loadUiSettings();refreshAutoNews();
@@ -1562,10 +1605,10 @@ $('resetBtn').addEventListener('click',function(){if(confirm('Сменить п�
 $('adminArchiveBtn').addEventListener('click',openAdminArchiveScreen);
 $('adminBackBtn').addEventListener('click',function(){showScreen('home');});
 $('adminChatBackBtn').addEventListener('click',openAdminArchiveScreen);
-window.addEventListener('focus',function(){pollInbox();sendPresence();pollPresence();checkFullScreenPermission();refreshAutoNews();if(!$('news').classList.contains('hidden'))renderNews();});
-window.addEventListener('online',function(){pollInbox();sendPresence();pollPresence();});
+window.addEventListener('focus',function(){pollInbox();pollPresence();checkFullScreenPermission();refreshAutoNews();if(!$('news').classList.contains('hidden'))renderNews();});
+window.addEventListener('online',function(){pollInbox();pollPresence();});
 document.addEventListener('visibilitychange',function(){
- if(!document.hidden){sendPresence();pollPresence();if(!$('chat').classList.contains('hidden'))scrollChatToBottom();}
+ if(!document.hidden){presenceMap[role]=Date.now();pollPresence();if(!$('chat').classList.contains('hidden'))scrollChatToBottom();}
  renderPresence();
 });
 if(window.visualViewport){
