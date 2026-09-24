@@ -17,7 +17,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="Наша семья 6.0"
+        android:label="Наша семья 6.0.1"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false"
         android:icon="@drawable/ic_launcher"
@@ -28,6 +28,16 @@
             android:exported="false"
             android:stopWithTask="false"
             android:foregroundServiceType="remoteMessaging" />
+
+        <service
+            android:name=".FamilyConnectionService"
+            android:label="Наша семья"
+            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService" />
+            </intent-filter>
+        </service>
 
         <receiver
             android:name=".BootReceiver"
