@@ -40,6 +40,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        applyCallWindowFlags(getIntent());
         captureCallAction(getIntent());
         captureMessageNavigation(getIntent());
 
@@ -112,12 +113,14 @@ public class MainActivity extends Activity {
         requestPermissionsIfNeeded();
         maybeStartMessagingService();
         loadApp();
+        UpdateManager.checkAsync(this, false);
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
+        applyCallWindowFlags(intent);
         captureCallAction(intent);
         captureMessageNavigation(intent);
         if (webView != null) {
@@ -141,6 +144,22 @@ public class MainActivity extends Activity {
             return;
         }
         super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    private void applyCallWindowFlags(Intent intent) {
+        if (intent == null || intent.getStringExtra("call_action") == null) return;
+        try {
+            getWindow().addFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+            );
+            if (Build.VERSION.SDK_INT >= 27) {
+                setShowWhenLocked(true);
+                setTurnScreenOn(true);
+            }
+        } catch (Exception ignored) {}
     }
 
     private void captureCallAction(Intent intent) {
@@ -451,7 +470,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "5.6.1";
+            return "6.0";
         }
     }
 
@@ -469,6 +488,13 @@ public class MainActivity extends Activity {
                         else MainActivity.super.onBackPressed();
                     }
                 }));
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        UpdateManager.resumePendingInstall(this);
+        UpdateManager.checkAsync(this, false);
     }
 
     @Override
