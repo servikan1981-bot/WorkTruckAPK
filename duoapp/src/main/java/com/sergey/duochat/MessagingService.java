@@ -313,14 +313,14 @@ public class MessagingService extends Service {
                 this, notificationId, full,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Intent accept = new Intent(this, IncomingCallActivity.class);
-        accept.setAction(IncomingCallActivity.ACTION_ACCEPT);
+        Intent accept = new Intent(this, CallActionReceiver.class);
+        accept.setAction(CallActionReceiver.ACTION_ACCEPT);
         accept.putExtra(IncomingCallActivity.EXTRA_CALL_ID, callId);
         accept.putExtra(IncomingCallActivity.EXTRA_CALLER_ROLE, callerRole);
         accept.putExtra(IncomingCallActivity.EXTRA_KIND, kind);
         accept.putExtra(IncomingCallActivity.EXTRA_NOTIFICATION_ID, notificationId);
 
-        PendingIntent acceptPi = PendingIntent.getActivity(
+        PendingIntent acceptPi = PendingIntent.getBroadcast(
                 this, notificationId + 10000, accept,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
@@ -406,7 +406,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья v5.6.1")
+                .setContentTitle("Наша семья 6.0")
                 .setContentText("Фоновая связь и статус в сети включены")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
