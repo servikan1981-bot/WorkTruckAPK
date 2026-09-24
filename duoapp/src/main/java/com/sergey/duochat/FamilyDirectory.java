@@ -49,6 +49,10 @@ public final class FamilyDirectory {
         return "of5-" + sha256("OurFamily-v5-inbox|" + code + "|" + role).substring(0, 48);
     }
 
+    public static String presenceTopic(String code) {
+        return "of5p-" + sha256("OurFamily-v5-presence|" + code).substring(0, 48);
+    }
+
     public static String roleFromTag(String code, String tag) {
         for (Map.Entry<String,String> e : MEMBERS.entrySet()) {
             if (tag(code, e.getKey()).equals(tag)) return e.getKey();
