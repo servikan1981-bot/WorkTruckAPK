@@ -22,6 +22,12 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public class MessagingService extends Service {
     public static final String ACTION_RESTART = "com.sergey.duochat.RESTART_LISTENER";
@@ -34,6 +40,7 @@ public class MessagingService extends Service {
     private volatile HttpURLConnection activeConnection;
     private Thread worker;
     private Thread newsWorker;
+    private final Map<String, Set<Integer>> chatChunks = new HashMap<>();
 
     @Override
     public void onCreate() {
@@ -120,7 +127,7 @@ public class MessagingService extends Service {
             long eventTime = obj.optLong("time", 0L) * 1000L;
             RelayInbox.enqueue(this, id, eventTime, msg);
 
-            if (msg.startsWith("of5ctl|")) return;
+            if (msg.startsWith("of5ctl|") || msg.startsWith("of5ack|")) return;
 
             String[] p = msg.split("\\|", 9);
             if (p.length < 9 || !"of5".equals(p[0])) return;
@@ -129,9 +136,11 @@ public class MessagingService extends Service {
             String recipientTag = p[2];
             String kind = p[3];
             String callId = p[4];
+            String groupId = p[5];
             String chunkIndex = p[6];
+            String totalChunks = p[7];
 
-            if (!recipientTag.equals(myTag) || senderTag.equals(myTag) || !"0".equals(chunkIndex)) return;
+            if (!recipientTag.equals(myTag) || senderTag.equals(myTag)) return;
 
             String code = SecureStore.familyCode(this);
             if (code.isEmpty()) return;
@@ -140,9 +149,29 @@ public class MessagingService extends Service {
 
             long age = eventTime > 0 ? System.currentTimeMillis() - eventTime : 0L;
 
-            if ("direct_invite".equals(kind) || "group_invite".equals(kind) ||
+            if ("direct_chat".equals(kind) || "group_chat".equals(kind)) {
+                try {
+                    int idx = Integer.parseInt(chunkIndex);
+                    int total = Integer.parseInt(totalChunks);
+                    String chunkKey = senderTag + "|" + groupId;
+                    Set<Integer> got = chatChunks.get(chunkKey);
+                    if (got == null) {
+                        got = new HashSet<>();
+                        chatChunks.put(chunkKey, got);
+                    }
+                    got.add(idx);
+                    if (total > 0 && got.size() >= total) {
+                        chatChunks.remove(chunkKey);
+                        String myRole = SecureStore.role(this);
+                        if (!callId.isEmpty() && !"-".equals(callId) && !myRole.isEmpty()) {
+                            sendNativeDelivered(code, relay, senderRole, myRole, senderTag, myTag, callId);
+                        }
+                    }
+                } catch (Exception ignored) {}
+                if ("0".equals(chunkIndex)) notifyMessage(senderRole, id, "Новое семейное сообщение");
+            } else if ("direct_invite".equals(kind) || "group_invite".equals(kind) ||
                     "direct_audio_invite".equals(kind) || "group_audio_invite".equals(kind)) {
-                if (age > 120000L || callId.isEmpty()) return;
+                if (!"0".equals(chunkIndex) || age > 120000L || callId.isEmpty()) return;
                 String callSeenKey = "v5_call_notified_" + callId;
                 if (prefs.getBoolean(callSeenKey, false)) return;
                 prefs.edit().putBoolean(callSeenKey, true).apply();
@@ -152,14 +181,43 @@ public class MessagingService extends Service {
                 notifyIncomingCall(senderRole, callId,
                         group ? (audio ? "group_audio" : "group_video") : (audio ? "audio" : "video"),
                         id);
-            } else if ("direct_chat".equals(kind) || "group_chat".equals(kind)) {
-                notifyMessage(senderRole, id, "Новое семейное сообщение");
             } else if ("news_post".equals(kind)) {
                 notifyMessage(senderRole, id, "Новая семейная новость");
             } else if ("admin_copy".equals(kind) && "sergey".equals(SecureStore.role(this))) {
                 notifyMessage(senderRole, id, "Новое сообщение в семейном архиве");
             }
         } catch (Exception ignored) {}
+    }
+
+    private void sendNativeDelivered(
+            String code, String relay, String senderRole, String myRole,
+            String senderTag, String myTag, String messageId) {
+        HttpURLConnection c = null;
+        try {
+            String token = FamilyDirectory.controlToken(code, messageId, "delivered", myRole, senderRole);
+            String wire = "of5ack|" + myTag + "|" + senderTag + "|" + messageId + "|delivered|" + token;
+            String topic = FamilyDirectory.inboxTopic(code, senderRole);
+
+            JSONObject body = new JSONObject();
+            body.put("topic", topic);
+            body.put("message", wire);
+            body.put("priority", 2);
+
+            c = (HttpURLConnection) new URL(relay + "/").openConnection();
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(10000);
+            c.setDoOutput(true);
+            c.setRequestMethod("POST");
+            c.setRequestProperty("Content-Type", "application/json");
+            byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
+            try (OutputStream out = c.getOutputStream()) {
+                out.write(bytes);
+            }
+            c.getResponseCode();
+        } catch (Exception ignored) {
+        } finally {
+            try { if (c != null) c.disconnect(); } catch (Exception ignored) {}
+        }
     }
 
     private void notifyMessage(String senderRole, String eventId, String text) {
@@ -296,7 +354,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья v5.4")
+                .setContentTitle("Наша семья v5.5")
                 .setContentText("Фоновая связь включена")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
