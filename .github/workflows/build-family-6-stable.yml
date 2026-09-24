@@ -1,4 +1,4 @@
-name: Build Our Family 6.0.3 Stable
+name: Build Our Family 6.0.4 Stable
 
 on:
   workflow_dispatch:
@@ -32,9 +32,9 @@ jobs:
       - name: Validate stable identity
         run: |
           grep -q "applicationId 'com.sergey.ourfamily'" duoapp/build.gradle
-          grep -q "versionCode 6003" duoapp/build.gradle
-          grep -q "versionName '6.0.3'" duoapp/build.gradle
-          grep -q 'android:label="Наша семья 6.0.3"' duoapp/src/main/AndroidManifest.xml
+          grep -q "versionCode 6004" duoapp/build.gradle
+          grep -q "versionName '6.0.4'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.4"' duoapp/src/main/AndroidManifest.xml
           grep -q 'REQUEST_INSTALL_PACKAGES' duoapp/src/main/AndroidManifest.xml
           grep -q 'UpdateFileProvider' duoapp/src/main/AndroidManifest.xml
 
@@ -47,7 +47,7 @@ jobs:
           blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
           assert blocks
           Path('/tmp/family6.js').write_text('\n'.join(blocks))
-          assert "APP_VERSION='6.0.3'" in h
+          assert "APP_VERSION='6.0.4'" in h
           PY
           node --check /tmp/family6.js
           H=duoapp/src/main/assets/index.html
@@ -110,6 +110,30 @@ jobs:
           grep -q "setTimeout(sendInvite,1600)" "$H"
           grep -q "setTimeout(sendInvite,4200)" "$H"
 
+      - name: Validate fully native transport
+        run: |
+          H=duoapp/src/main/assets/index.html
+          M=duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          R=duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
+          A=duoapp/src/main/java/com/sergey/duochat/NativeAttachmentTransport.java
+          if grep -q "fetch(" "$H"; then
+            echo "WebView network fetch must not remain in stable 6.0.4"
+            exit 1
+          fi
+          grep -q "AndroidBridge.sendRelay" "$H"
+          grep -q "AndroidBridge.uploadAttachment" "$H"
+          grep -q "AndroidBridge.downloadAttachment" "$H"
+          grep -q "public String sendRelay" "$M"
+          grep -q "postBlocking" "$R"
+          grep -q "uploadBase64" "$A"
+          grep -q "downloadBase64" "$A"
+          grep -q "of5presence|" "$S"
+          if grep -q "presenceListenLoop" "$S"; then
+            echo "Separate presence stream must be removed in 6.0.4"
+            exit 1
+          fi
+
       - name: Validate update system
         run: |
           U=duoapp/src/main/java/com/sergey/duochat/UpdateManager.java
@@ -133,13 +157,13 @@ jobs:
           test -f "$APK"
           test -s "$APK"
           unzip -t "$APK" >/dev/null
-          unzip -p "$APK" assets/index.html | grep -q "Наша семья 6.0.3"
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья 6.0.4"
           sha256sum "$APK"
           ls -lh "$APK"
 
       - name: Upload unsigned release
         uses: actions/upload-artifact@v4
         with:
-          name: OurFamily_6_0_3_unsigned
+          name: OurFamily_6_0_4_unsigned
           path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
           if-no-files-found: error
