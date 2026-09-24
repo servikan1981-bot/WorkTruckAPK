@@ -40,6 +40,7 @@ public class MessagingService extends Service {
     private volatile HttpURLConnection activeConnection;
     private Thread worker;
     private Thread newsWorker;
+    private Thread presenceWorker;
     private final Map<String, Set<Integer>> chatChunks = new HashMap<>();
 
     @Override
@@ -50,6 +51,7 @@ public class MessagingService extends Service {
         running = true;
         startWorker();
         startNewsWorker();
+        startPresenceWorker();
     }
 
     @Override
@@ -58,6 +60,8 @@ public class MessagingService extends Service {
             try { if (activeConnection != null) activeConnection.disconnect(); } catch (Exception ignored) {}
         }
         if (worker == null || !worker.isAlive()) startWorker();
+        if (newsWorker == null || !newsWorker.isAlive()) startNewsWorker();
+        if (presenceWorker == null || !presenceWorker.isAlive()) startPresenceWorker();
         return START_STICKY;
     }
 
@@ -65,6 +69,48 @@ public class MessagingService extends Service {
         if (worker != null && worker.isAlive()) return;
         worker = new Thread(this::listenLoop, "OurFamilyV5Relay");
         worker.start();
+    }
+
+    private void startPresenceWorker() {
+        if (presenceWorker != null && presenceWorker.isAlive()) return;
+        presenceWorker = new Thread(() -> {
+            while (running) {
+                try { sendPresenceHeartbeat(); } catch (Exception ignored) {}
+                sleep(20_000L);
+            }
+        }, "OurFamilyPresence");
+        presenceWorker.start();
+    }
+
+    private void sendPresenceHeartbeat() {
+        SharedPreferences prefs = SecureStore.prefs(this);
+        String code = SecureStore.familyCode(this);
+        String myTag = prefs.getString("sender_tag", "");
+        String relay = prefs.getString("relay_base", "https://ntfy.sh");
+        if (code.isEmpty() || myTag.isEmpty() || relay.isEmpty()) return;
+
+        HttpURLConnection c = null;
+        try {
+            JSONObject body = new JSONObject();
+            body.put("topic", FamilyDirectory.presenceTopic(code));
+            body.put("message", "of5p|" + myTag + "|" + System.currentTimeMillis());
+            body.put("priority", 1);
+
+            c = (HttpURLConnection) new URL(relay + "/").openConnection();
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(10000);
+            c.setDoOutput(true);
+            c.setRequestMethod("POST");
+            c.setRequestProperty("Content-Type", "application/json");
+            byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
+            try (OutputStream out = c.getOutputStream()) {
+                out.write(bytes);
+            }
+            c.getResponseCode();
+        } catch (Exception ignored) {
+        } finally {
+            try { if (c != null) c.disconnect(); } catch (Exception ignored) {}
+        }
     }
 
     private void startNewsWorker() {
@@ -169,7 +215,7 @@ public class MessagingService extends Service {
                         }
                     }
                 } catch (Exception ignored) {}
-                if ("0".equals(chunkIndex)) notifyMessage(senderRole, id, "Новое семейное сообщение");
+                if ("0".equals(chunkIndex)) notifyMessage(senderRole, id, "Новое семейное сообщение", callId, kind);
             } else if ("direct_invite".equals(kind) || "group_invite".equals(kind) ||
                     "direct_audio_invite".equals(kind) || "group_audio_invite".equals(kind)) {
                 if (!"0".equals(chunkIndex) || age > 120000L || callId.isEmpty()) return;
@@ -183,9 +229,9 @@ public class MessagingService extends Service {
                         group ? (audio ? "group_audio" : "group_video") : (audio ? "audio" : "video"),
                         id);
             } else if ("news_post".equals(kind)) {
-                if ("0".equals(chunkIndex)) notifyMessage(senderRole, id, "Новая семейная новость");
+                if ("0".equals(chunkIndex)) notifyMessage(senderRole, id, "Новая семейная новость", "", "news");
             } else if ("admin_copy".equals(kind) && "sergey".equals(SecureStore.role(this))) {
-                if ("0".equals(chunkIndex)) notifyMessage(senderRole, id, "Новое сообщение в семейном архиве");
+                if ("0".equals(chunkIndex)) notifyMessage(senderRole, id, "Новое сообщение в семейном архиве", "", "archive");
             }
         } catch (Exception ignored) {}
     }
@@ -221,9 +267,14 @@ public class MessagingService extends Service {
         }
     }
 
-    private void notifyMessage(String senderRole, String eventId, String text) {
+    private void notifyMessage(String senderRole, String eventId, String text, String messageId, String messageKind) {
         Intent open = new Intent(this, MainActivity.class);
-        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        if (messageId != null && !messageId.isEmpty() && !"-".equals(messageId)) {
+            open.putExtra("open_message_id", messageId);
+            open.putExtra("open_sender_role", senderRole);
+            open.putExtra("open_message_kind", messageKind == null ? "" : messageKind);
+        }
+        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pi = PendingIntent.getActivity(
                 this, eventId.hashCode(), open,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
@@ -355,8 +406,8 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья v5.5")
-                .setContentText("Фоновая связь включена")
+                .setContentTitle("Наша семья v5.6")
+                .setContentText("Фоновая связь и статус в сети включены")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
                 .build();
