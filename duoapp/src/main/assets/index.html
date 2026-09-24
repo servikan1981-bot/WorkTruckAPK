@@ -525,10 +525,11 @@ function receiptState(m){
  if(!m||m.from!==role)return null;
  ensureReceiptFields(m);
  if(m.sendFailed)return {text:'!',cls:'receipt failed',title:'Ошибка отправки'};
+ if(m.sent===false)return {text:'…',cls:'receipt',title:'Отправляется'};
  var expected=expectedRecipients(m);
  if(expected.length&&expected.every(function(x){return m.readBy.includes(x);}))return {text:'✓✓',cls:'receipt read',title:'Прочитано'};
  if(expected.length&&expected.every(function(x){return m.deliveredTo.includes(x);}))return {text:'✓✓',cls:'receipt',title:'Доставлено'};
- return {text:'✓',cls:'receipt',title:'Отправлено, получатель ещё не подтвердил доставку'};
+ return {text:'✓',cls:'receipt',title:'Отправлено'};
 }
 function applyReceipt(messageId,member,type){
  var changed=false;
@@ -783,15 +784,17 @@ function renderMessages(){
  var box=$('messages');box.innerHTML='';if(!currentThread)return;
  var arr=currentThread.type==='direct'?directMessages(currentThread.peer):groupMessages(currentThread.groupId);
  arr.sort(function(a,b){return a.ts-b.ts;}).slice(-500).forEach(function(m){
-   var b=document.createElement('div');b.className='bubble '+(m.from===role?'mine':'theirs');
+   var b=document.createElement('div');b.className='bubble '+(m.from===role?'mine':'theirs');b.dataset.messageId=m.id;
    if(currentThread.type==='group'&&m.from!==role){var sn=document.createElement('div');sn.className='sender';sn.textContent=NAMES[m.from]||m.from;b.appendChild(sn);}
    if(m.text){var t=document.createElement('div');t.className='msgtext';t.textContent=m.text;b.appendChild(t);}
    if(m.attachment)renderAttachmentInto(b,m.attachment);
+   appendReactionSummary(b,m);
    var meta=document.createElement('div');meta.className='meta';meta.appendChild(document.createTextNode(fmt(m.ts)));
-   var rs=receiptState(m);if(rs){var rc=document.createElement('span');rc.className=rs.cls;rc.textContent=rs.text;rc.title=rs.title;meta.appendChild(rc);}
-   b.appendChild(meta);box.appendChild(b);
+   var react=document.createElement('button');react.className='react-open';react.textContent='☺';react.title='Добавить реакцию';react.addEventListener('click',function(e){e.stopPropagation();openReactionPicker(m.id);});meta.appendChild(react);
+   var state=receiptState(m);if(state){var rc=document.createElement('span');rc.className=state.cls;rc.textContent=state.text;rc.title=state.title;meta.appendChild(rc);}
+   b.appendChild(meta);wireLongPressReaction(b,m.id);box.appendChild(b);
  });
- requestAnimationFrame(function(){box.scrollTop=box.scrollHeight;});
+ scrollChatToBottom();
 }
 function openPicker(mode,preset){
  pickerMode=mode||'new';pickerSelected=new Set((preset||[]).filter(function(x){return x!==role;}));
@@ -837,6 +840,14 @@ function ackRaw(ids){
  try{AndroidBridge.ackRelayInbox(JSON.stringify(ids));}catch(e){}
  ids.forEach(function(id){rawInFlight.delete(id);});
 }
+async function handleNativeAck(item,p){
+ var fromTag=p[1],toTag=p[2],messageId=p[3],action=p[4],token=p[5];
+ if(toTag!==ownTag||action!=='delivered'){ackRaw([item.id]);return;}
+ var fromRole=await roleFromTag(fromTag);if(!fromRole){ackRaw([item.id]);return;}
+ var expected=await controlToken(messageId,'delivered',fromRole,role);
+ if(expected===token)applyReceipt(messageId,fromRole,'delivered');
+ ackRaw([item.id]);
+}
 async function handleControl(item,p){
  var fromTag=p[1],toTag=p[2],callId=p[3],action=p[4],token=p[5];
  if(toTag!==ownTag||action!=='decline'){ackRaw([item.id]);return;}
@@ -853,6 +864,7 @@ async function handleQueueItem(item){
  rawInFlight.add(item.id);
  var p=String(item.message||'').split('|');
  if(p[0]==='of5ctl'){await handleControl(item,p);return;}
+ if(p[0]==='of5ack'){await handleNativeAck(item,p);return;}
  if(p.length<9||p[0]!=='of5'){ackRaw([item.id]);return;}
  var fromTag=p[1],toTag=p[2],group=p[5],idx=parseInt(p[6],10),total=parseInt(p[7],10),chunk=p.slice(8).join('|');
  if(toTag!==ownTag||fromTag===ownTag||!Number.isFinite(idx)||!Number.isFinite(total)||idx<0||idx>=total||total<1||total>100){ackRaw([item.id]);return;}
@@ -892,6 +904,9 @@ async function processPayload(p){
 
  if(p.kind==='receipt_delivered'||p.kind==='receipt_read'){
    applyReceipt(d.messageId,peer,p.kind==='receipt_read'?'read':'delivered');return;
+ }
+ if(p.kind==='reaction'){
+   applyReaction(d.messageId,peer,String(d.emoji||''));return;
  }
  if(p.kind==='direct_chat'){
    var isOpen=currentThread&&currentThread.type==='direct'&&currentThread.peer===peer;
