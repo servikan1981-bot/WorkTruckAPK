@@ -182,9 +182,9 @@ public class MessagingService extends Service {
                         group ? (audio ? "group_audio" : "group_video") : (audio ? "audio" : "video"),
                         id);
             } else if ("news_post".equals(kind)) {
-                notifyMessage(senderRole, id, "Новая семейная новость");
+                if ("0".equals(chunkIndex)) notifyMessage(senderRole, id, "Новая семейная новость");
             } else if ("admin_copy".equals(kind) && "sergey".equals(SecureStore.role(this))) {
-                notifyMessage(senderRole, id, "Новое сообщение в семейном архиве");
+                if ("0".equals(chunkIndex)) notifyMessage(senderRole, id, "Новое сообщение в семейном архиве");
             }
         } catch (Exception ignored) {}
     }
