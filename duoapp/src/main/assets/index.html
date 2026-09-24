@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.1</title>
+<title>Наша семья 6.0.2</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -81,7 +81,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья 6.0.1</h1>
+    <h1>Наша семья 6.0.2</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -103,7 +103,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v5.6</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.2</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
     <button id="menuBtn" class="iconbtn">⋮</button>
   </div>
   <div class="body">
@@ -212,7 +212,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   <div class="modal-card">
     <div class="about-logo">👨‍👩‍👧‍👦</div>
     <div class="modal-title">Наша семья</div>
-    <div id="aboutVersion" class="about-version">v6.0.1</div>
+    <div id="aboutVersion" class="about-version">v6.0.2</div>
     <div class="about-copy">Семейный мессенджер: личные и групповые чаты, аудио- и видеозвонки, семейные новости, фото, видео и файлы.</div>
     <button id="closeAboutBtn" class="primary wide" style="margin-top:16px">Готово</button>
   </div>
@@ -286,7 +286,7 @@ var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={};
 var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},callTimeout=null,currentFacing='user',cameraSwitchBusy=false,speakerOn=false;
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[];
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.1',reactionTargetId='',pendingMessageNavigation=null;
+var APP_VERSION='6.0.2',reactionTargetId='',pendingMessageNavigation=null;
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'light',videoLayout:'side'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
@@ -566,26 +566,18 @@ async function markThreadRead(t){
  for(var i=0;i<targets.length;i++)sendReceipt(targets[i].to,targets[i].id,'read',targets[i].groupId);
 }
 function onlineNow(member){
- if(member===role)return !document.hidden;
  var ts=presenceMap[member]||0;
- return Date.now()-ts<80000;
+ return Date.now()-ts<110000;
 }
 function presenceLabel(member){return onlineNow(member)?'в сети':'не в сети';}
 async function pollPresence(){
- if(presenceBusy||!presenceTopic)return;presenceBusy=true;
+ if(presenceBusy)return;presenceBusy=true;
  try{
-   var r=await fetch(relayBase+'/'+presenceTopic+'/json?poll=1&since=90s');
-   if(r.ok){
-     var txt=await r.text(),lines=txt.trim()?txt.trim().split('\n'):[];
-     for(var i=0;i<lines.length;i++){
-       try{
-         var o=JSON.parse(lines[i]),msg=String(o.message||'');
-         if(!msg.startsWith('of5p|'))continue;
-         var p=msg.split('|'),rr=await roleFromTag(p[1]),ts=parseInt(p[2],10)||0;
-         if(rr&&rr!==role)presenceMap[rr]=Math.max(presenceMap[rr]||0,ts);
-       }catch(x){}
-     }
-   }
+   var raw=AndroidBridge.loadPresence(),map=JSON.parse(raw||'{}');
+   Object.keys(map).forEach(function(member){
+     var ts=parseInt(map[member],10)||0;
+     if(NAMES[member]&&ts>0)presenceMap[member]=Math.max(presenceMap[member]||0,ts);
+   });
  }catch(e){}
  presenceBusy=false;renderPresence();
 }
@@ -612,7 +604,7 @@ function renderPresence(){
 function startPresence(){
  clearInterval(presencePollTimer);
  presenceMap[role]=Date.now();pollPresence();
- presencePollTimer=setInterval(pollPresence,12000);
+ presencePollTimer=setInterval(pollPresence,8000);
 }
 function saveMessages(){
  messages=messages.slice(-1800);
@@ -974,6 +966,7 @@ async function processPayload(p){
    return;
  }
  if(p.kind==='direct_invite'){
+   if((pendingInvite&&pendingInvite.id===d.callId)||(activeCall&&activeCall.id===d.callId))return;
    pendingInvite={type:'direct',id:d.callId,kind:d.kind||'video',from:peer,members:[peer,role]};
    showIncoming(peer,pendingInvite.kind,false);
    maybeAutoAccept();
@@ -1309,12 +1302,19 @@ function updateCallState(){
 
 async function startDirectCall(peer,kind){
  if(activeCall){toast('Другой звонок уже активен');return;}
- var id=randomId();activeCall={id:id,type:'direct',kind:kind,inviter:role,peer:peer,members:[role,peer]};
+ var id=randomId(),wireKind=kind==='audio'?'direct_audio_invite':'direct_invite';
+ activeCall={id:id,type:'direct',kind:kind,inviter:role,peer:peer,members:[role,peer]};
  showCall((kind==='audio'?'Аудиозвонок · ':'Видеозвонок · ')+NAMES[peer],'Вызов…');
  startRingback();
  prepareLocalMedia(kind).catch(function(){});
+ async function sendInvite(){
+   if(!activeCall||activeCall.id!==id||callPeers[peer])return;
+   try{await publishEnvelope(peer,'direct_invite',{callId:id,kind:kind},5,wireKind,id);}catch(e){}
+ }
  try{
-   await publishEnvelope(peer,'direct_invite',{callId:id,kind:kind},5,kind==='audio'?'direct_audio_invite':'direct_invite',id);
+   await sendInvite();
+   setTimeout(sendInvite,1600);
+   setTimeout(sendInvite,4200);
    clearTimeout(callTimeout);callTimeout=setTimeout(function(){if(activeCall&&activeCall.id===id&&!callPeers[peer]){toast('Нет ответа');endCall(true);}},65000);
  }catch(e){toast('Не удалось отправить вызов');endCall(false);}
 }
