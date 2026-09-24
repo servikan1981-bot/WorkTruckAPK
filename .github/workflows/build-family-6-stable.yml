@@ -151,6 +151,24 @@ jobs:
           grep -q "ParcelFileDescriptor.MODE_READ_ONLY" "$P"
           grep -q "UpdateManager.checkAsync" "$M"
 
+      - name: Diagnose published 6.0.6 package
+        run: |
+          python3 - <<'PY'
+          import base64,hashlib,json,pathlib
+          meta=json.loads(pathlib.Path('updates/latest.json').read_text())
+          assert meta['versionCode']==6006
+          data=base64.b64decode(''.join(pathlib.Path('updates/parts/'+u.rsplit('/',1)[-1]).read_text() for u in meta['apkBase64Parts']))
+          assert hashlib.sha256(data).hexdigest()==meta['sha256']
+          pathlib.Path('/tmp/published-family.apk').write_bytes(data)
+          PY
+          set +e
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 /tmp/published-family.apk
+          a=$?
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/published-family.apk
+          b=$?
+          echo "zipalign=$a apksigner=$b"
+          test "$a" -eq 0 && test "$b" -eq 0
+
       - name: Build unsigned release APK
         run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
 
