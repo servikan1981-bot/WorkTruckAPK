@@ -41,6 +41,7 @@ public class MessagingService extends Service {
     private Thread worker;
     private Thread newsWorker;
     private Thread presenceWorker;
+    private Thread updateWorker;
     private final Map<String, Set<Integer>> chatChunks = new HashMap<>();
 
     @Override
@@ -52,6 +53,7 @@ public class MessagingService extends Service {
         startWorker();
         startNewsWorker();
         startPresenceWorker();
+        startUpdateWorker();
     }
 
     @Override
@@ -62,6 +64,7 @@ public class MessagingService extends Service {
         if (worker == null || !worker.isAlive()) startWorker();
         if (newsWorker == null || !newsWorker.isAlive()) startNewsWorker();
         if (presenceWorker == null || !presenceWorker.isAlive()) startPresenceWorker();
+        if (updateWorker == null || !updateWorker.isAlive()) startUpdateWorker();
         return START_STICKY;
     }
 
@@ -76,10 +79,60 @@ public class MessagingService extends Service {
         presenceWorker = new Thread(() -> {
             while (running) {
                 try { sendPresenceHeartbeat(); } catch (Exception ignored) {}
+                try { pollPresenceNative(); } catch (Exception ignored) {}
                 sleep(20_000L);
             }
         }, "OurFamilyPresence");
         presenceWorker.start();
+    }
+
+    private void pollPresenceNative() {
+        SharedPreferences prefs = SecureStore.prefs(this);
+        String code = SecureStore.familyCode(this);
+        String relay = prefs.getString("relay_base", "https://ntfy.sh");
+        if (code.isEmpty() || relay.isEmpty()) return;
+
+        HttpURLConnection c = null;
+        BufferedReader reader = null;
+        try {
+            URL url = new URL(relay + "/" + FamilyDirectory.presenceTopic(code) + "/json?poll=1&since=120s");
+            c = (HttpURLConnection) url.openConnection();
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(12000);
+            c.setRequestProperty("Accept", "application/x-ndjson");
+            c.setUseCaches(false);
+            c.connect();
+            reader = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                try {
+                    JSONObject o = new JSONObject(line);
+                    if (!"message".equals(o.optString("event"))) continue;
+                    String msg = o.optString("message", "");
+                    if (!msg.startsWith("of5p|")) continue;
+                    String[] p = msg.split("\\|", 3);
+                    if (p.length < 3) continue;
+                    String member = FamilyDirectory.roleFromTag(code, p[1]);
+                    long ts = Long.parseLong(p[2]);
+                    if (!member.isEmpty()) PresenceStore.update(this, member, ts);
+                } catch (Exception ignored) {}
+            }
+        } catch (Exception ignored) {
+        } finally {
+            try { if (reader != null) reader.close(); } catch (Exception ignored) {}
+            try { if (c != null) c.disconnect(); } catch (Exception ignored) {}
+        }
+    }
+
+    private void startUpdateWorker() {
+        if (updateWorker != null && updateWorker.isAlive()) return;
+        updateWorker = new Thread(() -> {
+            while (running) {
+                try { UpdateManager.checkBackground(MessagingService.this); } catch (Exception ignored) {}
+                sleep(15L * 60L * 1000L);
+            }
+        }, "OurFamilyUpdateWatch");
+        updateWorker.start();
     }
 
     private void sendPresenceHeartbeat() {
@@ -87,7 +140,9 @@ public class MessagingService extends Service {
         String code = SecureStore.familyCode(this);
         String myTag = prefs.getString("sender_tag", "");
         String relay = prefs.getString("relay_base", "https://ntfy.sh");
-        if (code.isEmpty() || myTag.isEmpty() || relay.isEmpty()) return;
+        String myRole = SecureStore.role(this);
+        if (code.isEmpty() || myTag.isEmpty() || relay.isEmpty() || myRole.isEmpty()) return;
+        PresenceStore.update(this, myRole, System.currentTimeMillis());
 
         HttpURLConnection c = null;
         try {
@@ -408,7 +463,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья 6.0.1")
+                .setContentTitle("Наша семья 6.0.2")
                 .setContentText("Фоновая связь и статус в сети включены")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
