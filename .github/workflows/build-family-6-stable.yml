@@ -134,8 +134,7 @@ jobs:
           grep -q "uploadBase64" "$A"
           grep -q "downloadBase64" "$A"
           grep -q "of5presence|" "$S"
-          if grep -q "presenceListenLoop" "$S"; then
-            true
+          grep -q "presenceListenLoop" "$S"
 
       - name: Validate update system
         run: |
