@@ -296,7 +296,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья v5.3")
+                .setContentTitle("Наша семья v5.4")
                 .setContentText("Фоновая связь включена")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
