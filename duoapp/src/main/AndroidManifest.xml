@@ -10,13 +10,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <application
         android:allowBackup="false"
-        android:label="Наша семья v5.6.1"
+        android:label="Наша семья 6.0"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false"
         android:icon="@drawable/ic_launcher"
@@ -41,6 +42,12 @@
         <receiver
             android:name=".CallActionReceiver"
             android:exported="false" />
+
+        <provider
+            android:name=".UpdateFileProvider"
+            android:authorities="${applicationId}.updateprovider"
+            android:exported="false"
+            android:grantUriPermissions="true" />
 
         <activity
             android:name=".IncomingCallActivity"
