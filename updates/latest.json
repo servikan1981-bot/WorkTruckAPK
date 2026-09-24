@@ -1,15 +1,15 @@
 {
-  "versionCode": 6002,
-  "versionName": "6.0.2",
+  "versionCode": 6003,
+  "versionName": "6.0.3",
   "apkBase64Parts": [
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v602_00.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v602_01.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v602_02.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v602_03.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v602_04.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v602_05.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v602_06.b64"
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v603_06.b64"
   ],
-  "sha256": "718f5f826cc8c1630847550ab436ae387c7d744132e1cbbb278cc59a8bb97d9e",
-  "notes": "Исправлен online-статус: отправка и приём heartbeat теперь полностью работают через нативную Android-службу. Вызов больше не зависит от online-индикатора и повторно отправляет invite при кратком сбое сети. Добавлены фоновые уведомления о новых версиях: после 6.0.2 будущие обновления будут приходить системным уведомлением с колокольчиком."
+  "sha256": "65c7fc8d1e3384853d393f6466119b937894238f837649f6119a1b6a1a549513",
+  "notes": "Исправлен статус «в сети»: отдельный постоянный native presence-stream вместо коротких опросов. Любое входящее сообщение, вызов или подтверждение также сразу обновляет online-статус отправителя. Сохранены системные входящие звонки Android Telecom и автоматические уведомления о новых версиях."
 }
