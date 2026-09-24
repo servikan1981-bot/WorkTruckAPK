@@ -5,10 +5,10 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.sergey.duochat.v561'
+        applicationId 'com.sergey.ourfamily'
         minSdk 24
         targetSdk 35
-        versionCode 561
-        versionName '5.6.1-release-fix'
+        versionCode 60000
+        versionName '6.0'
     }
 }
