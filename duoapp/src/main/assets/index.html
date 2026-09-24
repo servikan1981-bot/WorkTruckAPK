@@ -210,7 +210,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   <div class="modal-card">
     <div class="about-logo">👨‍👩‍👧‍👦</div>
     <div class="modal-title">Наша семья</div>
-    <div id="aboutVersion" class="about-version">v5.4</div>
+    <div id="aboutVersion" class="about-version">v5.5</div>
     <div class="about-copy">Семейный мессенджер: личные и групповые чаты, аудио- и видеозвонки, семейные новости, фото, видео и файлы.</div>
     <button id="closeAboutBtn" class="primary wide" style="margin-top:16px">Готово</button>
   </div>
@@ -730,7 +730,7 @@ function renderNews(){
      var title=document.createElement('div');title.className='auto-news-title';title.textContent=m.title;
      card.append(src,title);
      if(m.text){var at=document.createElement('div');at.className='news-text';at.textContent=m.text;card.appendChild(at);}
-     if(m.imageUrl){var ai=document.createElement('img');ai.className='auto-news-image';ai.src=m.imageUrl;ai.alt=m.title;card.appendChild(ai);}
+     if(m.imageUrl){var ai=document.createElement('img');ai.className='auto-news-image';ai.src=m.imageUrl;ai.alt=m.title;ai.addEventListener('click',function(){openPhotoViewer(m.imageUrl,m.title);});card.appendChild(ai);}
      box.appendChild(card);return;
    }
    var head=document.createElement('div');head.className='news-head';
@@ -1464,7 +1464,7 @@ async function configure(){
 }
 async function enter(){
  loadUiSettings();refreshAutoNews();
- $('myName').textContent='Наша семья · v'+APP_VERSION;$('myAvatar').textContent=initials(NAMES[role]);loadMessages();renderHome();renderEmojiPanel();showScreen('home');
+ $('myName').textContent='Наша семья · v'+APP_VERSION;$('myAvatar').textContent=initials(NAMES[role]);loadMessages();renderHome();renderEmojiPanel();renderReactionGrid();showScreen('home');
  if(!localStorage.getItem('of5_admin_notice_seen')){
    $('adminOnce').classList.remove('hidden');setTimeout(function(){$('adminOnce').classList.add('hidden');},5000);localStorage.setItem('of5_admin_notice_seen','1');
  }
@@ -1503,6 +1503,10 @@ $('chatBackBtn').addEventListener('click',function(){currentThread=null;showScre
 $('membersBtn').addEventListener('click',function(){if(currentThread&&currentThread.type==='group')openPicker('edit',currentThread.members);});
 $('sendBtn').addEventListener('click',sendCurrentMessage);
 $('messageInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendCurrentMessage();}});
+$('messageInput').addEventListener('focus',function(){setTimeout(scrollChatToBottom,120);setTimeout(scrollChatToBottom,320);});
+$('photoCloseBtn').addEventListener('click',closePhotoViewer);
+$('photoViewer').addEventListener('click',function(e){if(e.target===$('photoViewer'))closePhotoViewer();});
+$('reactionPicker').addEventListener('click',function(e){if(e.target===$('reactionPicker')){$('reactionPicker').classList.add('hidden');reactionTargetId='';}});
 $('audioBtn').addEventListener('click',function(){if(!currentThread)return;if(currentThread.type==='direct')startDirectCall(currentThread.peer,'audio');else startGroupCall(currentThread.members,'audio');});
 $('videoBtn').addEventListener('click',function(){if(!currentThread)return;if(currentThread.type==='direct')startDirectCall(currentThread.peer,'video');else startGroupCall(currentThread.members,'video');});
 $('acceptBtn').addEventListener('click',acceptPendingInvite);$('declineBtn').addEventListener('click',declinePendingInvite);
@@ -1561,12 +1565,16 @@ $('adminChatBackBtn').addEventListener('click',openAdminArchiveScreen);
 window.addEventListener('focus',function(){pollInbox();sendPresence();pollPresence();checkFullScreenPermission();refreshAutoNews();if(!$('news').classList.contains('hidden'))renderNews();});
 window.addEventListener('online',function(){pollInbox();sendPresence();pollPresence();});
 document.addEventListener('visibilitychange',function(){
- if(!document.hidden){sendPresence();pollPresence();}
+ if(!document.hidden){sendPresence();pollPresence();if(!$('chat').classList.contains('hidden'))scrollChatToBottom();}
  renderPresence();
 });
+if(window.visualViewport){
+ window.visualViewport.addEventListener('resize',function(){if(!$('chat').classList.contains('hidden'))setTimeout(scrollChatToBottom,50);});
+}
+window.addEventListener('resize',function(){if(!$('chat').classList.contains('hidden'))setTimeout(scrollChatToBottom,50);});
 
 (async function init(){
- loadUiSettings();renderEmojiPanel();
+ loadUiSettings();renderEmojiPanel();renderReactionGrid();
  if(loadProfile())await enter();else{populateSetup();showScreen('setup');}
 })();
 })();
