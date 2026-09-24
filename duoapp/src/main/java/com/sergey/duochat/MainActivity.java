@@ -389,6 +389,16 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String uploadAttachment(String base64) {
+            return NativeAttachmentTransport.uploadBase64(MainActivity.this, base64);
+        }
+
+        @JavascriptInterface
+        public String downloadAttachment(String url) {
+            return NativeAttachmentTransport.downloadBase64(MainActivity.this, url);
+        }
+
+        @JavascriptInterface
         public String readRelayInbox() {
             return RelayInbox.read(MainActivity.this);
         }
