@@ -2,7 +2,12 @@ package com.sergey.duochat;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -34,6 +39,9 @@ public final class UpdateManager {
     private static final long CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L;
     private static final String PREF_LAST_CHECK = "update_last_check_v6";
     private static final String PREF_PENDING_INSTALL = "update_pending_install_v6";
+    private static final String PREF_NOTIFIED_VERSION = "update_notified_version_v6";
+    private static final String CH_UPDATES = "family_updates_v6";
+    private static final int UPDATE_NOTIFICATION_ID = 8601;
     private static final AtomicBoolean CHECKING = new AtomicBoolean(false);
     private static final AtomicBoolean DIALOG_OPEN = new AtomicBoolean(false);
 
@@ -57,6 +65,55 @@ public final class UpdateManager {
                 CHECKING.set(false);
             }
         }, "OurFamilyUpdateCheck").start();
+    }
+
+    public static void checkBackground(Context context) {
+        if (context == null) return;
+        try {
+            UpdateInfo info = fetchInfo();
+            long current = currentVersionCode(context);
+            NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            if (info == null || info.versionCode <= current) {
+                if (nm != null) nm.cancel(UPDATE_NOTIFICATION_ID);
+                return;
+            }
+
+            SharedPreferences p = SecureStore.prefs(context);
+            long already = p.getLong(PREF_NOTIFIED_VERSION, 0L);
+            if (already == info.versionCode) return;
+
+            if (Build.VERSION.SDK_INT >= 26 && nm != null) {
+                NotificationChannel ch = new NotificationChannel(
+                        CH_UPDATES, "Обновления приложения", NotificationManager.IMPORTANCE_HIGH);
+                ch.setDescription("Новые версии «Наша семья»");
+                ch.enableVibration(true);
+                nm.createNotificationChannel(ch);
+            }
+
+            Intent open = new Intent(context, MainActivity.class);
+            open.putExtra("force_update_check", true);
+            open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK |
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            PendingIntent pi = PendingIntent.getActivity(
+                    context, UPDATE_NOTIFICATION_ID, open,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+            Notification.Builder b = Build.VERSION.SDK_INT >= 26
+                    ? new Notification.Builder(context, CH_UPDATES)
+                    : new Notification.Builder(context);
+            Notification n = b.setSmallIcon(R.drawable.ic_launcher)
+                    .setContentTitle("🔔 Доступно обновление " + info.versionName)
+                    .setContentText("Нажмите, чтобы обновить «Наша семья»")
+                    .setContentIntent(pi)
+                    .setAutoCancel(true)
+                    .setCategory(Notification.CATEGORY_STATUS)
+                    .setPriority(Notification.PRIORITY_HIGH)
+                    .setVisibility(Notification.VISIBILITY_PUBLIC)
+                    .build();
+            if (nm != null) nm.notify(UPDATE_NOTIFICATION_ID, n);
+            p.edit().putLong(PREF_NOTIFIED_VERSION, info.versionCode).apply();
+        } catch (Exception ignored) {}
     }
 
     public static void resumePendingInstall(Activity activity) {
@@ -205,9 +262,9 @@ public final class UpdateManager {
         }
     }
 
-    private static long currentVersionCode(Activity activity) {
+    private static long currentVersionCode(Context context) {
         try {
-            PackageInfo pi = activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0);
+            PackageInfo pi = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
             return Build.VERSION.SDK_INT >= 28 ? pi.getLongVersionCode() : pi.versionCode;
         } catch (Exception e) {
             return 0L;
@@ -227,7 +284,10 @@ public final class UpdateManager {
         c.setConnectTimeout(12000);
         c.setReadTimeout(20000);
         c.setInstanceFollowRedirects(true);
-        c.setRequestProperty("User-Agent", "OurFamily/6.0 Android");
+        c.setUseCaches(false);
+        c.setRequestProperty("Cache-Control", "no-cache");
+        c.setRequestProperty("Pragma", "no-cache");
+        c.setRequestProperty("User-Agent", "OurFamily/6.0.2 Android");
         c.setRequestProperty("Accept", "application/json,text/plain,*/*");
         c.connect();
         if (c.getResponseCode() < 200 || c.getResponseCode() >= 300) {
