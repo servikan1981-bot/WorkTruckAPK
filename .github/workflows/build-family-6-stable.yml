@@ -1,4 +1,4 @@
-name: Build Our Family 6.0 Stable
+name: Build Our Family 6.0.1 Stable
 
 on:
   workflow_dispatch:
@@ -32,9 +32,9 @@ jobs:
       - name: Validate stable identity
         run: |
           grep -q "applicationId 'com.sergey.ourfamily'" duoapp/build.gradle
-          grep -q "versionCode 6000" duoapp/build.gradle
-          grep -q "versionName '6.0'" duoapp/build.gradle
-          grep -q 'android:label="Наша семья 6.0"' duoapp/src/main/AndroidManifest.xml
+          grep -q "versionCode 6001" duoapp/build.gradle
+          grep -q "versionName '6.0.1'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.1.1"' duoapp/src/main/AndroidManifest.xml
           grep -q 'REQUEST_INSTALL_PACKAGES' duoapp/src/main/AndroidManifest.xml
           grep -q 'UpdateFileProvider' duoapp/src/main/AndroidManifest.xml
 
@@ -47,7 +47,7 @@ jobs:
           blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
           assert blocks
           Path('/tmp/family6.js').write_text('\n'.join(blocks))
-          assert "APP_VERSION='6.0'" in h
+          assert "APP_VERSION='6.0.1'" in h
           PY
           node --check /tmp/family6.js
           H=duoapp/src/main/assets/index.html
@@ -70,6 +70,20 @@ jobs:
           grep -q "FLAG_DISMISS_KEYGUARD" "$I"
           grep -q "applyCallWindowFlags" "$M"
           grep -q "canUseFullScreenIntent" "$M"
+
+      - name: Validate Telecom lock-screen integration
+        run: |
+          T=duoapp/src/main/java/com/sergey/duochat/TelecomCallManager.java
+          C=duoapp/src/main/java/com/sergey/duochat/FamilyConnectionService.java
+          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          M=duoapp/src/main/AndroidManifest.xml
+          grep -q "addNewIncomingCall" "$T"
+          grep -q "ACTION_CHANGE_PHONE_ACCOUNTS" "$T"
+          grep -q "onCreateIncomingConnection" "$C"
+          grep -q "onAnswer" "$C"
+          grep -q "TelecomCallManager.reportIncomingCall" "$S"
+          grep -q "BIND_TELECOM_CONNECTION_SERVICE" "$M"
+          grep -q "android.telecom.ConnectionService" "$M"
 
       - name: Validate update system
         run: |
@@ -94,13 +108,13 @@ jobs:
           test -f "$APK"
           test -s "$APK"
           unzip -t "$APK" >/dev/null
-          unzip -p "$APK" assets/index.html | grep -q "Наша семья 6.0"
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья 6.0.1"
           sha256sum "$APK"
           ls -lh "$APK"
 
       - name: Upload unsigned release
         uses: actions/upload-artifact@v4
         with:
-          name: OurFamily_6_0_unsigned
+          name: OurFamily_6_0_1_unsigned
           path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
           if-no-files-found: error
