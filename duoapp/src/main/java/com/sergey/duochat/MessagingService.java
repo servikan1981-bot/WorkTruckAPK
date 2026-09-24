@@ -298,6 +298,7 @@ public class MessagingService extends Service {
     }
 
     private void notifyIncomingCall(String callerRole, String callId, String kind, String eventId) {
+        if (TelecomCallManager.reportIncomingCall(this, callerRole, callId, kind)) return;
         int notificationId = 9000 + Math.abs(callId.hashCode() % 900);
         boolean group = kind.startsWith("group_");
         boolean audio = kind.contains("audio");
@@ -407,7 +408,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья 6.0")
+                .setContentTitle("Наша семья 6.0.1")
                 .setContentText("Фоновая связь и статус в сети включены")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
