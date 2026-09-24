@@ -14,6 +14,27 @@ public final class NativeRelayTransport {
     private NativeRelayTransport() {}
 
     public static String post(Context context, String topic, String message, int priority) {
+        String first = postAttempt(context, topic, message, priority);
+        if ("OK".equals(first)) return first;
+
+        if (first.startsWith("ERR:http:429")) {
+            sleepQuietly(5500L);
+            return postAttempt(context, topic, message, priority);
+        }
+
+        if (first.startsWith("ERR:http:5") || first.startsWith("ERR:Socket") ||
+                first.startsWith("ERR:Connect") || first.startsWith("ERR:UnknownHost")) {
+            sleepQuietly(900L);
+            return postAttempt(context, topic, message, priority);
+        }
+        return first;
+    }
+
+    public static String postOnce(Context context, String topic, String message, int priority) {
+        return postAttempt(context, topic, message, priority);
+    }
+
+    private static String postAttempt(Context context, String topic, String message, int priority) {
         if (context == null) return "ERR:context";
         if (topic == null || !topic.matches("[a-zA-Z0-9_-]{12,100}")) return "ERR:topic";
         if (message == null || message.isEmpty() || message.length() > 8000) return "ERR:message";
@@ -24,46 +45,41 @@ public final class NativeRelayTransport {
         if (relay == null || !relay.startsWith("https://")) relay = "https://ntfy.sh";
         relay = relay.replaceAll("/+$", "");
 
-        String last = "ERR:network";
-        for (int attempt = 0; attempt < 3; attempt++) {
-            HttpURLConnection c = null;
-            try {
-                JSONObject body = new JSONObject();
-                body.put("topic", topic);
-                body.put("message", message);
-                body.put("priority", priority);
+        HttpURLConnection c = null;
+        try {
+            JSONObject body = new JSONObject();
+            body.put("topic", topic);
+            body.put("message", message);
+            body.put("priority", priority);
 
-                c = (HttpURLConnection) new URL(relay + "/").openConnection();
-                c.setConnectTimeout(12000);
-                c.setReadTimeout(12000);
-                c.setUseCaches(false);
-                c.setDoOutput(true);
-                c.setRequestMethod("POST");
-                c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-                c.setRequestProperty("Accept", "application/json");
-                c.setRequestProperty("User-Agent", "OurFamily/6.0.4 Android");
+            c = (HttpURLConnection) new URL(relay + "/").openConnection();
+            c.setConnectTimeout(12000);
+            c.setReadTimeout(12000);
+            c.setUseCaches(false);
+            c.setDoOutput(true);
+            c.setRequestMethod("POST");
+            c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            c.setRequestProperty("Accept", "application/json");
+            c.setRequestProperty("User-Agent", "OurFamily/6.0.5 Android");
 
-                byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
-                try (OutputStream out = c.getOutputStream()) {
-                    out.write(bytes);
-                    out.flush();
-                }
-
-                int code = c.getResponseCode();
-                if (code >= 200 && code < 300) return "OK";
-                last = "ERR:http:" + code;
-            } catch (Exception e) {
-                last = "ERR:" + e.getClass().getSimpleName();
-            } finally {
-                try { if (c != null) c.disconnect(); } catch (Exception ignored) {}
+            byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
+            try (OutputStream out = c.getOutputStream()) {
+                out.write(bytes);
+                out.flush();
             }
 
-            try { Thread.sleep(350L * (attempt + 1)); } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-                break;
-            }
+            int code = c.getResponseCode();
+            if (code >= 200 && code < 300) return "OK";
+            return "ERR:http:" + code;
+        } catch (Exception e) {
+            return "ERR:" + e.getClass().getSimpleName();
+        } finally {
+            try { if (c != null) c.disconnect(); } catch (Exception ignored) {}
         }
-        return last;
+    }
+
+    private static void sleepQuietly(long ms) {
+        try { Thread.sleep(ms); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
     }
 
     public static String postBlocking(Context context, String topic, String message, int priority) {
