@@ -35,6 +35,7 @@ public class MainActivity extends Activity {
     private static final int FILE_CHOOSER_REQUEST = 2002;
     private ValueCallback<Uri[]> filePathCallback;
     private Uri cameraOutputUri;
+    private boolean telecomPromptShownThisRun = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,9 +112,11 @@ public class MainActivity extends Activity {
         });
 
         requestPermissionsIfNeeded();
+        TelecomCallManager.register(this);
         maybeStartMessagingService();
         loadApp();
         UpdateManager.checkAsync(this, false);
+        webView.postDelayed(this::maybePromptTelecomSetup, 900);
     }
 
     @Override
@@ -198,6 +201,19 @@ public class MainActivity extends Activity {
                     .putString("pending_message_navigation", o.toString())
                     .apply();
         } catch (Exception ignored) {}
+    }
+
+    private void maybePromptTelecomSetup() {
+        if (Build.VERSION.SDK_INT < 23 || telecomPromptShownThisRun || isFinishing()) return;
+        if (TelecomCallManager.isEnabled(this)) return;
+        telecomPromptShownThisRun = true;
+
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Разрешите системные входящие звонки")
+                .setMessage("Чтобы принимать звонки «Наша семья» прямо на заблокированном экране, один раз включите аккаунт «Наша семья» в системных настройках звонков.")
+                .setPositiveButton("Включить", (d, w) -> TelecomCallManager.openSettings(this))
+                .setNegativeButton("Позже", null)
+                .show();
     }
 
     private void loadApp() {
@@ -474,8 +490,18 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean isSystemCallingEnabled() {
+            return TelecomCallManager.isEnabled(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void openSystemCallingSettings() {
+            runOnUiThread(() -> TelecomCallManager.openSettings(MainActivity.this));
+        }
+
+        @JavascriptInterface
         public String getVersion() {
-            return "6.0";
+            return "6.0.1";
         }
     }
 
@@ -498,6 +524,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        TelecomCallManager.register(this);
         UpdateManager.resumePendingInstall(this);
         UpdateManager.checkAsync(this, false);
     }
