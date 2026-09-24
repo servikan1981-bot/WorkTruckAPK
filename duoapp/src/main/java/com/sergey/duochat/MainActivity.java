@@ -115,7 +115,7 @@ public class MainActivity extends Activity {
         TelecomCallManager.register(this);
         maybeStartMessagingService();
         loadApp();
-        UpdateManager.checkAsync(this, false);
+        UpdateManager.checkAsync(this, getIntent() != null && getIntent().getBooleanExtra("force_update_check", false));
         webView.postDelayed(this::maybePromptTelecomSetup, 900);
     }
 
@@ -126,6 +126,9 @@ public class MainActivity extends Activity {
         applyCallWindowFlags(intent);
         captureCallAction(intent);
         captureMessageNavigation(intent);
+        if (intent != null && intent.getBooleanExtra("force_update_check", false)) {
+            UpdateManager.checkAsync(this, true);
+        }
         if (webView != null) {
             webView.post(() -> webView.evaluateJavascript(
                     "window.__ourFamilyConsumeNativeAction && window.__ourFamilyConsumeNativeAction();", null));
@@ -480,6 +483,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String loadPresence() {
+            return PresenceStore.read(MainActivity.this);
+        }
+
+        @JavascriptInterface
         public String loadAutoNews() {
             return PositiveNewsFetcher.load(MainActivity.this);
         }
@@ -501,7 +509,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "6.0.1";
+            return "6.0.2";
         }
     }
 
