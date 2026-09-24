@@ -391,18 +391,19 @@ async function decryptAttachmentBytes(buffer,context){
 }
 function maxAttachmentSize(){return /(^|\.)ntfy\.sh$/i.test((new URL(relayBase)).hostname)?1800000:12000000;}
 async function uploadEncryptedAttachment(buffer){
- var topic='of5file-'+randomId(),res=await fetch(relayBase+'/'+topic,{method:'PUT',headers:{'Filename':'encrypted.bin','Content-Type':'application/octet-stream'},body:buffer});
- if(!res.ok)throw new Error('upload '+res.status);
- var txt=(await res.text()).trim(),lines=txt.split('\n'),obj=JSON.parse(lines[lines.length-1]);
- if(!obj.attachment||!obj.attachment.url)throw new Error('no attachment url');
- return obj.attachment.url;
+ var b64=bytesToB64(new Uint8Array(buffer)),result='';
+ try{result=String(AndroidBridge.uploadAttachment(b64)||'');}catch(e){result='ERR:bridge';}
+ if(!result.startsWith('OK:'))throw new Error(result||'ERR:upload');
+ return result.slice(3);
 }
 async function cacheRemoteAttachment(att){
  if(!att||!att.id)return;
  try{
    if(await getAttachmentBytes(att.id))return;
-   var r=await fetch(att.url);if(!r.ok)throw new Error('download');
-   await cacheAttachmentBytes(att.id,await r.arrayBuffer());
+   var result=String(AndroidBridge.downloadAttachment(att.url)||'');
+   if(!result.startsWith('OK:'))throw new Error(result||'ERR:download');
+   var bytes=b64ToBytes(result.slice(3));
+   await cacheAttachmentBytes(att.id,bytes.buffer);
  }catch(e){}
 }
 async function getAttachmentBlob(att){
