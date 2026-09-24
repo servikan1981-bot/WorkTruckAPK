@@ -262,12 +262,14 @@ var MEMBERS=[
 ];
 var NAMES={};MEMBERS.forEach(function(m){NAMES[m.id]=m.name;});
 
-var role='',code='',relayBase='https://ntfy.sh',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='';
+var role='',code='',relayBase='https://ntfy.sh',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='',presenceTopic='';
 var roleTags={},cryptoKeys={},packetChunks={},processedPayloads=new Set(),rawInFlight=new Set();
 var messages=[],currentThread=null,pickerMode='new',pickerSelected=new Set(),pollBusy=false,pollTimer=null;
 var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={};
 var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},callTimeout=null,currentFacing='user',cameraSwitchBusy=false,speakerOn=false;
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[];
+var presenceMap={},presenceTimer=null,presencePollTimer=null,presenceBusy=false;
+var APP_VERSION='5.4';
 var uiSettings={theme:'light',videoLayout:'side'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
 var EMOJIS="😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥳 🤩 🥺 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥱 😤 😡 😠 🤬 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 😴 🤤 😪 😵 🤐 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👻 💀 ☠️ 👽 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾 ❤️".split(' ');
@@ -284,6 +286,7 @@ async function sha256Hex(text){var d=await crypto.subtle.digest('SHA-256',new Te
 
 async function roleTag(r){if(roleTags[r])return roleTags[r];roleTags[r]=(await sha256Hex('OurFamily-v5-tag|'+code+'|'+r)).slice(0,16);return roleTags[r];}
 async function inboxTopic(r){return 'of5-'+(await sha256Hex('OurFamily-v5-inbox|'+code+'|'+r)).slice(0,48);}
+async function familyPresenceTopic(){return 'of5p-'+(await sha256Hex('OurFamily-v5-presence|'+code)).slice(0,48);}
 async function roleFromTag(tag){for(var i=0;i<MEMBERS.length;i++){if(await roleTag(MEMBERS[i].id)===tag)return MEMBERS[i].id;}return '';}
 async function controlToken(callId,action,fromRole,toRole){return (await sha256Hex('OurFamily-v5-control|'+code+'|'+callId+'|'+action+'|'+fromRole+'|'+toRole)).slice(0,32);}
 async function derivePairKey(peer){
@@ -421,6 +424,59 @@ async function compressPhoto(file){
  return file;
 }
 
+function ensureReceiptFields(m){
+ if(!m)return m;
+ if(!Array.isArray(m.deliveredTo))m.deliveredTo=[];
+ if(!Array.isArray(m.readBy))m.readBy=[];
+ return m;
+}
+function expectedRecipients(m){
+ if(!m||m.from!==role)return [];
+ if(m.kind==='direct')return m.to?[m.to]:[];
+ if(m.kind==='group')return (m.members||[]).filter(function(x){return x!==role;});
+ return [];
+}
+function receiptState(m){
+ if(!m||m.from!==role)return null;
+ ensureReceiptFields(m);
+ if(m.sendFailed)return {text:'!',cls:'receipt failed',title:'Ошибка отправки'};
+ var expected=expectedRecipients(m);
+ if(expected.length&&expected.every(function(x){return m.readBy.includes(x);}))return {text:'✓✓',cls:'receipt read',title:'Прочитано'};
+ if(expected.length&&expected.every(function(x){return m.deliveredTo.includes(x);}))return {text:'✓✓',cls:'receipt',title:'Доставлено'};
+ return {text:'✓',cls:'receipt',title:'Отправлено, получатель ещё не подтвердил доставку'};
+}
+function applyReceipt(messageId,member,type){
+ var changed=false;
+ messages.forEach(function(m){
+   if(m.id!==messageId||m.from!==role)return;
+   ensureReceiptFields(m);
+   if(type==='delivered'&&!m.deliveredTo.includes(member)){m.deliveredTo.push(member);changed=true;}
+   if(type==='read'){
+     if(!m.deliveredTo.includes(member)){m.deliveredTo.push(member);changed=true;}
+     if(!m.readBy.includes(member)){m.readBy.push(member);changed=true;}
+   }
+ });
+ if(changed){saveMessages();renderHome();if(currentThread)renderMessages();}
+}
+async function sendReceipt(toRole,messageId,type,groupId){
+ if(!toRole||toRole===role||!messageId)return;
+ try{
+   var kind=type==='read'?'receipt_read':'receipt_delivered';
+   await publishEnvelope(toRole,kind,{messageId:messageId,groupId:groupId||'',receipt:type,ts:Date.now()},2,kind,'-');
+ }catch(e){}
+}
+async function markThreadRead(t){
+ if(!t)return;
+ var targets=[];
+ messages.forEach(function(m){
+   var belongs=t.type==='direct'
+     ? (m.kind==='direct'&&m.from===t.peer&&m.to===role)
+     : (m.kind==='group'&&m.groupId===t.groupId&&m.from!==role);
+   if(belongs&&!m.read){m.read=true;targets.push({to:m.from,id:m.id,groupId:m.groupId||''});}
+ });
+ if(targets.length){saveMessages();renderHome();renderMessages();}
+ for(var i=0;i<targets.length;i++)sendReceipt(targets[i].to,targets[i].id,'read',targets[i].groupId);
+}
 function saveMessages(){
  messages=messages.slice(-1800);
  try{
