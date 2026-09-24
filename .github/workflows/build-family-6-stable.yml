@@ -34,7 +34,7 @@ jobs:
           grep -q "applicationId 'com.sergey.ourfamily'" duoapp/build.gradle
           grep -q "versionCode 6001" duoapp/build.gradle
           grep -q "versionName '6.0.1'" duoapp/build.gradle
-          grep -q 'android:label="Наша семья 6.0.1.1"' duoapp/src/main/AndroidManifest.xml
+          grep -q 'android:label="Наша семья 6.0.1"' duoapp/src/main/AndroidManifest.xml
           grep -q 'REQUEST_INSTALL_PACKAGES' duoapp/src/main/AndroidManifest.xml
           grep -q 'UpdateFileProvider' duoapp/src/main/AndroidManifest.xml
 
