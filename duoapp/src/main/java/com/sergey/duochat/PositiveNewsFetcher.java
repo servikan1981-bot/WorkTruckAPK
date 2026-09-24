@@ -25,15 +25,13 @@ import java.util.Locale;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 public final class PositiveNewsFetcher {
-    private static final String KEY_ITEMS = "positive_news_v53";
-    private static final String KEY_LAST_CHECK = "positive_news_last_check_v53";
+    private static final String KEY_ITEMS = "positive_news_v56_ru";
+    private static final String KEY_LAST_CHECK = "positive_news_last_check_v56_ru";
     private static final long TWELVE_HOURS = 12L * 60L * 60L * 1000L;
     private static final int MAX_ITEMS = 20;
 
     private static final Feed[] FEEDS = new Feed[] {
-            new Feed("Позитивные новости", "https://wildcar.org/news/rss.xml", 8),
-            new Feed("Good News Network", "https://www.goodnewsnetwork.org/category/news/feed/", 4),
-            new Feed("Positive News", "https://www.positive.news/feed/", 4)
+            new Feed("Позитивные новости", "https://wildcar.org/news/rss.xml", 10)
     };
 
     private PositiveNewsFetcher() {}
@@ -122,6 +120,7 @@ public final class PositiveNewsFetcher {
                 String desc = clean(text(e, "description"));
                 String date = clean(text(e, "pubDate"));
                 if (title.isEmpty() || link.isEmpty()) continue;
+                if (!looksRussian(title + " " + desc)) continue;
 
                 Candidate x = new Candidate();
                 x.title = title;
@@ -208,6 +207,17 @@ public final class PositiveNewsFetcher {
         return out.replace('\u00a0', ' ').replaceAll("\\s+", " ").trim();
     }
 
+    private static boolean looksRussian(String s) {
+        if (s == null || s.isEmpty()) return false;
+        int cyr = 0, letters = 0;
+        for (int i = 0; i < s.length(); i++) {
+            char ch = Character.toLowerCase(s.charAt(i));
+            if (Character.isLetter(ch)) letters++;
+            if ((ch >= 'а' && ch <= 'я') || ch == 'ё') cyr++;
+        }
+        return cyr >= 20 && (letters == 0 || ((double) cyr / (double) letters) >= 0.35);
+    }
+
     private static int positivityScore(String s) {
         String x = s.toLowerCase(Locale.ROOT);
         String[] plus = {
@@ -228,7 +238,7 @@ public final class PositiveNewsFetcher {
         c.setConnectTimeout(12000);
         c.setReadTimeout(15000);
         c.setInstanceFollowRedirects(true);
-        c.setRequestProperty("User-Agent", "OurFamily/5.3 Android");
+        c.setRequestProperty("User-Agent", "OurFamily/5.6 Android");
         c.setRequestProperty("Accept", "application/rss+xml, application/xml, text/xml, text/html, */*");
         return c;
     }
