@@ -164,7 +164,8 @@ public class MessagingService extends Service {
                         chatChunks.remove(chunkKey);
                         String myRole = SecureStore.role(this);
                         if (!callId.isEmpty() && !"-".equals(callId) && !myRole.isEmpty()) {
-                            sendNativeDelivered(code, relay, senderRole, myRole, senderTag, myTag, callId);
+                            String relayBase = prefs.getString("relay_base", "https://ntfy.sh");
+                            sendNativeDelivered(code, relayBase, senderRole, myRole, senderTag, myTag, callId);
                         }
                     }
                 } catch (Exception ignored) {}
