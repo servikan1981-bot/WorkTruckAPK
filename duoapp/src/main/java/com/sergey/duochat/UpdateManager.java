@@ -13,6 +13,7 @@ import android.util.Base64;
 import android.widget.Toast;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -83,10 +84,16 @@ public final class UpdateManager {
         UpdateInfo i = new UpdateInfo();
         i.versionCode = o.optLong("versionCode", 0L);
         i.versionName = o.optString("versionName", "");
-        i.apkBase64Url = o.optString("apkBase64Url", "");
+        JSONArray parts = o.optJSONArray("apkBase64Parts");
+        if (parts != null) {
+            for (int n = 0; n < parts.length(); n++) {
+                String url = parts.optString(n, "");
+                if (url.startsWith("https://")) i.apkBase64Parts.add(url);
+            }
+        }
         i.sha256 = o.optString("sha256", "").toLowerCase(Locale.US);
         i.notes = o.optString("notes", "");
-        if (i.versionCode <= 0 || !i.apkBase64Url.startsWith("https://") || i.sha256.length() != 64) return null;
+        if (i.versionCode <= 0 || i.apkBase64Parts.isEmpty() || i.sha256.length() != 64) return null;
         return i;
     }
 
@@ -109,7 +116,7 @@ public final class UpdateManager {
         Toast.makeText(activity, "Загружаю обновление…", Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             try {
-                byte[] apk = downloadBase64Apk(info.apkBase64Url);
+                byte[] apk = downloadBase64Apk(info.apkBase64Parts);
                 if (!sha256(apk).equalsIgnoreCase(info.sha256)) {
                     throw new IllegalStateException("SHA-256 mismatch");
                 }
@@ -134,22 +141,23 @@ public final class UpdateManager {
         }, "OurFamilyUpdateDownload").start();
     }
 
-    private static byte[] downloadBase64Apk(String url) throws Exception {
-        HttpURLConnection c = open(url);
-        try (InputStream in = c.getInputStream()) {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = in.read(buf)) > 0) {
-                out.write(buf, 0, n);
-                if (out.size() > 5_000_000) throw new IllegalStateException("Update payload too large");
+    private static byte[] downloadBase64Apk(java.util.List<String> urls) throws Exception {
+        StringBuilder b64 = new StringBuilder();
+        for (String url : urls) {
+            HttpURLConnection c = open(url);
+            try (InputStream in = c.getInputStream()) {
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) > 0) {
+                    b64.append(new String(buf, 0, n, StandardCharsets.US_ASCII));
+                    if (b64.length() > 5_000_000) throw new IllegalStateException("Update payload too large");
+                }
+            } finally {
+                c.disconnect();
             }
-            String b64 = new String(out.toByteArray(), StandardCharsets.US_ASCII)
-                    .replace("\r", "").replace("\n", "").trim();
-            return Base64.decode(b64, Base64.DEFAULT);
-        } finally {
-            c.disconnect();
         }
+        String clean = b64.toString().replace("\r", "").replace("\n", "").trim();
+        return Base64.decode(clean, Base64.DEFAULT);
     }
 
     private static boolean validateApk(Activity activity, File apk, long expectedVersionCode) {
@@ -231,7 +239,7 @@ public final class UpdateManager {
     private static final class UpdateInfo {
         long versionCode;
         String versionName;
-        String apkBase64Url;
+        java.util.ArrayList<String> apkBase64Parts = new java.util.ArrayList<>();
         String sha256;
         String notes;
     }
