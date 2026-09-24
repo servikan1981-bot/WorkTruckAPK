@@ -1,0 +1,112 @@
+name: Build Our Family v5.5
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-v5-5-chat-polish ]
+    paths:
+      - 'duoapp/**'
+      - 'settings-duo.gradle'
+      - '.github/workflows/build-family-v55.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Validate JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text()
+          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
+          assert blocks
+          Path('/tmp/family-v55.js').write_text('\n'.join(blocks))
+          PY
+          node --check /tmp/family-v55.js
+
+      - name: Validate autoscroll and fullscreen photos
+        run: |
+          H=duoapp/src/main/assets/index.html
+          grep -q "scrollChatToBottom" "$H"
+          grep -q "visualViewport" "$H"
+          grep -q "photoViewer" "$H"
+          grep -q "openPhotoViewer" "$H"
+          grep -q "attachment-img" "$H"
+
+      - name: Validate WhatsApp-style receipts
+        run: |
+          H=duoapp/src/main/assets/index.html
+          grep -q "handleNativeAck" "$H"
+          grep -q "of5ack" "$H"
+          grep -q "receipt_delivered" "$H"
+          grep -q "receipt_read" "$H"
+          grep -q "sent:false" "$H"
+          grep -q "text:'✓'" "$H"
+          grep -q "text:'✓✓'" "$H"
+          grep -q "receipt read" "$H"
+          grep -q "sendNativeDelivered" duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q "chatChunks" duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q '"of5ack|"' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+
+      - name: Validate reactions
+        run: |
+          H=duoapp/src/main/assets/index.html
+          grep -q "REACTIONS=" "$H"
+          grep -q "openReactionPicker" "$H"
+          grep -q "sendReaction" "$H"
+          grep -q "p.kind==='reaction'" "$H"
+          grep -q "appendReactionSummary" "$H"
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text()
+          m=re.search(r"var REACTIONS=\[([^\]]+)\]",h)
+          assert m
+          assert len(re.findall(r"'[^']+'",m.group(1))) == 10
+          PY
+
+      - name: Validate existing functionality retained
+        run: |
+          H=duoapp/src/main/assets/index.html
+          for token in direct_chat group_chat direct_invite direct_offer direct_answer direct_candidate group_invite group_join group_offer group_answer group_candidate "Семейные новости" switchCamera enableSelfDrag startRingback speakerBtn "История чатов" "layout-side" "layout-stack" "layout-pip" "EMOJIS" familyPresenceTopic openAdminArchiveScreen; do
+            grep -q "$token" "$H"
+          done
+          grep -q "RelayInbox.enqueue" duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q "PositiveNewsFetcher" duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+
+      - name: Build APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK=duoapp/build/outputs/apk/debug/duoapp-debug.apk
+          test -f "$APK"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья v5.5"
+          unzip -p "$APK" assets/index.html | grep -q "openPhotoViewer"
+          unzip -p "$APK" assets/index.html | grep -q "sendReaction"
+          unzip -p "$APK" assets/index.html | grep -q "handleNativeAck"
+          ls -lh "$APK"
+
+      - name: Rename APK
+        run: cp duoapp/build/outputs/apk/debug/duoapp-debug.apk OurFamily_v5_5.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_v5_5
+          path: OurFamily_v5_5.apk
+          if-no-files-found: error
