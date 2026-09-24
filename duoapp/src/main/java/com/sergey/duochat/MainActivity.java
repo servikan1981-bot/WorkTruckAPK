@@ -384,6 +384,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String sendRelay(String topic, String message, int priority) {
+            return NativeRelayTransport.postBlocking(MainActivity.this, topic, message, priority);
+        }
+
+        @JavascriptInterface
         public String readRelayInbox() {
             return RelayInbox.read(MainActivity.this);
         }
@@ -509,7 +514,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "6.0.3";
+            return "6.0.4";
         }
     }
 
