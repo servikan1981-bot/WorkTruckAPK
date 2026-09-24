@@ -115,6 +115,12 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        UpdateManager.onResume(this);
+    }
+
+    @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
@@ -450,8 +456,13 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void checkForUpdates() {
+            runOnUiThread(() -> UpdateManager.check(MainActivity.this, true));
+        }
+
+        @JavascriptInterface
         public String getVersion() {
-            return "5.6.1";
+            return "6.0";
         }
     }
 
