@@ -2,14 +2,14 @@
   "versionCode": 6006,
   "versionName": "6.0.6",
   "apkBase64Parts": [
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_00.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_01.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_02.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_03.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_04.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_05.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606_06.b64"
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606fix_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606fix_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606fix_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606fix_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606fix_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606fix_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v606fix_06.b64"
   ],
-  "sha256": "0f2640ae1f6da4f6598f5f21d1ab62640f6dde5c163471d35d9a6fb7646c5fef",
-  "notes": "Исправлено отсутствие публикации сообщений из-за фоновых запросов к ntfy.sh. Отключены автоматические heartbeat-сообщения присутствия, добавлен повтор отправки нажатием на красный !. Статус в сети временно недоступен."
+  "sha256": "277714476fa90559d0fef7aaddc587b66ac941c8ea1a735bf6e3eb7ce8125848",
+  "notes": "Исправлена отправка сообщений: отключены служебные heartbeat-запросы. Неудавшееся сообщение можно отправить повторно нажатием на красный !. Исправлен установочный пакет."
 }

@@ -151,12 +151,12 @@ jobs:
           grep -q "ParcelFileDescriptor.MODE_READ_ONLY" "$P"
           grep -q "UpdateManager.checkAsync" "$M"
 
-      - name: Validate candidate 6.0.6 package
+      - name: Validate published package
         run: |
           python3 - <<'PY'
           import base64,hashlib,json,pathlib
-          meta=json.loads(pathlib.Path('updates/candidates/606-fixed.json').read_text())
-          assert meta['versionCode']==6006
+          meta=json.loads(pathlib.Path('updates/latest.json').read_text())
+          assert meta['versionCode']>=6006
           data=base64.b64decode(''.join(pathlib.Path('updates/parts/'+u.rsplit('/',1)[-1]).read_text() for u in meta['apkBase64Parts']))
           assert hashlib.sha256(data).hexdigest()==meta['sha256']
           pathlib.Path('/tmp/published-family.apk').write_bytes(data)
