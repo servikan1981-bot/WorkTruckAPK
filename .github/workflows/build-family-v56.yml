@@ -1,0 +1,119 @@
+name: Build Our Family v5.6
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-v5-6-background-navigation ]
+    paths:
+      - 'duoapp/**'
+      - 'settings-duo.gradle'
+      - '.github/workflows/build-family-v56.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Validate JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text()
+          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
+          assert blocks
+          Path('/tmp/family-v56.js').write_text('\n'.join(blocks))
+          PY
+          node --check /tmp/family-v56.js
+
+      - name: Validate notification deep links
+        run: |
+          H=duoapp/src/main/assets/index.html
+          J=duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q "open_message_id" "$S"
+          grep -q "captureMessageNavigation" "$J"
+          grep -q "consumePendingNavigation" "$J"
+          grep -q "consumeNativeNavigation" "$H"
+          grep -q "tryOpenPendingMessage" "$H"
+          grep -q "scrollToMessage" "$H"
+          grep -q "message-highlight" "$H"
+
+      - name: Validate participant unread badges
+        run: |
+          H=duoapp/src/main/assets/index.html
+          grep -q "directMessages(m.id).filter" "$H"
+          grep -q "row.addEventListener('click',function(){openDirect(m.id);})" "$H"
+          grep -q "badge.textContent=unread" "$H"
+
+      - name: Validate native background presence
+        run: |
+          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          F=duoapp/src/main/java/com/sergey/duochat/FamilyDirectory.java
+          M=duoapp/src/main/AndroidManifest.xml
+          grep -q "startPresenceWorker" "$S"
+          grep -q "sendPresenceHeartbeat" "$S"
+          grep -q "20_000L" "$S"
+          grep -q "presenceTopic" "$F"
+          grep -q "RECEIVE_BOOT_COMPLETED" "$M"
+          grep -q "BootReceiver" "$M"
+          grep -q 'android:stopWithTask="false"' "$M"
+          grep -q "START_STICKY" "$S"
+
+      - name: Validate Russian-only automatic news
+        run: |
+          N=duoapp/src/main/java/com/sergey/duochat/PositiveNewsFetcher.java
+          grep -q "positive_news_v56_ru" "$N"
+          grep -q "looksRussian" "$N"
+          grep -q "wildcar.org/news/rss.xml" "$N"
+          if grep -q "goodnewsnetwork.org" "$N"; then
+            echo "English Good News Network feed must not be used in v5.6"
+            exit 1
+          fi
+          if grep -q "positive.news/feed" "$N"; then
+            echo "English Positive News feed must not be used in v5.6"
+            exit 1
+          fi
+
+      - name: Validate existing functionality retained
+        run: |
+          H=duoapp/src/main/assets/index.html
+          for token in direct_chat group_chat direct_invite direct_offer direct_answer direct_candidate group_invite group_join group_offer group_answer group_candidate receipt_read "✓✓" REACTIONS openPhotoViewer scrollChatToBottom "Семейные новости" switchCamera enableSelfDrag startRingback speakerBtn "История чатов" layout-pip openAdminArchiveScreen; do
+            grep -q "$token" "$H"
+          done
+          grep -q "RelayInbox.enqueue" duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q "sendNativeDelivered" duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+
+      - name: Build APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK=duoapp/build/outputs/apk/debug/duoapp-debug.apk
+          test -f "$APK"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья v5.6"
+          unzip -p "$APK" assets/index.html | grep -q "consumeNativeNavigation"
+          unzip -p "$APK" assets/index.html | grep -q "message-highlight"
+          ls -lh "$APK"
+
+      - name: Rename APK
+        run: cp duoapp/build/outputs/apk/debug/duoapp-debug.apk OurFamily_v5_6.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_v5_6
+          path: OurFamily_v5_6.apk
+          if-no-files-found: error
