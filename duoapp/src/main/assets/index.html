@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья v5.6</title>
+<title>Наша семья v5.6.1</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -81,7 +81,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья v5.6</h1>
+    <h1>Наша семья v5.6.1</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -210,7 +210,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   <div class="modal-card">
     <div class="about-logo">👨‍👩‍👧‍👦</div>
     <div class="modal-title">Наша семья</div>
-    <div id="aboutVersion" class="about-version">v5.6</div>
+    <div id="aboutVersion" class="about-version">v5.6.1</div>
     <div class="about-copy">Семейный мессенджер: личные и групповые чаты, аудио- и видеозвонки, семейные новости, фото, видео и файлы.</div>
     <button id="closeAboutBtn" class="primary wide" style="margin-top:16px">Готово</button>
   </div>
@@ -283,8 +283,8 @@ var messages=[],currentThread=null,pickerMode='new',pickerSelected=new Set(),pol
 var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={};
 var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},callTimeout=null,currentFacing='user',cameraSwitchBusy=false,speakerOn=false;
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[];
-var presenceMap={},presenceTimer=null,presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='5.6',reactionTargetId='',pendingMessageNavigation=null;
+var presenceMap={},presencePollTimer=null,presenceBusy=false;
+var APP_VERSION='5.6.1',reactionTargetId='',pendingMessageNavigation=null;
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'light',videoLayout:'side'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
@@ -566,17 +566,9 @@ async function markThreadRead(t){
 function onlineNow(member){
  if(member===role)return !document.hidden;
  var ts=presenceMap[member]||0;
- return Date.now()-ts<55000;
+ return Date.now()-ts<80000;
 }
 function presenceLabel(member){return onlineNow(member)?'в сети':'не в сети';}
-async function sendPresence(){
- if(document.hidden||!presenceTopic||!ownTag)return;
- try{
-   presenceMap[role]=Date.now();
-   await fetch(relayBase+'/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic:presenceTopic,message:'of5p|'+ownTag+'|'+Date.now(),priority:1})});
-   renderPresence();
- }catch(e){}
-}
 async function pollPresence(){
  if(presenceBusy||!presenceTopic)return;presenceBusy=true;
  try{
@@ -616,7 +608,7 @@ function renderPresence(){
  }
 }
 function startPresence(){
- clearInterval(presenceTimer);clearInterval(presencePollTimer);
+ clearInterval(presencePollTimer);
  presenceMap[role]=Date.now();pollPresence();
  presencePollTimer=setInterval(pollPresence,12000);
 }
