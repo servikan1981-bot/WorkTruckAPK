@@ -93,12 +93,11 @@ jobs:
           H=duoapp/src/main/assets/index.html
           grep -q "presence_native_v602" "$P"
           grep -q "startPresenceSender" "$S"
-          grep -q "startPresenceListener" "$S"
-          grep -q "presenceListenLoop" "$S"
-          grep -q "activePresenceConnection" "$S"
+          grep -q "of5presence|" "$S"
+          grep -q "FamilyDirectory.inboxTopic" "$S"
           grep -q "PresenceStore.update(this, senderRole" "$S"
-          if grep -q "pollPresenceNative" "$S"; then
-            echo "Old short-poll presence code must be removed"
+          if grep -q "presenceListenLoop\|startPresenceListener\|pollPresenceNative" "$S"; then
+            echo "Legacy separate presence reader must be removed"
             exit 1
           fi
           grep -q "UpdateManager.checkBackground" "$S"
