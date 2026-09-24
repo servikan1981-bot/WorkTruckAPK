@@ -995,29 +995,31 @@ async function sendCurrentMessage(){
  var id=randomId(),ts=Date.now();
  if(currentThread.type==='direct'){
    var peer=currentThread.peer;
-   addMessage({id:id,kind:'direct',from:role,to:peer,text:text,ts:ts,read:true,deliveredTo:[],readBy:[],sendFailed:false});
+   addMessage({id:id,kind:'direct',from:role,to:peer,text:text,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
    try{
-     await publishEnvelope(peer,'direct_chat',{messageId:id,text:text,ts:ts},3,'direct_chat','-');
+     await publishEnvelope(peer,'direct_chat',{messageId:id,text:text,ts:ts},3,'direct_chat',id);
+     var local=messages.find(function(x){return x.id===id;});if(local){local.sent=true;saveMessages();renderMessages();}
      if(role!=='sergey'&&peer!=='sergey'){
        publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalTo:peer,text:text,ts:ts},2,'admin_copy','-').catch(function(){});
      }
    }catch(e){
-     var m=messages.find(function(x){return x.id===id;});if(m){m.sendFailed=true;saveMessages();renderMessages();}
+     var m=messages.find(function(x){return x.id===id;});if(m){m.sendFailed=true;m.sent=false;saveMessages();renderMessages();}
      toast('Не удалось отправить сообщение');
    }
  }else{
    var members=currentThread.members.slice(),gid=currentThread.groupId,recipients=members.filter(function(x){return x!==role;});
-   addMessage({id:id,kind:'group',groupId:gid,members:members,from:role,text:text,ts:ts,read:true,deliveredTo:[],readBy:[],sendFailed:false});
+   addMessage({id:id,kind:'group',groupId:gid,members:members,from:role,text:text,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
    var failed=false;
    for(var i=0;i<recipients.length;i++){
-     try{await publishEnvelope(recipients[i],'group_chat',{messageId:id,text:text,ts:ts,groupId:gid,members:members},3,'group_chat','-');}
+     try{await publishEnvelope(recipients[i],'group_chat',{messageId:id,text:text,ts:ts,groupId:gid,members:members},3,'group_chat',id);}
      catch(e){failed=true;}
    }
-   if(failed){var gm=messages.find(function(x){return x.id===id;});if(gm){gm.sendFailed=true;saveMessages();renderMessages();}}
+   var gm=messages.find(function(x){return x.id===id;});if(gm){gm.sent=!failed;gm.sendFailed=failed;saveMessages();renderMessages();}
    if(role!=='sergey'&&!members.includes('sergey')){
      publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalMembers:members,groupId:gid,text:text,ts:ts},2,'admin_copy','-').catch(function(){});
    }
  }
+ scrollChatToBottom();
 }
 async function prepareAttachment(file,isPhoto,context){
  if(!file)throw new Error('no file');
@@ -1048,26 +1050,30 @@ async function sendAttachment(file,isPhoto){
 
    if(currentThread.type==='direct'){
      var peer=currentThread.peer;
-     addMessage({id:id,kind:'direct',from:role,to:peer,text:'',attachment:att,ts:ts,read:true,deliveredTo:[],readBy:[],sendFailed:false});
-     try{await publishEnvelope(peer,'direct_chat',{messageId:id,text:'',attachment:att,ts:ts},3,'direct_chat','-');}
-     catch(e){var m=messages.find(function(x){return x.id===id;});if(m){m.sendFailed=true;saveMessages();renderMessages();}throw e;}
+     addMessage({id:id,kind:'direct',from:role,to:peer,text:'',attachment:att,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
+     try{
+       await publishEnvelope(peer,'direct_chat',{messageId:id,text:'',attachment:att,ts:ts},3,'direct_chat',id);
+       var local=messages.find(function(x){return x.id===id;});if(local){local.sent=true;saveMessages();renderMessages();}
+     }catch(e){
+       var m=messages.find(function(x){return x.id===id;});if(m){m.sendFailed=true;m.sent=false;saveMessages();renderMessages();}throw e;
+     }
      if(role!=='sergey'&&peer!=='sergey'){
        publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalTo:peer,text:'',attachment:att,ts:ts},2,'admin_copy','-').catch(function(){});
      }
    }else{
      var members=currentThread.members.slice(),gid=currentThread.groupId,recipients=members.filter(function(x){return x!==role;});
-     addMessage({id:id,kind:'group',groupId:gid,members:members,from:role,text:'',attachment:att,ts:ts,read:true,deliveredTo:[],readBy:[],sendFailed:false});
+     addMessage({id:id,kind:'group',groupId:gid,members:members,from:role,text:'',attachment:att,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
      var failed=false;
      for(var i=0;i<recipients.length;i++){
-       try{await publishEnvelope(recipients[i],'group_chat',{messageId:id,text:'',attachment:att,ts:ts,groupId:gid,members:members},3,'group_chat','-');}
+       try{await publishEnvelope(recipients[i],'group_chat',{messageId:id,text:'',attachment:att,ts:ts,groupId:gid,members:members},3,'group_chat',id);}
        catch(e){failed=true;}
      }
-     if(failed){var gm=messages.find(function(x){return x.id===id;});if(gm){gm.sendFailed=true;saveMessages();renderMessages();}}
+     var gm=messages.find(function(x){return x.id===id;});if(gm){gm.sent=!failed;gm.sendFailed=failed;saveMessages();renderMessages();}
      if(role!=='sergey'&&!members.includes('sergey')){
        publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalMembers:members,groupId:gid,text:'',attachment:att,ts:ts},2,'admin_copy','-').catch(function(){});
      }
    }
-   toast('Отправлено');
+   scrollChatToBottom();toast('Отправлено');
  }catch(e){
    var msg=String(e&&e.message||e);
    if(msg.indexOf('too_large:')===0){var lim=parseInt(msg.split(':')[1],10)||maxAttachmentSize();toast('Файл слишком большой. Лимит: '+formatBytes(lim));}
