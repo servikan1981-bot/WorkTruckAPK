@@ -469,6 +469,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void checkForUpdates() {
+            runOnUiThread(() -> UpdateManager.checkAsync(MainActivity.this, true));
+        }
+
+        @JavascriptInterface
         public String getVersion() {
             return "6.0";
         }
