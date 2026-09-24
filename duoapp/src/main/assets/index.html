@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья v5.3</title>
+<title>Наша семья v5.4</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -68,6 +68,9 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 .videoTile.local-self{touch-action:none}
 .videoTile.local-self.floating-self{position:absolute!important;width:32%!important;height:30%!important;min-height:110px!important;z-index:8;box-shadow:0 8px 24px rgba(0,0,0,.4);border:2px solid rgba(255,255,255,.75)}
 .auto-news{border-left:4px solid var(--green)}.auto-news-source{font-size:11px;color:var(--green);font-weight:850;margin-bottom:6px}.auto-news-title{font-size:17px;font-weight:900;line-height:1.25;margin-bottom:6px}.auto-news-image{display:block;width:100%;max-height:260px;object-fit:cover;border-radius:12px;margin-top:9px;background:#111}
+.presence-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:14px}.presence-person{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:9px 10px;display:flex;align-items:center;gap:8px}.presence-dot{width:9px;height:9px;border-radius:50%;background:#9aa5b1;flex:none}.presence-dot.online{background:#1fb36b;box-shadow:0 0 0 3px rgba(31,179,107,.12)}.presence-name{font-size:13px;font-weight:850}.presence-state{font-size:10px;color:var(--muted)}
+.receipt{display:inline-block;margin-left:4px;font-weight:900;letter-spacing:-2px;color:#5e6978}.receipt.read{color:#1687ff}.receipt.failed{color:var(--red);letter-spacing:0}
+.about-version{font-size:26px;font-weight:950;margin:8px 0}.about-copy{color:var(--muted);line-height:1.45}.about-logo{font-size:42px}
 @media(max-width:420px){.emoji-panel{grid-template-columns:repeat(7,1fr)}.news-composer{grid-template-columns:auto auto 1fr auto}}
 </style>
 </head>
@@ -75,7 +78,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья v5.3</h1>
+    <h1>Наша семья v5.4</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -97,7 +100,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья</div><div id="mainStatus" class="status ok">Фоновый канал активен</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v5.4</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
     <button id="menuBtn" class="iconbtn">⋮</button>
   </div>
   <div class="body">
@@ -108,6 +111,8 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
     </div>
     <button id="newsBtn" class="news-action">📰 Семейные новости · ссылки · фото · видео · поздравления</button>
     <button id="adminArchiveBtn" class="primary wide hidden" style="margin-bottom:11px">Семейный архив</button>
+    <div class="section-title">Участники</div>
+    <div id="presenceList" class="presence-grid"></div>
     <div class="section-title">История чатов</div>
     <div id="directList"></div>
     <div class="section-title">Групповые чаты</div>
@@ -191,10 +196,21 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 </section>
 
 <div id="settingsPop" class="settings-pop hidden">
+  <button id="aboutMenuBtn">ℹ️ О приложении</button>
   <button id="videoLayoutMenuBtn">🎥 Варианты видео</button>
   <button id="themeMenuBtn">🎨 Тема</button>
   <button id="fullScreenMenuBtn">Разрешение экрана звонка</button>
   <button id="resetBtn">Сменить профиль / код</button>
+</div>
+
+<div id="aboutModal" class="modal-backdrop hidden">
+  <div class="modal-card">
+    <div class="about-logo">👨‍👩‍👧‍👦</div>
+    <div class="modal-title">Наша семья</div>
+    <div id="aboutVersion" class="about-version">v5.4</div>
+    <div class="about-copy">Семейный мессенджер: личные и групповые чаты, аудио- и видеозвонки, семейные новости, фото, видео и файлы.</div>
+    <button id="closeAboutBtn" class="primary wide" style="margin-top:16px">Готово</button>
+  </div>
 </div>
 
 <div id="videoLayoutModal" class="modal-backdrop hidden">
