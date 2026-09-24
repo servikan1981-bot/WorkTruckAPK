@@ -406,7 +406,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья v5.6")
+                .setContentTitle("Наша семья v5.6.1")
                 .setContentText("Фоновая связь и статус в сети включены")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
