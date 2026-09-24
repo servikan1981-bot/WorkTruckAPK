@@ -17,7 +17,7 @@ import android.widget.TextView;
 import org.json.JSONObject;
 
 public class IncomingCallActivity extends Activity {
-    public static final String ACTION_ACCEPT = "com.sergey.duochat.v4.ACCEPT";
+    public static final String ACTION_ACCEPT = "com.sergey.ourfamily.ACCEPT_ACTIVITY";
     public static final String EXTRA_CALL_ID = "call_id";
     public static final String EXTRA_CALLER_ROLE = "caller_role";
     public static final String EXTRA_KIND = "call_kind";
@@ -76,7 +76,7 @@ public class IncomingCallActivity extends Activity {
         root.setBackgroundColor(Color.rgb(10, 16, 32));
 
         TextView heart = new TextView(this);
-        heart.setText("❤");
+        heart.setText("👨‍👩‍👧‍👦");
         heart.setTextSize(64);
         heart.setGravity(Gravity.CENTER);
         root.addView(heart, new LinearLayout.LayoutParams(
