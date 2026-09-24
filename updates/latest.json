@@ -1,0 +1,9 @@
+{
+  "versionCode": 6000,
+  "versionName": "6.0",
+  "apkBase64Parts": [
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/part00.b64"
+  ],
+  "sha256": "6624d03ed0e5254e6ece3abba7d871ab8031a88f16f37bf26a929ab56b51645e",
+  "notes": "Стабильная семейная версия 6.0."
+}
