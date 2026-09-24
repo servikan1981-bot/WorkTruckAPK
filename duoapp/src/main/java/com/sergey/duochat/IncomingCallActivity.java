@@ -17,7 +17,7 @@ import android.widget.TextView;
 import org.json.JSONObject;
 
 public class IncomingCallActivity extends Activity {
-    public static final String ACTION_ACCEPT = "com.sergey.duochat.v4.ACCEPT";
+    public static final String ACTION_ACCEPT = "com.sergey.ourfamily.ACCEPT_CALL";
     public static final String EXTRA_CALL_ID = "call_id";
     public static final String EXTRA_CALLER_ROLE = "caller_role";
     public static final String EXTRA_KIND = "call_kind";
@@ -32,15 +32,15 @@ public class IncomingCallActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        getWindow().addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+        );
         if (Build.VERSION.SDK_INT >= 27) {
             setShowWhenLocked(true);
             setTurnScreenOn(true);
-        } else {
-            getWindow().addFlags(
-                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
-                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
-                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-            );
         }
 
         readExtras(getIntent());
