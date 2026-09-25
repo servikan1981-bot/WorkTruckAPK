@@ -5,6 +5,8 @@ on:
   push:
     branches: [ family-stable-6 ]
     paths:
+      - 'updates/candidates/609.json'
+      - 'updates/parts/v609_*.b64'
       - 'tools/e2e_family_608.py'
       - '.github/workflows/e2e-family-609.yml'
 
