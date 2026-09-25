@@ -1,0 +1,15 @@
+{
+  "versionCode": 6011,
+  "versionName": "6.0.11",
+  "apkBase64Parts": [
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v611test_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v611test_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v611test_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v611test_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v611test_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v611test_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v611test_06.b64"
+  ],
+  "sha256": "03198536fc700893c6b9bc8990f0c931d635aba48d48eb6fc77a5b45b7882180",
+  "notes": "Candidate for emulator tests only"
+}
