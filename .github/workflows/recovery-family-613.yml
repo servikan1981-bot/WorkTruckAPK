@@ -39,7 +39,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Update 6.0.11 to 6.0.13 with family profile
+      - name: Update 6.0.12 to 6.0.13 with family profile
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
@@ -52,8 +52,8 @@ jobs:
         with:
           name: family-video-upgrade-api-${{ matrix.api-level }}
           path: |
-            /tmp/family-611-crash.log
+            /tmp/family-613-crash.log
             /tmp/family-611.xml
             /tmp/family-611.png
-            /tmp/family-611-logcat.txt
+            /tmp/family-613-logcat.txt
           if-no-files-found: ignore
