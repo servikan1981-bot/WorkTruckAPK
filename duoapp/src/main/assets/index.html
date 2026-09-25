@@ -803,7 +803,7 @@ function renderNews(){
      var src=document.createElement('div');src.className='auto-news-source';src.textContent='🌍 '+m.source+' · позитивная новость';
      var title=document.createElement('div');title.className='auto-news-title';title.textContent=m.title;
      card.append(src,title);
-     if(m.text){var at=document.createElement('div');at.className='news-text';at.textContent=m.text;card.appendChild(at);}
+     if(m.text&&m.text!==m.title){var at=document.createElement('div');at.className='news-text';at.textContent=m.text;card.appendChild(at);}
      if(m.imageUrl){var ai=document.createElement('img');ai.className='auto-news-image';ai.src=m.imageUrl;ai.alt=m.title;ai.addEventListener('click',function(){openPhotoViewer(m.imageUrl,m.title);});card.appendChild(ai);}
      if(/^https:\/\//.test(m.link)){var original=document.createElement('a');original.href=m.link;original.target='_blank';original.rel='noopener noreferrer';original.textContent='Читать полностью';card.appendChild(original);}
      box.appendChild(card);return;
