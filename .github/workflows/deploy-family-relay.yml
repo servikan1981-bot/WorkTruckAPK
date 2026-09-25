@@ -1,0 +1,54 @@
+name: Deploy free Our Family relay
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-stable-6 ]
+    paths:
+      - 'family-relay/**'
+      - '.github/workflows/deploy-family-relay.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check private Cloudflare deployment credentials
+        id: access
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$ACCOUNT" ]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Cloudflare credentials are not configured; no deployment was attempted.'
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Deploy Worker with SQLite Durable Objects
+        if: steps.access.outputs.ready == 'true'
+        id: publish
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: family-relay
+          command: deploy
+      - name: Verify deployed relay
+        if: steps.access.outputs.ready == 'true'
+        env:
+          RELAY_URL: ${{ steps.publish.outputs.deployment-url }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, urllib.request
+          url = os.environ['RELAY_URL'].strip().rstrip('/')
+          if not re.fullmatch(r'https://[A-Za-z0-9.-]+\.workers\.dev', url):
+              raise SystemExit('Wrangler did not report a workers.dev HTTPS URL')
+          with urllib.request.urlopen(url + '/health', timeout=20) as response:
+              assert response.status == 200
+              assert json.load(response)['protocol'] == 'ourfamily-relay-v1'
+          print('Relay is serving HTTPS: ' + url)
+          PY

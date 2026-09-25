@@ -4,9 +4,10 @@ Cloudflare Workers Free and SQLite-backed Durable Objects. The relay accepts the
 
 ## Deploy
 
-1. Log into a Cloudflare account with Workers Free enabled.
-2. In this directory run `npx wrangler deploy` and record the resulting HTTPS `workers.dev` URL.
-3. On **each phone**, open “Сервер сообщений”, enter that same URL, and press “Проверить и сохранить”.
+1. Log into a Cloudflare account with Workers Free enabled. Create an account-scoped token using the **Edit Cloudflare Workers** permission, restricted to this account.
+2. In the `servikan1981-bot/WorkTruckAPK` GitHub repository settings, add repository Actions secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Never place the token in a commit or chat.
+3. Run the **Deploy free Our Family relay** workflow on the `family-stable-6` branch, or push a change to this directory. The job tests the deployed `/health` route and prints its HTTPS `workers.dev` URL.
+4. On **each phone**, open “Сервер сообщений”, enter that same URL, and press “Проверить и сохранить”.
 
 Encrypted attachments expire after seven days. Durable Objects Free includes 5 GB total stored data; Workers Free is limited to 100,000 requests/day, so monitor dashboard usage before adding more devices. Do not add a credit card or upgrade the plan for this configuration.
 
