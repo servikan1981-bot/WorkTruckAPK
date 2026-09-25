@@ -44,13 +44,26 @@ def tap(needle, *, optional=False):
     raise AssertionError("UI text not found: " + needle + "; XML: " + Path("/tmp/family-e2e.xml").read_text()[:4500])
 
 
+def tap_input():
+    for node in snapshot().iter("node"):
+        if node.get("class") == "android.widget.EditText":
+            bounds = node.get("bounds", "")
+            if bounds:
+                x1, y1, x2, y2 = map(int, re.findall(r"\d+", bounds))
+                if x2 > x1 and y2 > y1:
+                    adb("shell", "input", "tap", str((x1+x2)//2), str((y1+y2)//2))
+                    time.sleep(1)
+                    return
+    raise AssertionError("Visible input not found")
+
+
 def enter_profile(role):
     adb("shell", "am", "force-stop", PKG)
     adb("shell", "am", "start", "-W", "-n", PKG + "/com.sergey.duochat.MainActivity")
     time.sleep(5)
     tap("ПОЗЖЕ", optional=True)
     tap(role)
-    tap("Минимум 14 символов")
+    tap_input()
     adb("shell", "input", "text", CODE)
     adb("shell", "input", "keyevent", "4")
     tap("Войти в семью")
@@ -62,7 +75,7 @@ def main():
     try:
         enter_profile("Сергей")
         tap("Света")
-        tap("Сообщение")
+        tap_input()
         adb("shell", "input", "text", TEXT)
         adb("shell", "input", "keyevent", "4")
         tap("➤")
