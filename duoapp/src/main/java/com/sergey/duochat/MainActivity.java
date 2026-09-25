@@ -268,7 +268,7 @@ public class MainActivity extends Activity {
                 SharedPreferences p = SecureStore.prefs(MainActivity.this);
                 String role = p.getString("role", "");
                 String enc = p.getString("family_secret", "");
-                String relay = p.getString("relay_base", "https://ntfy.sh");
+                String relay = SecureStore.relay(MainActivity.this);
                 if (role.isEmpty() || enc.isEmpty()) return "";
 
                 JSONObject o = new JSONObject();

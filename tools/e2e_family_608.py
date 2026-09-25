@@ -7,7 +7,7 @@ import subprocess
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 
 PKG = "com.sergey.ourfamily"
@@ -85,8 +85,9 @@ def main():
         assert 'text="!"' not in root, "Android app reported relay publish failure"
 
         topic = "of5-" + hashlib.sha256(("OurFamily-v5-inbox|" + CODE + "|sveta").encode()).hexdigest()[:48]
-        url = "https://ntfy.sh/" + topic + "/json?poll=1&since=10m"
-        with urlopen(url, timeout=20) as response:
+        url = "https://our-family-relay.family-860c7981b2d4.workers.dev/" + topic + "/json?since=10m"
+        request = Request(url, headers={"User-Agent": "Dalvik/2.1.0 (Linux; U; Android 14; Pixel 7)"})
+        with urlopen(request, timeout=20) as response:
             received = response.read().decode()
         assert '"of5|' in received, "Relay did not store Android message: " + received[:500]
 
@@ -101,7 +102,7 @@ def main():
                 print("PASS: encrypted message published by Sergey and displayed for Sveta")
                 break
         else:
-            raise AssertionError("Sveta did not receive the message from the ntfy cache")
+            raise AssertionError("Sveta did not receive the message from the family relay")
     finally:
         try:
             Path("/tmp/family-e2e.png").write_bytes(subprocess.check_output(["adb", "exec-out", "screencap", "-p"], timeout=20))

@@ -109,7 +109,7 @@ public class MessagingService extends Service {
         while (running) {
             SharedPreferences prefs = SecureStore.prefs(this);
             String code = SecureStore.familyCode(this);
-            String relay = prefs.getString("relay_base", "https://ntfy.sh");
+            String relay = SecureStore.relay(this);
             if (code.isEmpty() || relay.isEmpty()) {
                 sleep(1500L);
                 continue;
@@ -204,7 +204,7 @@ public class MessagingService extends Service {
             SharedPreferences prefs = SecureStore.prefs(this);
             String topic = prefs.getString("topic", "");
             String myTag = prefs.getString("sender_tag", "");
-            String relay = prefs.getString("relay_base", "https://ntfy.sh");
+            String relay = SecureStore.relay(this);
 
             if (topic.isEmpty() || myTag.isEmpty()) {
                 sleep(1500);

@@ -10,11 +10,13 @@ test('local Cloudflare runtime accepts Android-compatible messages, presence, an
 
   const wire = 'of5|sender|receiver|direct_chat|message|group|0|1|encrypted-data';
   const post = await fetch(relay + '/', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'User-Agent': 'OurFamily/6.0.5 Android' },
     body: JSON.stringify({ topic, message: wire, priority: 3 })
   });
   assert.equal(post.status, 200, await post.text());
-  const received = await fetch(relay + '/' + topic + '/json?since=10m');
+  const received = await fetch(relay + '/' + topic + '/json?since=10m', {
+    headers: { 'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 14; Pixel 7)' }
+  });
   const events = (await received.text()).trim().split('\n').map(JSON.parse);
   assert.equal(events.length, 1);
   assert.equal(events[0].message, wire);

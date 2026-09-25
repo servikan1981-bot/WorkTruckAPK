@@ -24,7 +24,7 @@ public final class NativeAttachmentTransport {
             if (data.length <= 0 || data.length > MAX_BYTES) return "ERR:size";
 
             String relay = SecureStore.relay(context);
-            if (relay == null || !relay.startsWith("https://")) relay = "https://ntfy.sh";
+            if (relay == null || !relay.startsWith("https://")) relay = SecureStore.DEFAULT_RELAY;
             relay = relay.replaceAll("/+$", "");
 
             String topic = "of5file-" + java.util.UUID.randomUUID().toString().replace("-", "");

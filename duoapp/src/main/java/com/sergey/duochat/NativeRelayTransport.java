@@ -46,8 +46,8 @@ public final class NativeRelayTransport {
         priority = Math.max(1, Math.min(5, priority));
 
         SharedPreferences prefs = SecureStore.prefs(context);
-        String relay = relayOverride != null ? relayOverride : prefs.getString("relay_base", "https://ntfy.sh");
-        if (relay == null || !relay.startsWith("https://")) relay = "https://ntfy.sh";
+        String relay = relayOverride != null ? relayOverride : SecureStore.relay(context);
+        if (relay == null || !relay.startsWith("https://")) relay = SecureStore.DEFAULT_RELAY;
         relay = relay.replaceAll("/+$", "");
 
         HttpURLConnection c = null;

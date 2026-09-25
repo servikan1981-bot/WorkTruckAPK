@@ -16,6 +16,8 @@ import javax.crypto.spec.GCMParameterSpec;
 
 public final class SecureStore {
     public static final String PREFS = "duo_native_v4";
+    public static final String DEFAULT_RELAY =
+            "https://our-family-relay.family-860c7981b2d4.workers.dev";
     private static final String KEY_ALIAS = "OurFamilyV4ProfileKey";
 
     private SecureStore() {}
@@ -78,6 +80,12 @@ public final class SecureStore {
     }
 
     public static String relay(Context c) {
-        return prefs(c).getString("relay_base", "https://ntfy.sh");
+        SharedPreferences p = prefs(c);
+        String saved = p.getString("relay_base", "");
+        if (saved == null || saved.isEmpty() || "https://ntfy.sh".equalsIgnoreCase(saved.replaceAll("/+$", ""))) {
+            p.edit().putString("relay_base", DEFAULT_RELAY).apply();
+            return DEFAULT_RELAY;
+        }
+        return saved;
     }
 }

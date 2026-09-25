@@ -90,7 +90,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
     <button id="generateBtn" class="role wide" style="margin-top:9px">Сгенерировать безопасный код</button>
     <details style="margin-top:13px">
       <summary style="font-weight:800">Свой сервер (необязательно)</summary>
-      <div class="label">Relay / ntfy</div><input id="relayBase" class="code" value="https://ntfy.sh">
+      <div class="label">Сервер сообщений</div><input id="relayBase" class="code" value="https://our-family-relay.family-860c7981b2d4.workers.dev">
       <div class="label">TURN URL</div><input id="turnUrl" class="code" placeholder="turns:turn.example.com:5349">
       <div class="label">TURN логин</div><input id="turnUser" class="code">
       <div class="label">TURN пароль</div><input id="turnPass" class="code" type="password">
@@ -291,7 +291,7 @@ var MEMBERS=[
 ];
 var NAMES={};MEMBERS.forEach(function(m){NAMES[m.id]=m.name;});
 
-var role='',code='',relayBase='https://ntfy.sh',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='',presenceTopic='';
+var role='',code='',relayBase='https://our-family-relay.family-860c7981b2d4.workers.dev',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='',presenceTopic='';
 var roleTags={},cryptoKeys={},packetChunks={},processedPayloads=new Set(),rawInFlight=new Set();
 var messages=[],currentThread=null,pickerMode='new',pickerSelected=new Set(),pollBusy=false,pollTimer=null;
 var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={};
@@ -1554,7 +1554,7 @@ async function enter(){
 function loadProfile(){
  try{
    var raw=AndroidBridge.loadProfile();if(!raw)return false;var p=JSON.parse(raw);
-   role=p.role||'';code=p.code||'';relayBase=p.relay||'https://ntfy.sh';turnUrl=p.turnUrl||'';turnUser=p.turnUser||'';turnPass=p.turnPass||'';
+   role=p.role||'';code=p.code||'';relayBase=p.relay||'https://our-family-relay.family-860c7981b2d4.workers.dev';turnUrl=p.turnUrl||'';turnUser=p.turnUser||'';turnPass=p.turnPass||'';
    return !!(NAMES[role]&&code.length>=14);
  }catch(e){return false;}
 }
@@ -1566,7 +1566,7 @@ function populateSetup(){
 
 $('generateBtn').addEventListener('click',function(){var a=crypto.getRandomValues(new Uint8Array(16));$('familyCode').value='Family-'+Array.from(a).map(function(x){return x.toString(16).padStart(2,'0');}).join('');});
 $('startBtn').addEventListener('click',async function(){
- var c=$('familyCode').value.trim(),rb=$('relayBase').value.trim().replace(/\/+$/,'')||'https://ntfy.sh';
+ var c=$('familyCode').value.trim(),rb=$('relayBase').value.trim().replace(/\/+$/,'')||'https://our-family-relay.family-860c7981b2d4.workers.dev';
  if(!NAMES[role]){toast('Выберите своё имя');return;}if(c.length<14){toast('Код минимум 14 символов');return;}if(!/^https:\/\//.test(rb)){toast('Relay должен начинаться с https://');return;}
  code=c;relayBase=rb;turnUrl=$('turnUrl').value.trim();turnUser=$('turnUser').value.trim();turnPass=$('turnPass').value;
  try{if(!AndroidBridge.saveProfile(role,code,relayBase,turnUrl,turnUser,turnPass)){toast('Не удалось сохранить профиль');return;}}catch(e){toast('Ошибка безопасного хранилища');return;}
