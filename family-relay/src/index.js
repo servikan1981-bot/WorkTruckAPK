@@ -69,9 +69,9 @@ export class AutoNews {
     const now = Date.now();
     const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
     const count = this.ctx.storage.sql.exec('SELECT COUNT(*) AS total FROM articles WHERE day = ?', day).one().total;
-    const lastTry = (await this.ctx.storage.get('lastTryAutoV2')) || 0;
+    const lastTry = (await this.ctx.storage.get('lastTryAutoV3')) || 0;
     if (count < 2 && now - lastTry >= 15 * 60_000) {
-      await this.ctx.storage.put('lastTryAutoV2', now);
+      await this.ctx.storage.put('lastTryAutoV3', now);
       try {
         const response = await globalThis.fetch('https://wildcar.org/news/rss.xml', { signal: AbortSignal.timeout(10000), headers: { 'Accept': 'application/rss+xml, application/xml' } });
         if (!response.ok) throw new Error('RSS unavailable');
@@ -93,7 +93,7 @@ export class AutoNews {
           added++;
         }
         this.ctx.storage.sql.exec('DELETE FROM articles WHERE id NOT IN (SELECT id FROM articles ORDER BY added_at DESC LIMIT 20)');
-        if (!added && count === 0) throw new Error('RSS items contained no usable articles');
+        if (!added && count === 0) throw new Error('RSS items unusable: ' + JSON.stringify(items.slice(0, 2).map(([, item]) => ({ title: !!textOf(item, 'title'), description: !!textOf(item, 'description'), link: textOf(item, 'link').slice(0, 55) }))));
         await this.ctx.storage.delete('lastError');
       } catch (error) { await this.ctx.storage.put('lastError', String(error).slice(0,180)); }
     }
