@@ -55,4 +55,5 @@ jobs:
           path: |
             /tmp/family-e2e.xml
             /tmp/family-e2e.png
+            /tmp/family-crash.log
           if-no-files-found: ignore
