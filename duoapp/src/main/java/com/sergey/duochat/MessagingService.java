@@ -183,7 +183,8 @@ public class MessagingService extends Service {
             String topic = FamilyDirectory.presenceTopic(code);
             String wire = "of5presence|" + FamilyDirectory.tag(code, role) + "|" +
                     System.currentTimeMillis() + "|" + (visible ? "on" : "off");
-            NativeRelayTransport.postOnce(this, topic, wire, 1);
+            if ("OK".equals(NativeRelayTransport.postOnce(this, topic, wire, 1)))
+                PresenceStore.updateLive(this, role, visible ? System.currentTimeMillis() : 0L);
         } catch (Exception ignored) {}
     }
 

@@ -590,10 +590,9 @@ async function markThreadRead(t){
 }
 function onlineNow(member){
  var ts=presenceMap[member]||0;
- return member===role||(!/https:\/\/ntfy\.sh\/?$/i.test(relayBase)&&ts>0&&Date.now()-ts<70000);
+ return !/https:\/\/ntfy\.sh\/?$/i.test(relayBase)&&ts>0&&Date.now()-ts<70000;
 }
 function presenceLabel(member){
- if(member===role)return 'в сети';
  if(/https:\/\/ntfy\.sh\/?$/i.test(relayBase))return 'статус недоступен';
  return onlineNow(member)?'в сети':'не в сети';
 }
@@ -610,6 +609,7 @@ async function pollPresence(){
 }
 function renderPresence(){
  var box=$('presenceList');if(!box)return;box.innerHTML='';
+ if(role)$('mainStatus').textContent=NAMES[role]+' · '+presenceLabel(role);
  MEMBERS.forEach(function(m){
    var on=onlineNow(m.id),row=document.createElement(m.id===role?'div':'button');row.className='presence-person';
    var unread=m.id===role?0:directMessages(m.id).filter(function(x){return x.from===m.id&&!x.read;}).length;
@@ -630,7 +630,7 @@ function renderPresence(){
 }
 function startPresence(){
  clearInterval(presencePollTimer);
- presenceMap[role]=Date.now();pollPresence();
+ pollPresence();
  presencePollTimer=setInterval(pollPresence,8000);
 }
 function saveMessages(){
@@ -1676,7 +1676,7 @@ $('adminChatBackBtn').addEventListener('click',openAdminArchiveScreen);
 window.addEventListener('focus',function(){pollInbox();pollPresence();checkFullScreenPermission();refreshAutoNews();if(!$('news').classList.contains('hidden'))renderNews();});
 window.addEventListener('online',function(){pollInbox();pollPresence();});
 document.addEventListener('visibilitychange',function(){
- if(!document.hidden){presenceMap[role]=Date.now();pollPresence();if(!$('chat').classList.contains('hidden'))scrollChatToBottom();}
+ if(!document.hidden){pollPresence();if(!$('chat').classList.contains('hidden'))scrollChatToBottom();}
  renderPresence();
 });
 if(window.visualViewport){
