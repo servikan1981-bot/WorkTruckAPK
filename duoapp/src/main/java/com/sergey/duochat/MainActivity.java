@@ -389,6 +389,13 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void logCallMetric(String phase) {
+            if (phase != null && phase.matches("invite_start|accepted|offer_sent|answer_sent|video_track|connected|remote_frame")) {
+                android.util.Log.i("OurFamilyCall", phase + " " + System.currentTimeMillis());
+            }
+        }
+
+        @JavascriptInterface
         public String sendRelay(String topic, String message, int priority) {
             return NativeRelayTransport.postBlocking(MainActivity.this, topic, message, priority);
         }
@@ -561,7 +568,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "6.0.12";
+            return "6.0.13";
         }
     }
 
