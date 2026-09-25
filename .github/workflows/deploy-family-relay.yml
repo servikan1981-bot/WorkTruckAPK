@@ -27,6 +27,34 @@ jobs:
             echo 'CLOUDFLARE_API_TOKEN is missing; deployment cannot proceed.' >&2
             exit 1
           fi
+      - name: Register free workers.dev subdomain when absent
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.error, urllib.request
+          endpoint = 'https://api.cloudflare.com/client/v4/accounts/860c7981b2d45d79a28a2f18ab9f101f/workers/subdomain'
+          headers = {'Authorization': 'Bearer ' + os.environ['CLOUDFLARE_API_TOKEN'],
+                     'Content-Type': 'application/json'}
+          def request(method, body=None):
+              payload = json.dumps(body).encode() if body is not None else None
+              req = urllib.request.Request(endpoint, data=payload, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req, timeout=25) as resp:
+                      return json.load(resp)
+              except urllib.error.HTTPError as error:
+                  if method == 'GET' and error.code == 404:
+                      return None
+                  raise RuntimeError(f'Cloudflare subdomain {method} failed: HTTP {error.code}') from None
+          existing = request('GET')
+          if existing and existing.get('success') and existing.get('result', {}).get('subdomain'):
+              print('Using existing workers.dev subdomain: ' + existing['result']['subdomain'])
+          else:
+              created = request('PUT', {'subdomain': 'family-860c7981b2d4'})
+              if not created.get('success'):
+                  raise SystemExit('Cloudflare rejected workers.dev subdomain registration')
+              print('Created workers.dev subdomain: ' + created['result']['subdomain'])
+          PY
       - name: Deploy Worker with SQLite Durable Objects
         if: steps.access.outputs.ready == 'true'
         id: publish
