@@ -124,6 +124,10 @@ def main():
             raise AssertionError("Sveta did not receive the same family news from the shared feed")
     finally:
         try:
+            Path("/tmp/family-crash.log").write_text(subprocess.check_output(["adb", "logcat", "-d", "-b", "crash"], timeout=20, text=True))
+        except Exception:
+            pass
+        try:
             Path("/tmp/family-e2e.png").write_bytes(subprocess.check_output(["adb", "exec-out", "screencap", "-p"], timeout=20))
         except Exception:
             pass
