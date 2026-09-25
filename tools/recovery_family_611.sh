@@ -31,6 +31,12 @@ sleep 8
 adb logcat -d -b crash > /tmp/family-611-crash.log
 if adb logcat -d -b crash | grep -A 4 'FATAL EXCEPTION' | grep -q "Process: $pkg"; then cat /tmp/family-611-crash.log; exit 1; fi
 adb shell pidof "$pkg"
+python3 - <<'PY'
+import sys
+sys.path.insert(0,'tools')
+from e2e_family_610 import tap
+tap('ПОЗЖЕ', optional=True)
+PY
 adb shell uiautomator dump /sdcard/family-611.xml >/dev/null
 adb exec-out cat /sdcard/family-611.xml > /tmp/family-611.xml
 grep -q 'Света' /tmp/family-611.xml
