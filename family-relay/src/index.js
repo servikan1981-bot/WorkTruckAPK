@@ -8,9 +8,51 @@ const json = (value, status = 200) => Response.json(value, { status, headers: { 
 export class TopicMailbox {
   constructor(ctx) {
     this.ctx = ctx;
+    this.waiters = new Set();
     this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL, time INTEGER NOT NULL, message TEXT NOT NULL)');
     this.ctx.storage.sql.exec('CREATE INDEX IF NOT EXISTS events_time ON events(time)');
     this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS news_dedupe (client_id TEXT PRIMARY KEY, created_at INTEGER NOT NULL)');
+  }
+
+  makeWaiter(timeoutMs) {
+    let resolvePromise;
+    let timer;
+    let finished = false;
+    const waiter = {};
+    const promise = new Promise(resolve => { resolvePromise = resolve; });
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      this.waiters.delete(waiter);
+      resolvePromise();
+    };
+    waiter.finish = finish;
+    this.waiters.add(waiter);
+    timer = setTimeout(finish, timeoutMs);
+    return { promise, cancel: finish };
+  }
+
+  wakeWaiters() {
+    for (const waiter of [...this.waiters]) waiter.finish();
+  }
+
+  rowsFor(url, topic) {
+    const afterRaw = url.searchParams.get('after') || '';
+    const after = /^\d+$/.test(afterRaw) ? Number.parseInt(afterRaw, 10) : 0;
+    if (after > 0) {
+      return this.ctx.storage.sql.exec(
+        'SELECT seq, id, time, message FROM events WHERE seq > ? ORDER BY seq ASC LIMIT 800', after
+      ).toArray();
+    }
+
+    const longNews = familyNewsPattern.test(topic) && url.searchParams.get('since') === '90d';
+    const duration = /^\d{1,2}m$/.test(url.searchParams.get('since') || '')
+      ? Math.min(10, Number.parseInt(url.searchParams.get('since'), 10)) : 10;
+    const since = Math.floor(Date.now() / 1000) - (longNews ? 90 * 86400 : duration * 60);
+    return longNews
+      ? this.ctx.storage.sql.exec('SELECT seq, id, time, message FROM events WHERE time >= ? ORDER BY seq DESC LIMIT 300', since).toArray().reverse()
+      : this.ctx.storage.sql.exec('SELECT seq, id, time, message FROM events WHERE time >= ? ORDER BY seq ASC LIMIT 800', since).toArray();
   }
 
   async fetch(request) {
@@ -29,17 +71,26 @@ export class TopicMailbox {
       const retention = familyNewsPattern.test(topic) ? 90 * 86400 : topic.startsWith('of5p-') ? 300 : 86400;
       this.ctx.storage.sql.exec('DELETE FROM events WHERE time < ?', time - retention);
       if (newsId) this.ctx.storage.sql.exec('DELETE FROM news_dedupe WHERE created_at < ?', time - retention);
+      this.wakeWaiters();
       return json(event);
     }
+
     const topic = request.headers.get('X-Topic');
-    const longNews = familyNewsPattern.test(topic) && url.searchParams.get('since') === '90d';
-    const duration = /^\d{1,2}m$/.test(url.searchParams.get('since') || '')
-      ? Math.min(10, Number.parseInt(url.searchParams.get('since'), 10)) : 10;
-    const since = Math.floor(Date.now() / 1000) - (longNews ? 90 * 86400 : duration * 60);
-    const rows = longNews
-      ? this.ctx.storage.sql.exec('SELECT id, time, message FROM events WHERE time >= ? ORDER BY seq DESC LIMIT 300', since).toArray().reverse()
-      : this.ctx.storage.sql.exec('SELECT id, time, message FROM events WHERE time >= ? ORDER BY seq ASC LIMIT 800', since).toArray();
-    const lines = rows.map(row => JSON.stringify({ id: row.id, time: row.time, event: 'message', topic, message: row.message }));
+    const waitSeconds = Math.max(0, Math.min(25, Number.parseInt(url.searchParams.get('wait') || '0', 10) || 0));
+    let waiter = null;
+    if (waitSeconds > 0) waiter = this.makeWaiter(waitSeconds * 1000);
+
+    let rows = this.rowsFor(url, topic);
+    if (!rows.length && waiter) {
+      await waiter.promise;
+      rows = this.rowsFor(url, topic);
+    } else if (waiter) {
+      waiter.cancel();
+    }
+
+    const lines = rows.map(row => JSON.stringify({
+      seq: row.seq, id: row.id, time: row.time, event: 'message', topic, message: row.message
+    }));
     return new Response(lines.length ? lines.join('\n') + '\n' : '', {
       headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' }
     });
@@ -180,7 +231,12 @@ export default {
           method: 'POST', body: JSON.stringify({ topic, message })
         }));
       }
-      return mailbox.fetch(new Request(`https://internal/list?since=${encodeURIComponent(url.searchParams.get('since') || '10m')}`, {
+      const query = new URLSearchParams({
+        since: url.searchParams.get('since') || '10m',
+        after: url.searchParams.get('after') || '0',
+        wait: url.searchParams.get('wait') || '0'
+      });
+      return mailbox.fetch(new Request(`https://internal/list?${query.toString()}`, {
         headers: { 'X-Topic': topic }
       }));
     } catch (error) {
