@@ -1,0 +1,59 @@
+name: OurFamily 6.0.14 recovery on Android 13 and 15
+on:
+  push:
+    branches: [family-stable-6]
+    paths:
+      - 'updates/candidates/614.json'
+      - 'updates/parts/v614_*.b64'
+      - 'tools/recovery_family_614.sh'
+      - '.github/workflows/recovery-family-614.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recovery:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [33, 35]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Validate signatures and alignment
+        run: |
+          python3 - <<'PY'
+          import base64,hashlib,json,pathlib
+          m=json.loads(pathlib.Path('updates/candidates/614.json').read_text())
+          assert m['versionCode']==6014
+          data=base64.b64decode(''.join((pathlib.Path('updates/parts')/u.rsplit('/',1)[-1]).read_text() for u in m['apkBase64Parts']))
+          assert hashlib.sha256(data).hexdigest()==m['sha256']
+          pathlib.Path('/tmp/family-613.apk').write_bytes(data)
+          PY
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 /tmp/family-613.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/family-613.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Update 6.0.13 to 6.0.14 with family profile
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: bash tools/recovery_family_614.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: family-video-upgrade-api-${{ matrix.api-level }}
+          path: |
+            /tmp/family-614-crash.log
+            /tmp/family-611.xml
+            /tmp/family-611.png
+            /tmp/family-614-logcat.txt
+          if-no-files-found: ignore
