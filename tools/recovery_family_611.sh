@@ -39,6 +39,13 @@ tap('ПОЗЖЕ', optional=True)
 PY
 adb shell uiautomator dump /sdcard/family-611.xml >/dev/null
 adb exec-out cat /sdcard/family-611.xml > /tmp/family-611.xml
+adb exec-out screencap -p > /tmp/family-611.png
+adb logcat -d -t 1500 > /tmp/family-611-logcat.txt
+if ! grep -q 'Света' /tmp/family-611.xml; then
+  sleep 12
+  adb shell uiautomator dump /sdcard/family-611.xml >/dev/null
+  adb exec-out cat /sdcard/family-611.xml > /tmp/family-611.xml
+fi
 grep -q 'Света' /tmp/family-611.xml
 adb shell am force-stop "$pkg"
 adb shell am start -W -n "$pkg/$act"
