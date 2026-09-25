@@ -1,0 +1,100 @@
+"""Exercise a disposable Sergey -> Sveta message over the real relay on an emulator."""
+import hashlib
+import json
+import os
+import re
+import subprocess
+import time
+import xml.etree.ElementTree as ET
+from pathlib import Path
+from urllib.request import urlopen
+
+
+PKG = "com.sergey.ourfamily"
+CODE = "Family-smoke-" + os.environ.get("GITHUB_RUN_ID", "local")
+TEXT = "relay-smoke-" + os.environ.get("GITHUB_RUN_ID", "local")
+
+
+def adb(*args, timeout=50):
+    return subprocess.check_output(["adb", *args], timeout=timeout, text=True).strip()
+
+
+def snapshot():
+    adb("shell", "uiautomator", "dump", "/sdcard/family-e2e.xml")
+    xml = adb("exec-out", "cat", "/sdcard/family-e2e.xml")
+    Path("/tmp/family-e2e.xml").write_text(xml)
+    return ET.fromstring(xml)
+
+
+def tap(needle, *, optional=False):
+    for attempt in range(3):
+        root = snapshot()
+        for node in root.iter("node"):
+            text = node.get("text", "") + " " + node.get("content-desc", "")
+            bounds = node.get("bounds", "")
+            if needle in text and bounds:
+                x1, y1, x2, y2 = map(int, re.findall(r"\d+", bounds))
+                if x2 > x1 and y2 > y1:
+                    adb("shell", "input", "tap", str((x1 + x2) // 2), str((y1 + y2) // 2))
+                    time.sleep(1)
+                    return True
+        adb("shell", "input", "swipe", "160", "520", "160", "210", "250")
+    if optional:
+        return False
+    raise AssertionError("UI text not found: " + needle + "; XML: " + Path("/tmp/family-e2e.xml").read_text()[:4500])
+
+
+def enter_profile(role):
+    adb("shell", "am", "force-stop", PKG)
+    adb("shell", "am", "start", "-W", "-n", PKG + "/com.sergey.duochat.MainActivity")
+    time.sleep(5)
+    tap("ПОЗЖЕ", optional=True)
+    tap(role)
+    tap("Минимум 14 символов")
+    adb("shell", "input", "text", CODE)
+    adb("shell", "input", "keyevent", "4")
+    tap("Войти в семью")
+    time.sleep(5)
+    assert "Новый чат" in ET.tostring(snapshot(), encoding="unicode"), "Profile did not open"
+
+
+def main():
+    try:
+        enter_profile("Сергей")
+        tap("Света")
+        tap("Сообщение")
+        adb("shell", "input", "text", TEXT)
+        adb("shell", "input", "keyevent", "4")
+        tap("➤")
+        time.sleep(8)
+        root = ET.tostring(snapshot(), encoding="unicode")
+        assert TEXT in root, "Outgoing message missing from chat"
+        assert 'text="!"' not in root, "Android app reported relay publish failure"
+
+        topic = "of5-" + hashlib.sha256(("OurFamily-v5-inbox|" + CODE + "|sveta").encode()).hexdigest()[:48]
+        url = "https://ntfy.sh/" + topic + "/json?poll=1&since=10m"
+        with urlopen(url, timeout=20) as response:
+            received = response.read().decode()
+        assert '"of5|' in received, "Relay did not store Android message: " + received[:500]
+
+        adb("shell", "pm", "clear", PKG)
+        for permission in ["android.permission.CAMERA", "android.permission.RECORD_AUDIO", "android.permission.POST_NOTIFICATIONS"]:
+            subprocess.run(["adb", "shell", "pm", "grant", PKG, permission], capture_output=True)
+        enter_profile("Света")
+        tap("Сергей")
+        for _ in range(8):
+            time.sleep(3)
+            if TEXT in ET.tostring(snapshot(), encoding="unicode"):
+                print("PASS: encrypted message published by Sergey and displayed for Sveta")
+                break
+        else:
+            raise AssertionError("Sveta did not receive the message from the ntfy cache")
+    finally:
+        try:
+            Path("/tmp/family-e2e.png").write_bytes(subprocess.check_output(["adb", "exec-out", "screencap", "-p"], timeout=20))
+        except Exception:
+            pass
+
+
+if __name__ == "__main__":
+    main()

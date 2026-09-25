@@ -1,0 +1,56 @@
+name: End-to-end OurFamily 6.0.8 messaging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-stable-6 ]
+    paths:
+      - 'tools/e2e_family_608.py'
+      - '.github/workflows/e2e-family-608.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  real-relay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Reconstruct and verify candidate
+        run: |
+          python3 - <<'PY'
+          import base64,hashlib,json,pathlib
+          m=json.loads(pathlib.Path('updates/candidates/608.json').read_text())
+          data=base64.b64decode(''.join((pathlib.Path('updates/parts')/u.rsplit('/',1)[-1]).read_text() for u in m['apkBase64Parts']))
+          assert hashlib.sha256(data).hexdigest()==m['sha256']
+          pathlib.Path('/tmp/candidate608.apk').write_bytes(data)
+          PY
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 /tmp/candidate608.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose /tmp/candidate608.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Send and receive an encrypted message on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            adb install /tmp/candidate608.apk
+            for permission in android.permission.CAMERA android.permission.RECORD_AUDIO android.permission.POST_NOTIFICATIONS; do adb shell pm grant com.sergey.ourfamily "$permission" || true; done
+            python3 tools/e2e_family_608.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: family-608-message-evidence
+          path: |
+            /tmp/family-e2e.xml
+            /tmp/family-e2e.png
+          if-no-files-found: ignore
