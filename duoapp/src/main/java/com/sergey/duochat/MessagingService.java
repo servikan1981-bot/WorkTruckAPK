@@ -430,7 +430,9 @@ public class MessagingService extends Service {
     }
 
     private void notifyIncomingCall(String callerRole, String callId, String kind, String eventId) {
-        if (TelecomCallManager.reportIncomingCall(this, callerRole, callId, kind)) return;
+        // Video calls use our own visible, lock-screen-safe answer UI.
+        if ((kind == null || !kind.contains("video")) &&
+                TelecomCallManager.reportIncomingCall(this, callerRole, callId, kind)) return;
         int notificationId = 9000 + Math.abs(callId.hashCode() % 900);
         boolean group = kind.startsWith("group_");
         boolean audio = kind.contains("audio");
@@ -446,14 +448,16 @@ public class MessagingService extends Service {
                 this, notificationId, full,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Intent accept = new Intent(this, CallActionReceiver.class);
-        accept.setAction(CallActionReceiver.ACTION_ACCEPT);
+        Intent accept = new Intent(this, IncomingCallActivity.class);
+        accept.setAction(IncomingCallActivity.ACTION_ACCEPT);
+        accept.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                Intent.FLAG_ACTIVITY_SINGLE_TOP);
         accept.putExtra(IncomingCallActivity.EXTRA_CALL_ID, callId);
         accept.putExtra(IncomingCallActivity.EXTRA_CALLER_ROLE, callerRole);
         accept.putExtra(IncomingCallActivity.EXTRA_KIND, kind);
         accept.putExtra(IncomingCallActivity.EXTRA_NOTIFICATION_ID, notificationId);
 
-        PendingIntent acceptPi = PendingIntent.getBroadcast(
+        PendingIntent acceptPi = PendingIntent.getActivity(
                 this, notificationId + 10000, accept,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
@@ -540,7 +544,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья 6.0.11")
+                .setContentTitle("Наша семья 6.0.14")
                 .setContentText("Фоновая связь и статус в сети включены")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
