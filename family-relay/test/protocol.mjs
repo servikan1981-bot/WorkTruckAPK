@@ -6,10 +6,37 @@ class MemoryStorage {
   constructor() {
     this.entries = new Map();
     this.events = [];
+    this.newsDedupe = new Map();
     this.sql = { exec: (query, ...args) => {
-      if (query.startsWith('INSERT')) this.events.push({ seq: this.events.length + 1, id: args[0], time: args[1], message: args[2] });
-      if (query.startsWith('DELETE')) this.events = this.events.filter(row => row.time >= args[0]);
-      return { toArray: () => this.events.filter(row => row.time >= args[0]).slice(0, 800) };
+      if (query.startsWith('CREATE')) return { toArray: () => [], rowsWritten: 0 };
+      if (query.startsWith('INSERT INTO events')) {
+        this.events.push({ seq: this.events.length + 1, id: args[0], time: args[1], message: args[2] });
+        return { toArray: () => [], rowsWritten: 1 };
+      }
+      if (query.startsWith('INSERT OR IGNORE INTO news_dedupe')) {
+        if (this.newsDedupe.has(args[0])) return { toArray: () => [], rowsWritten: 0 };
+        this.newsDedupe.set(args[0], args[1]);
+        return { toArray: () => [], rowsWritten: 1 };
+      }
+      if (query.startsWith('DELETE FROM events')) {
+        this.events = this.events.filter(row => row.time >= args[0]);
+        return { toArray: () => [], rowsWritten: 0 };
+      }
+      if (query.startsWith('DELETE FROM news_dedupe')) {
+        for (const [id, time] of this.newsDedupe) if (time < args[0]) this.newsDedupe.delete(id);
+        return { toArray: () => [], rowsWritten: 0 };
+      }
+      if (query.includes('FROM events WHERE seq > ?')) {
+        const rows = this.events.filter(row => row.seq > args[0]).slice(0, 800);
+        return { toArray: () => rows };
+      }
+      if (query.includes('FROM events WHERE time >= ?')) {
+        let rows = this.events.filter(row => row.time >= args[0]);
+        if (query.includes('ORDER BY seq DESC')) rows = rows.slice().sort((a,b) => b.seq-a.seq).slice(0,300);
+        else rows = rows.slice().sort((a,b) => a.seq-b.seq).slice(0,800);
+        return { toArray: () => rows };
+      }
+      return { toArray: () => [], rowsWritten: 0, one: () => ({ total: 0 }) };
     } };
   }
   get(key) { return Promise.resolve(this.entries.get(key)); }
@@ -18,6 +45,7 @@ class MemoryStorage {
     else for (const [k, v] of Object.entries(key)) this.entries.set(k, v);
     return Promise.resolve();
   }
+  delete(key) { this.entries.delete(key); return Promise.resolve(); }
   setAlarm(time) { this.alarmTime = time; return Promise.resolve(); }
   deleteAll() { this.entries.clear(); return Promise.resolve(); }
 }
@@ -51,6 +79,37 @@ test('Android publish and recent JSON read preserve encrypted wire message', asy
   assert.equal(event.event, 'message');
   assert.match(event.id, /^[0-9a-f-]{36}$/);
   assert.ok(Math.abs(Date.now() / 1000 - event.time) < 5);
+});
+
+test('cursor long poll wakes immediately for a new event and does not replay old events', async () => {
+  const env = environment();
+  const base = 'https://family.example';
+  const topic = 'of5-' + 'd'.repeat(48);
+
+  const first = await worker.fetch(new Request(base + '/', {
+    method: 'POST', body: JSON.stringify({ topic, message: 'first' })
+  }), env);
+  assert.equal(first.status, 200);
+
+  const initial = await worker.fetch(new Request(base + '/' + topic + '/json?since=10m'), env);
+  const [oldEvent] = (await initial.text()).trim().split('\n').map(JSON.parse);
+  assert.equal(oldEvent.message, 'first');
+  assert.ok(oldEvent.seq > 0);
+
+  const started = Date.now();
+  const waiting = worker.fetch(new Request(base + '/' + topic + '/json?after=' + oldEvent.seq + '&wait=2'), env);
+  await new Promise(resolve => setTimeout(resolve, 80));
+  await worker.fetch(new Request(base + '/', {
+    method: 'POST', body: JSON.stringify({ topic, message: 'second' })
+  }), env);
+
+  const response = await waiting;
+  const elapsed = Date.now() - started;
+  const events = (await response.text()).trim().split('\n').filter(Boolean).map(JSON.parse);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].message, 'second');
+  assert.ok(events[0].seq > oldEvent.seq);
+  assert.ok(elapsed < 1000, 'long poll should wake immediately, elapsed=' + elapsed);
 });
 
 test('online and offline transitions are delivered in publication order', async () => {
