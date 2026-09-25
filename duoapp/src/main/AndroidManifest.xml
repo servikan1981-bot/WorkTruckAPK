@@ -17,7 +17,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="Наша семья 6.0.13"
+        android:label="Наша семья 6.0.14"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false"
         android:icon="@drawable/ic_launcher"
