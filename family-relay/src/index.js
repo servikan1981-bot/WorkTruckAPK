@@ -61,7 +61,11 @@ export class AutoNews {
     this.ctx.storage.sql.exec('CREATE INDEX IF NOT EXISTS articles_newest ON articles(added_at DESC)');
   }
 
-  async fetch() {
+  async fetch(request) {
+    if (new URL(request.url).pathname === '/status') {
+      return json({ count: this.ctx.storage.sql.exec('SELECT COUNT(*) AS total FROM articles').one().total,
+        lastError: (await this.ctx.storage.get('lastError')) || '', lastTry: (await this.ctx.storage.get('lastTry')) || 0 });
+    }
     const now = Date.now();
     const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
     const count = this.ctx.storage.sql.exec('SELECT COUNT(*) AS total FROM articles WHERE day = ?', day).one().total;
@@ -73,6 +77,7 @@ export class AutoNews {
         if (!response.ok) throw new Error('RSS unavailable');
         const xml = await response.text();
         const items = [...xml.matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/gi)].slice(0, 25);
+        if (!items.length) throw new Error('RSS contained no items');
         let added = 0;
         for (const [, item] of items) {
           if (count + added >= 2) break;
@@ -88,7 +93,9 @@ export class AutoNews {
           added++;
         }
         this.ctx.storage.sql.exec('DELETE FROM articles WHERE id NOT IN (SELECT id FROM articles ORDER BY added_at DESC LIMIT 20)');
-      } catch { /* Keep the last shared list; retry later. */ }
+        if (!added && count === 0) throw new Error('RSS items contained no usable articles');
+        await this.ctx.storage.delete('lastError');
+      } catch (error) { await this.ctx.storage.put('lastError', String(error).slice(0,180)); }
     }
     return json(this.ctx.storage.sql.exec('SELECT data FROM articles ORDER BY added_at DESC LIMIT 20').toArray().map(row => JSON.parse(row.data)));
   }
@@ -133,6 +140,8 @@ export default {
       if (request.method === 'GET' && url.pathname === '/health') return json({ ok: true, protocol: 'ourfamily-relay-v1' });
       if (request.method === 'GET' && url.pathname === '/news/auto')
         return env.AUTO_NEWS.get(env.AUTO_NEWS.idFromName('shared-positive-news')).fetch('https://internal/news');
+      if (request.method === 'GET' && url.pathname === '/news/auto-status')
+        return env.AUTO_NEWS.get(env.AUTO_NEWS.idFromName('shared-positive-news')).fetch('https://internal/status');
 
       const attachment = /^\/attachment\/(of5file-[a-f0-9]{32})$/.exec(url.pathname);
       if (attachment && request.method === 'GET') {
