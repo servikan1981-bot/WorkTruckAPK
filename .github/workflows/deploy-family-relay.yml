@@ -76,7 +76,7 @@ jobs:
               raise SystemExit('Wrangler did not report a workers.dev HTTPS URL')
           for attempt in range(18):
               try:
-                  with urllib.request.urlopen(url + '/health', timeout=15) as response:
+                  with urllib.request.urlopen(urllib.request.Request(url + '/health', headers={'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 14; Pixel 7)'}), timeout=15) as response:
                       assert response.status == 200
                       assert json.load(response)['protocol'] == 'ourfamily-relay-v1'
                   print('Relay is serving HTTPS: ' + url)
