@@ -27,7 +27,7 @@ jobs:
           python3 - <<'PY'
           import base64,hashlib,json,pathlib
           m=json.loads(pathlib.Path('updates/candidates/612.json').read_text())
-          assert m['versionCode']==6011
+          assert m['versionCode']==6012
           data=base64.b64decode(''.join((pathlib.Path('updates/parts')/u.rsplit('/',1)[-1]).read_text() for u in m['apkBase64Parts']))
           assert hashlib.sha256(data).hexdigest()==m['sha256']
           pathlib.Path('/tmp/family-611.apk').write_bytes(data)
