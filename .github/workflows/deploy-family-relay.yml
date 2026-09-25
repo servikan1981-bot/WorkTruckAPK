@@ -81,6 +81,9 @@ jobs:
                       assert json.load(response)['protocol'] == 'ourfamily-relay-v1'
                   print('Relay is serving HTTPS: ' + url)
                   break
+              except urllib.error.HTTPError as error:
+                  detail = error.read(700).decode('utf-8', 'replace')
+                  raise RuntimeError(f'Relay returned HTTP {error.code}: {detail[:500]}') from None
               except Exception as error:
                   if attempt == 17:
                       raise RuntimeError('Relay HTTPS did not become available after 3 minutes') from error
