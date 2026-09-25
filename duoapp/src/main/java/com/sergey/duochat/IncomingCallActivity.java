@@ -4,10 +4,12 @@ import android.app.Activity;
 import android.app.NotificationManager;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.WindowInsets;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -72,7 +74,7 @@ public class IncomingCallActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER);
-        root.setPadding(32, 48, 32, 48);
+        root.setPadding(dp(24), dp(36), dp(24), dp(36));
         root.setBackgroundColor(Color.rgb(10, 16, 32));
 
         TextView heart = new TextView(this);
@@ -90,7 +92,7 @@ public class IncomingCallActivity extends Activity {
         name.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        nameLp.topMargin = 20;
+        nameLp.topMargin = dp(20);
         root.addView(name, nameLp);
 
         TextView subtitle = new TextView(this);
@@ -102,17 +104,13 @@ public class IncomingCallActivity extends Activity {
         subtitle.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        subLp.topMargin = 10;
+        subLp.topMargin = dp(10);
         root.addView(subtitle, subLp);
 
-        LinearLayout spacer = new LinearLayout(this);
-        root.addView(spacer, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-
         LinearLayout actions = new LinearLayout(this);
-        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setOrientation(LinearLayout.VERTICAL);
         actions.setGravity(Gravity.CENTER);
-        actions.setPadding(0, 20, 0, 12);
+        actions.setPadding(0, 0, 0, 0);
 
         Button decline = new Button(this);
         decline.setText("Отклонить");
@@ -128,16 +126,39 @@ public class IncomingCallActivity extends Activity {
         accept.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         accept.setBackgroundColor(Color.rgb(24, 166, 106));
 
-        LinearLayout.LayoutParams btn = new LinearLayout.LayoutParams(0, 64, 1f);
-        btn.setMargins(8, 0, 8, 0);
-        actions.addView(decline, btn);
-        actions.addView(accept, btn);
-        root.addView(actions);
+        decline.setAllCaps(false);
+        accept.setAllCaps(false);
+        actions.addView(accept, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(64)));
+        LinearLayout.LayoutParams declineLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(64));
+        declineLp.topMargin = dp(12);
+        actions.addView(decline, declineLp);
+        LinearLayout.LayoutParams actionsLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        actionsLp.topMargin = dp(36);
+        root.addView(actions, actionsLp);
 
         decline.setOnClickListener(v -> decline());
         accept.setOnClickListener(v -> accept());
 
+        if (Build.VERSION.SDK_INT >= 30) {
+            root.setOnApplyWindowInsetsListener((view, insets) -> {
+                Insets safe = insets.getInsets(
+                        WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                root.setPadding(Math.max(dp(24), safe.left + dp(16)),
+                        Math.max(dp(36), safe.top + dp(16)),
+                        Math.max(dp(24), safe.right + dp(16)),
+                        Math.max(dp(36), safe.bottom + dp(16)));
+                return insets;
+            });
+        }
         setContentView(root);
+        if (Build.VERSION.SDK_INT >= 30) root.requestApplyInsets();
+    }
+
+    private int dp(int size) {
+        return Math.round(size * getResources().getDisplayMetrics().density);
     }
 
     private void accept() {
