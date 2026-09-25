@@ -54,4 +54,6 @@ jobs:
           path: |
             /tmp/family-611-crash.log
             /tmp/family-611.xml
+            /tmp/family-611.png
+            /tmp/family-611-logcat.txt
           if-no-files-found: ignore
