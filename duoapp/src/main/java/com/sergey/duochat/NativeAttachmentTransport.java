@@ -37,7 +37,7 @@ public final class NativeAttachmentTransport {
                 c.setRequestMethod("PUT");
                 c.setRequestProperty("Filename", "encrypted.bin");
                 c.setRequestProperty("Content-Type", "application/octet-stream");
-                c.setRequestProperty("User-Agent", "OurFamily/6.0.4 Android");
+                c.setRequestProperty("User-Agent", "OurFamily/6.0.11 Android");
                 try (OutputStream out = c.getOutputStream()) {
                     out.write(data);
                     out.flush();
@@ -77,7 +77,7 @@ public final class NativeAttachmentTransport {
             c.setConnectTimeout(15000);
             c.setReadTimeout(30000);
             c.setUseCaches(false);
-            c.setRequestProperty("User-Agent", "OurFamily/6.0.4 Android");
+            c.setRequestProperty("User-Agent", "OurFamily/6.0.11 Android");
             int code = c.getResponseCode();
             if (code < 200 || code >= 300) return "ERR:http:" + code;
             byte[] data;
