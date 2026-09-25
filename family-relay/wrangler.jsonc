@@ -5,8 +5,12 @@
   "durable_objects": {
     "bindings": [
       { "name": "MAILBOX", "class_name": "TopicMailbox" },
-      { "name": "FILES", "class_name": "EncryptedFile" }
+      { "name": "FILES", "class_name": "EncryptedFile" },
+      { "name": "AUTO_NEWS", "class_name": "AutoNews" }
     ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TopicMailbox", "EncryptedFile"] }]
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["TopicMailbox", "EncryptedFile"] },
+    { "tag": "v2", "new_sqlite_classes": ["AutoNews"] }
+  ]
 }

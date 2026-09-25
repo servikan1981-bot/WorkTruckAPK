@@ -38,3 +38,40 @@ test('local Cloudflare runtime accepts Android-compatible messages, presence, an
   const statuses = await fetch(relay + '/' + presenceTopic + '/json?since=2m');
   assert.match(await statuses.text(), /\|off/);
 });
+
+test('all family devices read identical encrypted family and automatic news', async () => {
+  const topic = 'of5n-' + crypto.randomUUID().replaceAll('-', '') + 'a'.repeat(16);
+  const secret = 'Family-test-' + crypto.randomUUID();
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: new TextEncoder().encode('OurFamily-v6-news-key'), iterations: 220000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  const id = crypto.randomUUID().replaceAll('-', '');
+  const post = { id, from: 'sergey', text: 'Одна новость для всей семьи', attachment: null, ts: Date.now() };
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(post))));
+  const bytes = new Uint8Array(iv.length + ciphertext.length); bytes.set(iv); bytes.set(ciphertext, iv.length);
+  const wire = 'of6news|' + id + '|' + Buffer.from(bytes).toString('base64');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const published = await fetch(relay + '/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ topic, message: wire }) });
+    assert.equal(published.status, 200, await published.text());
+  }
+  const read = async () => {
+    const response = await fetch(relay + '/' + topic + '/json?since=90d');
+    assert.equal(response.status, 200);
+    return (await response.text()).trim().split('\n').map(JSON.parse);
+  };
+  const onSergey = await read(), onSveta = await read();
+  assert.deepEqual(onSergey, onSveta);
+  assert.equal(onSergey.length, 1, 'retry must not create duplicate news');
+  const encoded = onSveta[0].message.split('|')[2];
+  const received = Buffer.from(encoded, 'base64');
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: received.subarray(0, 12) }, key, received.subarray(12));
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(plain)), post);
+  const malformed = await fetch(relay + '/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ topic, message: 'plain-text-news' }) });
+  assert.equal(malformed.status, 400);
+
+  const first = await fetch(relay + '/news/auto'), second = await fetch(relay + '/news/auto');
+  assert.equal(first.status, 200); assert.equal(second.status, 200);
+  const a = await first.json(), b = await second.json();
+  assert.deepEqual(a, b);
+  assert.ok(Array.isArray(a) && a.length >= 2 && a.length <= 20, 'shared source must supply the daily two stories');
+});
