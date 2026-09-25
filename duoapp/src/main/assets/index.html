@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.9</title>
+<title>Наша семья 6.0.13</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -294,12 +294,12 @@ var NAMES={};MEMBERS.forEach(function(m){NAMES[m.id]=m.name;});
 var role='',code='',relayBase='https://our-family-relay.family-860c7981b2d4.workers.dev',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='',presenceTopic='';
 var roleTags={},cryptoKeys={},packetChunks={},processedPayloads=new Set(),rawInFlight=new Set();
 var messages=[],currentThread=null,pickerMode='new',pickerSelected=new Set(),pollBusy=false,pollTimer=null;
-var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={};
+var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={},pendingEarlyOffers={},pendingEarlyCandidates={};
 var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteStreams={},callTimeout=null,currentFacing='user',cameraSwitchBusy=false,speakerOn=false;
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.12',reactionTargetId='',pendingMessageNavigation=null;
+var APP_VERSION='6.0.13',reactionTargetId='',pendingMessageNavigation=null;
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'ocean',videoLayout:'pip'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
@@ -1068,14 +1068,35 @@ async function processPayload(p){
    return;
  }
  if(p.kind==='direct_accept'&&activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId&&activeCall.inviter===role){
-   stopRingback();
-   try{await prepareLocalMedia(activeCall.kind);await makeOffer(peer,false);}
-   catch(e){toast('Не удалось подготовить камеру');endCall(true);}
+   activeCall.accepted=true;stopRingback();
+   try{
+     await prepareLocalMedia(activeCall.kind);
+     var existing=callPeers[peer];
+     if(existing&&existing.pc.signalingState==='have-local-offer'){
+       if(!existing.offerResent){
+         existing.offerResent=true;
+         await publishEnvelope(peer,'direct_offer',{callId:activeCall.id,sdp:existing.pc.localDescription},5,'direct_offer',activeCall.id);
+       }
+     }else if(!existing)await makeOffer(peer,false);
+   }catch(e){toast('Не удалось подготовить камеру');endCall(true);}
    return;
  }
- if(p.kind==='direct_offer'&&activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId){await answerOffer(peer,d.sdp,false);return;}
- if(p.kind==='direct_answer'&&activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId){await applyAnswer(peer,d.sdp);return;}
- if(p.kind==='direct_candidate'&&activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId){await applyCandidate(peer,d.candidate);return;}
+ if(p.kind==='direct_offer'){
+   if(activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId){await answerOffer(peer,d.sdp,false);}
+   else if(!activeCall&&d.callId&&d.sdp)pendingEarlyOffers[d.callId]={peer:peer,sdp:d.sdp};
+   return;
+ }
+ if(p.kind==='direct_answer'&&activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId){
+   activeCall.accepted=true;stopRingback();await applyAnswer(peer,d.sdp);return;
+ }
+ if(p.kind==='direct_candidate'){
+   if(activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId)await applyCandidate(peer,d.candidate);
+   else if(!activeCall&&d.callId&&d.candidate){
+     var q=pendingEarlyCandidates[d.callId]||(pendingEarlyCandidates[d.callId]=[]);
+     if(q.length<64)q.push({peer:peer,candidate:d.candidate});
+   }
+   return;
+ }
  if(p.kind==='direct_hangup'&&activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId){toast('Звонок завершён');endCall(false);return;}
 
  if(p.kind==='group_join'){
@@ -1213,6 +1234,7 @@ async function sendAttachment(file,isPhoto){
    else toast('Не удалось отправить вложение');
  }
 }
+function markCall(phase){try{AndroidBridge.logCallMetric(phase);}catch(e){}}
 function iceServers(){
  var list=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}];
  if(turnUrl&&turnUser&&turnPass)list.unshift({urls:turnUrl,username:turnUser,credential:turnPass});
@@ -1278,11 +1300,13 @@ function ensureVideoTile(member,stream,isLocal,kind){
  if(!box){
    box=document.createElement('div');box.id=id;box.className='videoTile';
    if(kind==='audio'){var a=document.createElement('div');a.className='audioTile';a.textContent=initials(NAMES[member]);box.appendChild(a);}
-   else{var v=document.createElement('video');v.autoplay=true;v.playsInline=true;v.muted=!!isLocal;box.appendChild(v);}
+   else{var v=document.createElement('video');v.autoplay=true;v.playsInline=true;v.muted=!!isLocal;
+     if(!isLocal){var reportFrame=function(){if(v.videoWidth>0&&v.readyState>=2&&!box.dataset.frameReported){box.dataset.frameReported='1';markCall('remote_frame');}};v.addEventListener('resize',reportFrame);v.addEventListener('playing',reportFrame);v.addEventListener('timeupdate',reportFrame);}
+     box.appendChild(v);}
    var l=document.createElement('div');l.className='videoLabel';l.textContent=(NAMES[member]||member)+(isLocal?' · Вы':'');box.appendChild(l);$('videoGrid').appendChild(box);
    if(isLocal){box.classList.add('local-self');enableSelfDrag(box);}
  }
- var vid=box.querySelector('video');if(vid&&stream){vid.srcObject=stream;var p=vid.play();if(p&&p.catch)p.catch(function(){});}
+ var vid=box.querySelector('video');if(vid&&stream){if(vid.srcObject!==stream)vid.srcObject=stream;var p=vid.play();if(p&&p.catch)p.catch(function(){});}
  applyVideoLayout();
  return box;
 }
@@ -1346,18 +1370,21 @@ function callSignalKind(base){return activeCall&&activeCall.type==='group'?'grou
 function createPeer(peer){
  if(callPeers[peer])return callPeers[peer];
  var pc=new RTCPeerConnection({iceServers:iceServers(),iceCandidatePoolSize:8,bundlePolicy:'max-bundle',iceTransportPolicy:'all'});
- var ps={pc:pc,pending:[],restart:0,connectTimer:null,failureTimer:null};callPeers[peer]=ps;
+ var ps={pc:pc,pending:[],restart:0,connectTimer:null,failureTimer:null,sdpPublishing:false,candidateQueue:[],candidateSending:false,answering:false,offerResent:false};callPeers[peer]=ps;
  if(localStream)localStream.getTracks().forEach(function(t){pc.addTrack(t,localStream);});
  pc.onicecandidate=function(ev){
    if(!ev.candidate||!activeCall)return;
-   publishEnvelope(peer,callSignalKind('candidate'),{callId:activeCall.id,candidate:ev.candidate.toJSON?ev.candidate.toJSON():ev.candidate},4,callSignalKind('candidate'),activeCall.id).catch(function(){});
+   ps.candidateQueue.push(ev.candidate.toJSON?ev.candidate.toJSON():ev.candidate);
+   if(!ps.sdpPublishing)drainCandidateQueue(peer,ps);
  };
  pc.ontrack=function(ev){
    // WebView can deliver audio and video in separate track events.
    var stream=remoteStreams[peer];
    if(!stream){stream=new MediaStream();remoteStreams[peer]=stream;}
    if(!stream.getTracks().some(function(t){return t.id===ev.track.id;}))stream.addTrack(ev.track);
-   ensureVideoTile(peer,stream,false,activeCall?activeCall.kind:'video');updateCallState();
+   ensureVideoTile(peer,stream,false,activeCall?activeCall.kind:'video');
+   if(ev.track.kind==='video')markCall('video_track');
+   updateCallState();
  };
  ps.connectTimer=setTimeout(function(){
    if(!activeCall||!callPeers[peer]||pc.connectionState==='connected'||pc.connectionState==='closed')return;
@@ -1370,7 +1397,7 @@ function createPeer(peer){
    if(pc.connectionState==='connected'){
      if(ps.connectTimer){clearTimeout(ps.connectTimer);ps.connectTimer=null;}
      if(ps.failureTimer){clearTimeout(ps.failureTimer);ps.failureTimer=null;}
-     ps.restart=0;updateCallState();
+     ps.restart=0;markCall('connected');updateCallState();
    }else if(pc.connectionState==='failed'){
      if(ps.restart<1&&shouldOffer(peer)){ps.restart++;restartPeer(peer);}
      else updateCallState();
@@ -1378,30 +1405,48 @@ function createPeer(peer){
  };
  return ps;
 }
+async function drainCandidateQueue(peer,ps){
+ if(ps.candidateSending||ps.sdpPublishing)return;
+ ps.candidateSending=true;
+ try{
+   while(ps.candidateQueue.length&&activeCall&&callPeers[peer]===ps){
+     var candidate=ps.candidateQueue.shift(),k=callSignalKind('candidate');
+     try{await publishEnvelope(peer,k,{callId:activeCall.id,candidate:candidate},4,k,activeCall.id);}catch(e){}
+   }
+ }finally{ps.candidateSending=false;}
+}
 function shouldOffer(peer){
  if(!activeCall)return false;
  if(activeCall.type==='direct')return activeCall.inviter===role;
  return role.localeCompare(peer)<0;
 }
 async function makeOffer(peer,restart){
- var ps=createPeer(peer);
- var offer=await ps.pc.createOffer(restart?{iceRestart:true}:undefined);
- await ps.pc.setLocalDescription(offer);
- var k=callSignalKind('offer');
- await publishEnvelope(peer,k,{callId:activeCall.id,sdp:ps.pc.localDescription},5,k,activeCall.id);
+ var ps=createPeer(peer);ps.sdpPublishing=true;
+ try{
+   var offer=await ps.pc.createOffer(restart?{iceRestart:true}:undefined);
+   await ps.pc.setLocalDescription(offer);
+   var k=callSignalKind('offer');
+   await publishEnvelope(peer,k,{callId:activeCall.id,sdp:ps.pc.localDescription},5,k,activeCall.id);
+   markCall('offer_sent');
+ }finally{ps.sdpPublishing=false;drainCandidateQueue(peer,ps);}
 }
 async function restartPeer(peer){try{$('callState').textContent='Восстановление связи…';await makeOffer(peer,true);}catch(e){}}
 async function answerOffer(peer,sdp,isGroup){
  if(!sdp)return;
  if(activeCall&&!localStream)await prepareLocalMedia(activeCall.kind);
  var ps=createPeer(peer);
- await ps.pc.setRemoteDescription(new RTCSessionDescription(sdp));await flushCandidates(peer);
- var ans=await ps.pc.createAnswer();await ps.pc.setLocalDescription(ans);
- var k=isGroup?'group_answer':'direct_answer';
- await publishEnvelope(peer,k,{callId:activeCall.id,sdp:ps.pc.localDescription},5,k,activeCall.id);
+ if(ps.answering||(ps.pc.signalingState==='stable'&&ps.pc.remoteDescription&&ps.pc.remoteDescription.sdp===sdp.sdp))return;
+ ps.answering=true;ps.sdpPublishing=true;
+ try{
+   await ps.pc.setRemoteDescription(new RTCSessionDescription(sdp));await flushCandidates(peer);
+   var ans=await ps.pc.createAnswer();await ps.pc.setLocalDescription(ans);
+   var k=isGroup?'group_answer':'direct_answer';
+   await publishEnvelope(peer,k,{callId:activeCall.id,sdp:ps.pc.localDescription},5,k,activeCall.id);
+   markCall('answer_sent');
+ }finally{ps.answering=false;ps.sdpPublishing=false;drainCandidateQueue(peer,ps);}
 }
 async function applyAnswer(peer,sdp){
- if(!sdp)return;var ps=callPeers[peer];if(!ps)return;
+ if(!sdp)return;var ps=callPeers[peer];if(!ps||ps.pc.signalingState!=='have-local-offer')return;
  await ps.pc.setRemoteDescription(new RTCSessionDescription(sdp));await flushCandidates(peer);updateCallState();
 }
 async function applyCandidate(peer,candidate){
@@ -1428,20 +1473,23 @@ function updateCallState(){
 async function startDirectCall(peer,kind){
  if(activeCall){toast('Другой звонок уже активен');return;}
  var id=randomId(),wireKind=kind==='audio'?'direct_audio_invite':'direct_invite';
- activeCall={id:id,type:'direct',kind:kind,inviter:role,peer:peer,members:[role,peer]};
+ activeCall={id:id,type:'direct',kind:kind,inviter:role,peer:peer,members:[role,peer],accepted:false};
+ markCall('invite_start');
  showCall((kind==='audio'?'Аудиозвонок · ':'Видеозвонок · ')+NAMES[peer],'Вызов…');
  startRingback();
- prepareLocalMedia(kind).catch(function(){});
+ var mediaPromise=prepareLocalMedia(kind);
  async function sendInvite(){
-   if(!activeCall||activeCall.id!==id||callPeers[peer])return;
+   if(!activeCall||activeCall.id!==id||activeCall.accepted)return;
    try{await publishEnvelope(peer,'direct_invite',{callId:id,kind:kind},5,wireKind,id);}catch(e){}
  }
  try{
    await sendInvite();
    setTimeout(sendInvite,1600);
    setTimeout(sendInvite,4200);
-   clearTimeout(callTimeout);callTimeout=setTimeout(function(){if(activeCall&&activeCall.id===id&&!callPeers[peer]){toast('Нет ответа');endCall(true);}},65000);
- }catch(e){toast('Не удалось отправить вызов');endCall(false);}
+   clearTimeout(callTimeout);callTimeout=setTimeout(function(){if(activeCall&&activeCall.id===id&&!activeCall.accepted){toast('Нет ответа');endCall(true);}},65000);
+   await mediaPromise;
+   if(activeCall&&activeCall.id===id&&!callPeers[peer])await makeOffer(peer,false);
+ }catch(e){toast('Не удалось подготовить или отправить вызов');endCall(false);}
 }
 async function startGroupCall(members,kind){
  if(activeCall){toast('Другой звонок уже активен');return;}
@@ -1461,10 +1509,20 @@ async function acceptPendingInvite(){
  if(inv.type==='group')activeCall.joined=new Set([role,inv.from]);
  showCall(inv.type==='group'?(inv.kind==='audio'?'Групповой аудиозвонок':'Групповой видеозвонок'):((inv.kind==='audio'?'Аудиозвонок · ':'Видеозвонок · ')+NAMES[inv.from]),'Подготовка…');
  var mediaPromise=prepareLocalMedia(inv.kind);
+ markCall('accepted');
  if(inv.type==='direct'){
    try{
-     await publishEnvelope(inv.from,'direct_accept',{callId:inv.id},5,'direct_accept',inv.id);
-     await mediaPromise;
+     var early=pendingEarlyOffers[inv.id];
+     if(!early||early.peer!==inv.from){
+       await publishEnvelope(inv.from,'direct_accept',{callId:inv.id},5,'direct_accept',inv.id);
+       await mediaPromise;
+     }else{
+       await mediaPromise;
+       var buffered=pendingEarlyCandidates[inv.id]||[];
+       for(var i=0;i<buffered.length;i++)if(buffered[i].peer===inv.from)await applyCandidate(inv.from,buffered[i].candidate);
+       await answerOffer(inv.from,early.sdp,false);
+     }
+     delete pendingEarlyOffers[inv.id];delete pendingEarlyCandidates[inv.id];
    }catch(e){toast('Не удалось подготовить звонок');endCall(true);return;}
  }else{
    try{await mediaPromise;}catch(e){toast('Нет доступа к камере/микрофону');endCall(true);return;}
@@ -1497,6 +1555,7 @@ function endCall(send){
    }
  }
  Object.keys(callPeers).forEach(removePeer);callPeers={};remoteStreams={};
+ if(c.id){delete pendingEarlyOffers[c.id];delete pendingEarlyCandidates[c.id];}
  if(localStream)localStream.getTracks().forEach(function(t){t.stop();});localStream=null;localMediaPromise=null;cameraSwitchBusy=false;
  activeCall=null;$('videoGrid').innerHTML='';$('callOverlay').classList.add('hidden');$('callState').textContent='';pendingInvite=null;
 }
