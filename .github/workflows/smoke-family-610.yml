@@ -1,4 +1,4 @@
-name: Smoke test OurFamily 6.0.9 candidate
+name: Smoke test OurFamily 6.10 candidate
 
 on:
   workflow_dispatch:
@@ -34,7 +34,7 @@ jobs:
           python3 - <<'PY'
           import base64,hashlib,json,pathlib
           m=json.loads(pathlib.Path('updates/candidates/610.json').read_text())
-          assert m['versionCode']==6009
+          assert m['versionCode']==6010
           data=base64.b64decode(''.join((pathlib.Path('updates/parts')/u.rsplit('/',1)[-1]).read_text() for u in m['apkBase64Parts']))
           assert hashlib.sha256(data).hexdigest()==m['sha256']
           pathlib.Path('/tmp/candidate610.apk').write_bytes(data)
