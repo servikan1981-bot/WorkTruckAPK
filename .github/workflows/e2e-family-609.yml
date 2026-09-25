@@ -7,7 +7,7 @@ on:
     paths:
       - 'updates/candidates/609.json'
       - 'updates/parts/v609_*.b64'
-      - 'tools/e2e_family_608.py'
+      - 'tools/e2e_family_609.py'
       - '.github/workflows/e2e-family-609.yml'
 
 permissions:
@@ -47,7 +47,7 @@ jobs:
           script: |
             adb install /tmp/candidate609.apk
             for permission in android.permission.CAMERA android.permission.RECORD_AUDIO android.permission.POST_NOTIFICATIONS; do adb shell pm grant com.sergey.ourfamily "$permission" || true; done
-            python3 tools/e2e_family_608.py
+            python3 tools/e2e_family_609.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
