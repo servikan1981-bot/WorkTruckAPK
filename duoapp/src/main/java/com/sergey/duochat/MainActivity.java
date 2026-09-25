@@ -561,7 +561,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "6.0.11";
+            return "6.0.12";
         }
     }
 

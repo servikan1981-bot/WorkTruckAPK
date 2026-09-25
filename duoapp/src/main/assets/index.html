@@ -103,7 +103,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v6.0.11</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.12</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
     <button id="menuBtn" class="iconbtn">⋮</button>
   </div>
   <div class="body">
@@ -295,11 +295,11 @@ var role='',code='',relayBase='https://our-family-relay.family-860c7981b2d4.work
 var roleTags={},cryptoKeys={},packetChunks={},processedPayloads=new Set(),rawInFlight=new Set();
 var messages=[],currentThread=null,pickerMode='new',pickerSelected=new Set(),pollBusy=false,pollTimer=null;
 var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={};
-var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},callTimeout=null,currentFacing='user',cameraSwitchBusy=false,speakerOn=false;
+var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteStreams={},callTimeout=null,currentFacing='user',cameraSwitchBusy=false,speakerOn=false;
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.11',reactionTargetId='',pendingMessageNavigation=null;
+var APP_VERSION='6.0.12',reactionTargetId='',pendingMessageNavigation=null;
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'ocean',videoLayout:'pip'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
@@ -1251,6 +1251,14 @@ async function prepareLocalMedia(kind){
    video:kind==='video'?{facingMode:{ideal:currentFacing},width:{ideal:640},height:{ideal:480}}:false
  }).then(function(stream){
    localStream=stream;
+   // An ICE candidate may have created the peer before camera permission finished.
+   Object.keys(callPeers).forEach(function(peer){
+     var pc=callPeers[peer].pc;
+     stream.getTracks().forEach(function(track){
+       var already=pc.getSenders().some(function(sender){return sender.track&&sender.track.id===track.id;});
+       if(!already)pc.addTrack(track,stream);
+     });
+   });
    ensureVideoTile(role,localStream,true,kind);
    return localStream;
  }).finally(function(){localMediaPromise=null;});
@@ -1345,8 +1353,10 @@ function createPeer(peer){
    publishEnvelope(peer,callSignalKind('candidate'),{callId:activeCall.id,candidate:ev.candidate.toJSON?ev.candidate.toJSON():ev.candidate},4,callSignalKind('candidate'),activeCall.id).catch(function(){});
  };
  pc.ontrack=function(ev){
-   var stream=(ev.streams&&ev.streams[0])?ev.streams[0]:null;
-   if(!stream){stream=new MediaStream();stream.addTrack(ev.track);}
+   // WebView can deliver audio and video in separate track events.
+   var stream=remoteStreams[peer];
+   if(!stream){stream=new MediaStream();remoteStreams[peer]=stream;}
+   if(!stream.getTracks().some(function(t){return t.id===ev.track.id;}))stream.addTrack(ev.track);
    ensureVideoTile(peer,stream,false,activeCall?activeCall.kind:'video');updateCallState();
  };
  ps.connectTimer=setTimeout(function(){
@@ -1401,6 +1411,7 @@ async function flushCandidates(peer){
 }
 function removePeer(peer){
  var ps=callPeers[peer];if(ps){if(ps.connectTimer)clearTimeout(ps.connectTimer);try{ps.pc.close();}catch(e){}delete callPeers[peer];}
+ delete remoteStreams[peer];
  var tile=$('tile-'+peer);if(tile)tile.remove();
 }
 function updateCallState(){
@@ -1481,7 +1492,7 @@ function endCall(send){
      c.members.filter(function(x){return x!==role;}).forEach(function(p){publishEnvelope(p,'group_leave',{callId:c.id},4,'group_leave',c.id).catch(function(){});});
    }
  }
- Object.keys(callPeers).forEach(removePeer);callPeers={};
+ Object.keys(callPeers).forEach(removePeer);callPeers={};remoteStreams={};
  if(localStream)localStream.getTracks().forEach(function(t){t.stop();});localStream=null;localMediaPromise=null;cameraSwitchBusy=false;
  activeCall=null;$('videoGrid').innerHTML='';$('callOverlay').classList.add('hidden');$('callState').textContent='';pendingInvite=null;
 }
