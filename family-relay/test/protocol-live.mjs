@@ -39,6 +39,51 @@ test('local Cloudflare runtime accepts Android-compatible messages, presence, an
   assert.match(await statuses.text(), /\|off/);
 });
 
+test('live long polling delivers chat and call signaling without multi-second gaps', async () => {
+  const topicA = 'of5-' + crypto.randomUUID().replaceAll('-', '');
+  const topicB = 'of5-' + crypto.randomUUID().replaceAll('-', '');
+
+  async function waitNext(topic, after) {
+    const started = Date.now();
+    const response = await fetch(relay + '/' + topic + '/json?since=10m&after=' + after + '&wait=25');
+    assert.equal(response.status, 200);
+    const text = (await response.text()).trim();
+    const events = text ? text.split('\n').map(JSON.parse) : [];
+    return { events, elapsed: Date.now() - started };
+  }
+
+  async function publish(topic, message) {
+    const response = await fetch(relay + '/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'OurFamily/6.0.11 Android' },
+      body: JSON.stringify({ topic, message, priority: 5 })
+    });
+    assert.equal(response.status, 200, await response.text());
+  }
+
+  let a = 0, b = 0;
+  const stages = [
+    [topicB, 'direct_invite'],
+    [topicA, 'direct_accept'],
+    [topicB, 'direct_offer'],
+    [topicA, 'direct_answer'],
+    [topicB, 'direct_candidate']
+  ];
+
+  for (const [topic, kind] of stages) {
+    const after = topic === topicA ? a : b;
+    const waiting = waitNext(topic, after);
+    await new Promise(resolve => setTimeout(resolve, 120));
+    await publish(topic, 'of5|sender|receiver|' + kind + '|call|group|0|1|ciphertext');
+    const { events, elapsed } = await waiting;
+    assert.equal(events.length, 1, kind + ' must deliver exactly once');
+    assert.equal(events[0].message.includes('|' + kind + '|'), true);
+    assert.ok(events[0].seq > after);
+    assert.ok(elapsed < 2500, kind + ' signaling latency too high: ' + elapsed + 'ms');
+    if (topic === topicA) a = events[0].seq; else b = events[0].seq;
+  }
+});
+
 test('all family devices read identical encrypted family and automatic news', async () => {
   const topic = 'of5n-' + crypto.randomUUID().replaceAll('-', '') + 'a'.repeat(16);
   const secret = 'Family-test-' + crypto.randomUUID();
