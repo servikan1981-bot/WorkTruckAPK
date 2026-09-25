@@ -31,6 +31,11 @@ import java.util.Set;
 
 public class MessagingService extends Service {
     public static final String ACTION_RESTART = "com.sergey.duochat.RESTART_LISTENER";
+    public static final String ACTION_PRESENCE_CHANGE = "com.sergey.duochat.PRESENCE_CHANGE";
+    private static volatile boolean appVisible = false;
+
+    public static void setAppVisible(boolean visible) { appVisible = visible; }
+    public static boolean isAppVisible() { return appVisible; }
     private static final String CH_SERVICE = "family_service_v6";
     private static final String CH_MESSAGES = "family_messages_v6";
     private static final String CH_CALLS = "family_calls_v6";
@@ -61,6 +66,10 @@ public class MessagingService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent != null && ACTION_PRESENCE_CHANGE.equals(intent.getAction())) {
+            final boolean visible = intent.getBooleanExtra("visible", false);
+            new Thread(() -> sendPresenceHeartbeat(visible), "OurFamilyPresenceChange").start();
+        }
         if (intent != null && ACTION_RESTART.equals(intent.getAction())) {
             try { if (activeConnection != null) activeConnection.disconnect(); } catch (Exception ignored) {}
             try { if (activePresenceConnection != null) activePresenceConnection.disconnect(); } catch (Exception ignored) {}
@@ -83,8 +92,8 @@ public class MessagingService extends Service {
         if (presenceSenderWorker != null && presenceSenderWorker.isAlive()) return;
         presenceSenderWorker = new Thread(() -> {
             while (running) {
-                sendPresenceHeartbeat();
-                sleep(120_000L);
+                if (appVisible) sendPresenceHeartbeat(true);
+                sleep(30_000L);
             }
         }, "OurFamilyPresenceSender");
         presenceSenderWorker.start();
@@ -105,11 +114,16 @@ public class MessagingService extends Service {
                 sleep(1500L);
                 continue;
             }
+            if ("ntfy.sh".equalsIgnoreCase(Uri.parse(relay).getHost())) {
+                sleep(30_000L);
+                continue;
+            }
 
             BufferedReader reader = null;
             HttpURLConnection c = null;
             try {
-                URL url = new URL(relay + "/" + FamilyDirectory.presenceTopic(code) + "/json?since=5m");
+                boolean polled = relay.contains("workers.dev");
+                URL url = new URL(relay + "/" + FamilyDirectory.presenceTopic(code) + "/json?since=2m");
                 c = (HttpURLConnection) url.openConnection();
                 activePresenceConnection = c;
                 c.setConnectTimeout(15000);
@@ -125,13 +139,14 @@ public class MessagingService extends Service {
                         JSONObject o = new JSONObject(line);
                         if (!"message".equals(o.optString("event"))) continue;
                         long serverTime = o.optLong("time", 0L) * 1000L;
-                        if (serverTime > 0L && System.currentTimeMillis() - serverTime > 300_000L) continue;
+                        if (serverTime <= 0L || Math.abs(System.currentTimeMillis() - serverTime) > 70_000L) continue;
                         String msg = o.optString("message", "");
                         if (!msg.startsWith("of5presence|")) continue;
-                        String[] p = msg.split("\\|", 3);
-                        if (p.length < 3) continue;
+                        String[] p = msg.split("\\|", 4);
+                        if (p.length < 4) continue;
                         String member = FamilyDirectory.roleFromTag(code, p[1]);
-                        if (!member.isEmpty()) PresenceStore.update(this, member, System.currentTimeMillis());
+                        if (!member.isEmpty()) PresenceStore.updateLive(this, member,
+                                "on".equals(p[3]) ? serverTime : 0L);
                     } catch (Exception ignored) {}
                 }
             } catch (Exception ignored) {
@@ -140,7 +155,7 @@ public class MessagingService extends Service {
                 try { if (c != null) c.disconnect(); } catch (Exception ignored) {}
                 activePresenceConnection = null;
             }
-            sleep(1500L);
+            sleep(relay.contains("workers.dev") ? 30_000L : 1500L);
         }
     }
 
@@ -155,7 +170,7 @@ public class MessagingService extends Service {
         updateWorker.start();
     }
 
-    private void sendPresenceHeartbeat() {
+    private void sendPresenceHeartbeat(boolean visible) {
         String relay = SecureStore.relay(this);
         // The public service limits publishers to 250 messages/day. Even one
         // heartbeat every two minutes would exhaust that quota on its own.
@@ -166,7 +181,8 @@ public class MessagingService extends Service {
             String role = SecureStore.role(this);
             if (code.isEmpty() || !FamilyDirectory.validRole(role)) return;
             String topic = FamilyDirectory.presenceTopic(code);
-            String wire = "of5presence|" + FamilyDirectory.tag(code, role) + "|" + System.currentTimeMillis();
+            String wire = "of5presence|" + FamilyDirectory.tag(code, role) + "|" +
+                    System.currentTimeMillis() + "|" + (visible ? "on" : "off");
             NativeRelayTransport.postOnce(this, topic, wire, 1);
         } catch (Exception ignored) {}
     }
@@ -213,7 +229,7 @@ public class MessagingService extends Service {
                 try { if (activeConnection != null) activeConnection.disconnect(); } catch (Exception ignored) {}
                 activeConnection = null;
             }
-            sleep(1200);
+            sleep(relay.contains("workers.dev") ? 20_000L : 1200L);
         }
     }
 

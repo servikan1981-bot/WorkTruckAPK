@@ -292,6 +292,8 @@ public class MainActivity extends Activity {
                 if (!FamilyDirectory.validRole(role)) return false;
                 if (code == null || code.length() < 14) return false;
                 if (relayBase == null || !relayBase.startsWith("https://")) return false;
+                if (!relayBase.replaceAll("/+$", "").equals(SecureStore.relay(MainActivity.this)))
+                    PresenceStore.clearLive(MainActivity.this);
 
                 SharedPreferences.Editor ed = SecureStore.prefs(MainActivity.this).edit()
                         .putString("role", role)
@@ -380,7 +382,10 @@ public class MainActivity extends Activity {
                     .putString("sender_tag", senderTag)
                     .apply();
 
-            runOnUiThread(() -> startMessagingService(true));
+            runOnUiThread(() -> {
+                startMessagingService(true);
+                if (MessagingService.isAppVisible()) sendVisibility(true);
+            });
         }
 
         @JavascriptInterface
@@ -513,7 +518,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String loadPresence() {
-            return PresenceStore.read(MainActivity.this);
+            return PresenceStore.readLive(MainActivity.this);
         }
 
         @JavascriptInterface
@@ -561,9 +566,29 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        MessagingService.setAppVisible(true);
+        sendVisibility(true);
         TelecomCallManager.register(this);
         UpdateManager.resumePendingInstall(this);
         UpdateManager.checkAsync(this, false);
+    }
+
+    @Override
+    protected void onPause() {
+        MessagingService.setAppVisible(false);
+        sendVisibility(false);
+        super.onPause();
+    }
+
+    private void sendVisibility(boolean visible) {
+        if (SecureStore.familyCode(this).isEmpty()) return;
+        try {
+            Intent i = new Intent(this, MessagingService.class);
+            i.setAction(MessagingService.ACTION_PRESENCE_CHANGE);
+            i.putExtra("visible", visible);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i);
+            else startService(i);
+        } catch (RuntimeException ignored) {}
     }
 
     @Override

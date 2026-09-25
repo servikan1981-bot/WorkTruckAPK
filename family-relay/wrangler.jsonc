@@ -1,0 +1,12 @@
+{
+  "name": "our-family-relay",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "MAILBOX", "class_name": "TopicMailbox" },
+      { "name": "FILES", "class_name": "EncryptedFile" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TopicMailbox", "EncryptedFile"] }]
+}
