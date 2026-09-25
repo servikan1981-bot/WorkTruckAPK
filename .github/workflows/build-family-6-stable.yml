@@ -97,7 +97,8 @@ jobs:
           grep -q "startPresenceListener" "$S"
           grep -q "presenceListenLoop" "$S"
           grep -q "FamilyDirectory.presenceTopic" "$S"
-          grep -q "ERR:http:429" "$R"
+          grep -q "ERR:http:" "$R"
+          grep -q "includes('429')" "$H"
           grep -q "probe(Context context" "$R"
           if grep -q "for (String member : FamilyDirectory.MEMBERS.keySet())" "$S"; then
             echo "Per-recipient heartbeat flood must not exist"
