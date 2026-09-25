@@ -1337,8 +1337,8 @@ async function switchCamera(){
 function callSignalKind(base){return activeCall&&activeCall.type==='group'?'group_'+base:'direct_'+base;}
 function createPeer(peer){
  if(callPeers[peer])return callPeers[peer];
- var pc=new RTCPeerConnection({iceServers:iceServers(),iceCandidatePoolSize:4,bundlePolicy:'max-bundle'});
- var ps={pc:pc,pending:[],restart:0};callPeers[peer]=ps;
+ var pc=new RTCPeerConnection({iceServers:iceServers(),iceCandidatePoolSize:8,bundlePolicy:'max-bundle',iceTransportPolicy:'all'});
+ var ps={pc:pc,pending:[],restart:0,connectTimer:null};callPeers[peer]=ps;
  if(localStream)localStream.getTracks().forEach(function(t){pc.addTrack(t,localStream);});
  pc.onicecandidate=function(ev){
    if(!ev.candidate||!activeCall)return;
@@ -1349,9 +1349,15 @@ function createPeer(peer){
    if(!stream){stream=new MediaStream();stream.addTrack(ev.track);}
    ensureVideoTile(peer,stream,false,activeCall?activeCall.kind:'video');updateCallState();
  };
+ ps.connectTimer=setTimeout(function(){
+   if(!activeCall||!callPeers[peer]||pc.connectionState==='connected'||pc.connectionState==='closed')return;
+   if(ps.restart<1&&shouldOffer(peer)){ps.restart++;restartPeer(peer);}
+ },10000);
  pc.onconnectionstatechange=function(){
-   if(pc.connectionState==='connected'){ps.restart=0;updateCallState();}
-   else if(pc.connectionState==='failed'){
+   if(pc.connectionState==='connected'){
+     if(ps.connectTimer){clearTimeout(ps.connectTimer);ps.connectTimer=null;}
+     ps.restart=0;updateCallState();
+   }else if(pc.connectionState==='failed'){
      if(ps.restart<1&&shouldOffer(peer)){ps.restart++;restartPeer(peer);}
      else updateCallState();
    }else updateCallState();
@@ -1373,6 +1379,7 @@ async function makeOffer(peer,restart){
 async function restartPeer(peer){try{$('callState').textContent='Восстановление связи…';await makeOffer(peer,true);}catch(e){}}
 async function answerOffer(peer,sdp,isGroup){
  if(!sdp)return;
+ if(activeCall&&!localStream)await prepareLocalMedia(activeCall.kind);
  var ps=createPeer(peer);
  await ps.pc.setRemoteDescription(new RTCSessionDescription(sdp));await flushCandidates(peer);
  var ans=await ps.pc.createAnswer();await ps.pc.setLocalDescription(ans);
@@ -1393,7 +1400,7 @@ async function flushCandidates(peer){
  for(var i=0;i<q.length;i++)try{await ps.pc.addIceCandidate(q[i]);}catch(e){}
 }
 function removePeer(peer){
- var ps=callPeers[peer];if(ps){try{ps.pc.close();}catch(e){}delete callPeers[peer];}
+ var ps=callPeers[peer];if(ps){if(ps.connectTimer)clearTimeout(ps.connectTimer);try{ps.pc.close();}catch(e){}delete callPeers[peer];}
  var tile=$('tile-'+peer);if(tile)tile.remove();
 }
 function updateCallState(){
@@ -1438,11 +1445,14 @@ async function acceptPendingInvite(){
  activeCall={id:inv.id,type:inv.type,kind:inv.kind,inviter:inv.from,members:inv.members.slice()};
  if(inv.type==='group')activeCall.joined=new Set([role,inv.from]);
  showCall(inv.type==='group'?(inv.kind==='audio'?'Групповой аудиозвонок':'Групповой видеозвонок'):((inv.kind==='audio'?'Аудиозвонок · ':'Видеозвонок · ')+NAMES[inv.from]),'Подготовка…');
- try{await prepareLocalMedia(inv.kind);}catch(e){toast('Нет доступа к камере/микрофону');endCall(true);return;}
+ var mediaPromise=prepareLocalMedia(inv.kind);
  if(inv.type==='direct'){
-   createPeer(inv.from);
-   await publishEnvelope(inv.from,'direct_accept',{callId:inv.id},5,'direct_accept',inv.id);
+   try{
+     await publishEnvelope(inv.from,'direct_accept',{callId:inv.id},5,'direct_accept',inv.id);
+     await mediaPromise;
+   }catch(e){toast('Не удалось подготовить звонок');endCall(true);return;}
  }else{
+   try{await mediaPromise;}catch(e){toast('Нет доступа к камере/микрофону');endCall(true);return;}
    var stored=pendingGroupJoins[inv.id];if(stored){stored.forEach(function(x){activeCall.joined.add(x);});delete pendingGroupJoins[inv.id];}
    var peers=inv.members.filter(function(x){return x!==role;});
    for(var i=0;i<peers.length;i++)publishEnvelope(peers[i],'group_join',{callId:inv.id},4,'group_join',inv.id).catch(function(){});
