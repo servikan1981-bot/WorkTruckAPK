@@ -30,10 +30,10 @@ jobs:
           assert m['versionCode']==6014
           data=base64.b64decode(''.join((pathlib.Path('updates/parts')/u.rsplit('/',1)[-1]).read_text() for u in m['apkBase64Parts']))
           assert hashlib.sha256(data).hexdigest()==m['sha256']
-          pathlib.Path('/tmp/family-613.apk').write_bytes(data)
+          pathlib.Path('/tmp/family-614.apk').write_bytes(data)
           PY
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 /tmp/family-613.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/family-613.apk
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 /tmp/family-614.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/family-614.apk
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -53,7 +53,7 @@ jobs:
           name: family-video-upgrade-api-${{ matrix.api-level }}
           path: |
             /tmp/family-614-crash.log
-            /tmp/family-611.xml
-            /tmp/family-611.png
+            /tmp/family-614.xml
+            /tmp/family-614.png
             /tmp/family-614-logcat.txt
           if-no-files-found: ignore
