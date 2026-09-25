@@ -14,10 +14,10 @@ PY
 pkg=com.sergey.ourfamily
 activity=com.sergey.duochat.MainActivity
 
-# The release must install over the exact stable 6.0.8 package without deleting data.
+# The release must install over the exact stable 6.0.9 package without deleting data.
 adb install -r /tmp/ourfamily-old.apk
 adb install -r /tmp/ourfamily-new.apk
-test "$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionCode=\([0-9]*\).*/\1/p' | head -1 | tr -d '\r')" = 6009
+test "$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionCode=\([0-9]*\).*/\1/p' | head -1 | tr -d '\r')" = 6010
 
 check_launch() {
   for permission in android.permission.CAMERA android.permission.RECORD_AUDIO android.permission.POST_NOTIFICATIONS; do
