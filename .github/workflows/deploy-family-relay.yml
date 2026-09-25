@@ -70,14 +70,21 @@ jobs:
           RELAY_URL: ${{ steps.publish.outputs.deployment-url }}
         run: |
           python3 - <<'PY'
-          import json, os, re, urllib.request
+          import json, os, re, time, urllib.request
           url = os.environ['RELAY_URL'].strip().rstrip('/')
           if not re.fullmatch(r'https://[A-Za-z0-9.-]+\.workers\.dev', url):
               raise SystemExit('Wrangler did not report a workers.dev HTTPS URL')
-          with urllib.request.urlopen(url + '/health', timeout=20) as response:
-              assert response.status == 200
-              assert json.load(response)['protocol'] == 'ourfamily-relay-v1'
-          print('Relay is serving HTTPS: ' + url)
+          for attempt in range(18):
+              try:
+                  with urllib.request.urlopen(url + '/health', timeout=15) as response:
+                      assert response.status == 200
+                      assert json.load(response)['protocol'] == 'ourfamily-relay-v1'
+                  print('Relay is serving HTTPS: ' + url)
+                  break
+              except Exception as error:
+                  if attempt == 17:
+                      raise RuntimeError('Relay HTTPS did not become available after 3 minutes') from error
+                  time.sleep(10)
           PY
       - name: Verify live messages, status events, and encrypted attachments
         if: steps.access.outputs.ready == 'true'
