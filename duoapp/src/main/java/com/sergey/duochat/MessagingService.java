@@ -114,7 +114,7 @@ public class MessagingService extends Service {
             String code = SecureStore.familyCode(this);
             String relay = SecureStore.relay(this);
             if (code.isEmpty() || relay.isEmpty()) {
-                sleep(1500L);
+                sleep(500L);
                 continue;
             }
             if ("ntfy.sh".equalsIgnoreCase(Uri.parse(relay).getHost())) {
@@ -122,15 +122,18 @@ public class MessagingService extends Service {
                 continue;
             }
 
+            String topic = FamilyDirectory.presenceTopic(code);
+            String cursorKey = relayCursorKey("presence", relay, topic);
+            long cursor = prefs.getLong(cursorKey, 0L);
+            long nextCursor = cursor;
             BufferedReader reader = null;
             HttpURLConnection c = null;
             try {
-                boolean polled = relay.contains("workers.dev");
-                URL url = new URL(relay + "/" + FamilyDirectory.presenceTopic(code) + "/json?since=2m");
+                URL url = new URL(relay + "/" + topic + "/json?since=2m&after=" + cursor + "&wait=25");
                 c = (HttpURLConnection) url.openConnection();
                 activePresenceConnection = c;
-                c.setConnectTimeout(15000);
-                c.setReadTimeout(0);
+                c.setConnectTimeout(12000);
+                c.setReadTimeout(32000);
                 c.setUseCaches(false);
                 c.setRequestProperty("Accept", "application/x-ndjson");
                 c.connect();
@@ -140,6 +143,7 @@ public class MessagingService extends Service {
                 while (running && (line = reader.readLine()) != null) {
                     try {
                         JSONObject o = new JSONObject(line);
+                        nextCursor = Math.max(nextCursor, o.optLong("seq", 0L));
                         if (!"message".equals(o.optString("event"))) continue;
                         long serverTime = o.optLong("time", 0L) * 1000L;
                         if (serverTime <= 0L || Math.abs(System.currentTimeMillis() - serverTime) > 70_000L) continue;
@@ -154,11 +158,12 @@ public class MessagingService extends Service {
                 }
             } catch (Exception ignored) {
             } finally {
+                if (nextCursor > cursor) prefs.edit().putLong(cursorKey, nextCursor).apply();
                 try { if (reader != null) reader.close(); } catch (Exception ignored) {}
                 try { if (c != null) c.disconnect(); } catch (Exception ignored) {}
                 activePresenceConnection = null;
             }
-            sleep(relay.contains("workers.dev") ? 30_000L : 1500L);
+            sleep(80L);
         }
     }
 
@@ -221,31 +226,63 @@ public class MessagingService extends Service {
             String relay = SecureStore.relay(this);
 
             if (topic.isEmpty() || myTag.isEmpty()) {
-                sleep(1500);
+                sleep(500L);
                 continue;
             }
 
+            boolean instantRelay = isInstantRelay(relay);
+            String cursorKey = relayCursorKey("inbox", relay, topic);
+            long cursor = instantRelay ? prefs.getLong(cursorKey, 0L) : 0L;
+            long nextCursor = cursor;
             BufferedReader reader = null;
             try {
-                URL url = new URL(relay + "/" + topic + "/json?since=10m");
+                String query = instantRelay
+                        ? "/json?since=10m&after=" + cursor + "&wait=25"
+                        : "/json?since=10m";
+                URL url = new URL(relay + "/" + topic + query);
                 HttpURLConnection c = (HttpURLConnection) url.openConnection();
                 activeConnection = c;
-                c.setConnectTimeout(15000);
-                c.setReadTimeout(0);
+                c.setConnectTimeout(12000);
+                c.setReadTimeout(instantRelay ? 32000 : 0);
+                c.setUseCaches(false);
                 c.setRequestProperty("Accept", "application/x-ndjson");
                 c.connect();
 
                 reader = new BufferedReader(new InputStreamReader(c.getInputStream(), "UTF-8"));
                 String line;
-                while (running && (line = reader.readLine()) != null) handleLine(line, myTag, prefs);
+                while (running && (line = reader.readLine()) != null) {
+                    if (instantRelay) {
+                        try {
+                            JSONObject event = new JSONObject(line);
+                            nextCursor = Math.max(nextCursor, event.optLong("seq", 0L));
+                        } catch (Exception ignored) {}
+                    }
+                    handleLine(line, myTag, prefs);
+                }
             } catch (Exception ignored) {
             } finally {
+                if (instantRelay && nextCursor > cursor) prefs.edit().putLong(cursorKey, nextCursor).apply();
                 try { if (reader != null) reader.close(); } catch (Exception ignored) {}
                 try { if (activeConnection != null) activeConnection.disconnect(); } catch (Exception ignored) {}
                 activeConnection = null;
             }
-            sleep(relay.contains("workers.dev") ? 20_000L : 1200L);
+            sleep(instantRelay ? 80L : 1200L);
         }
+    }
+
+    private boolean isInstantRelay(String relay) {
+        try {
+            String host = Uri.parse(relay).getHost();
+            return host != null && host.endsWith(".workers.dev");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private String relayCursorKey(String type, String relay, String topic) {
+        String digest = FamilyDirectory.sha256(relay + "|" + topic);
+        if (digest.length() > 24) digest = digest.substring(0, 24);
+        return "relay_cursor_v611_" + type + "_" + digest;
     }
 
     private void handleLine(String line, String myTag, SharedPreferences prefs) {
