@@ -52,3 +52,9 @@ jobs:
               assert json.load(response)['protocol'] == 'ourfamily-relay-v1'
           print('Relay is serving HTTPS: ' + url)
           PY
+      - name: Verify live messages, status events, and encrypted attachments
+        if: steps.access.outputs.ready == 'true'
+        env:
+          RELAY_TEST_URL: ${{ steps.publish.outputs.deployment-url }}
+        run: node --test test/protocol-live.mjs
+        working-directory: family-relay
