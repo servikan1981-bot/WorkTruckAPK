@@ -64,14 +64,14 @@ export class AutoNews {
   async fetch(request) {
     if (new URL(request.url).pathname === '/status') {
       return json({ count: this.ctx.storage.sql.exec('SELECT COUNT(*) AS total FROM articles').one().total,
-        lastError: (await this.ctx.storage.get('lastError')) || '', lastTry: (await this.ctx.storage.get('lastTry')) || 0 });
+        lastError: (await this.ctx.storage.get('lastError')) || '', lastTry: (await this.ctx.storage.get('lastTryAutoV4')) || 0 });
     }
     const now = Date.now();
     const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
     const count = this.ctx.storage.sql.exec('SELECT COUNT(*) AS total FROM articles WHERE day = ?', day).one().total;
-    const lastTry = (await this.ctx.storage.get('lastTryAutoV3')) || 0;
+    const lastTry = (await this.ctx.storage.get('lastTryAutoV4')) || 0;
     if (count < 2 && now - lastTry >= 15 * 60_000) {
-      await this.ctx.storage.put('lastTryAutoV3', now);
+      await this.ctx.storage.put('lastTryAutoV4', now);
       try {
         const response = await globalThis.fetch('https://wildcar.org/news/rss.xml', { signal: AbortSignal.timeout(10000), headers: { 'Accept': 'application/rss+xml, application/xml' } });
         if (!response.ok) throw new Error('RSS unavailable');
@@ -82,7 +82,7 @@ export class AutoNews {
         for (const [, item] of items) {
           if (count + added >= 2) break;
           const title = textOf(item, 'title').slice(0, 250);
-          const summary = textOf(item, 'description').slice(0, 520);
+          const summary = (textOf(item, 'description') || textOf(item, 'content:encoded') || textOf(item, 'summary') || title).slice(0, 520);
           const link = textOf(item, 'link');
           if (!title || !summary || !/^https:\/\//.test(link)) continue;
           const id = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(link)))].map(v => v.toString(16).padStart(2, '0')).join('').slice(0, 24);
@@ -93,7 +93,7 @@ export class AutoNews {
           added++;
         }
         this.ctx.storage.sql.exec('DELETE FROM articles WHERE id NOT IN (SELECT id FROM articles ORDER BY added_at DESC LIMIT 20)');
-        if (!added && count === 0) throw new Error('RSS items unusable: ' + JSON.stringify(items.slice(0, 2).map(([, item]) => ({ title: !!textOf(item, 'title'), description: !!textOf(item, 'description'), link: textOf(item, 'link').slice(0, 55) }))));
+        if (!added && count === 0) throw new Error('RSS contained no new usable articles');
         await this.ctx.storage.delete('lastError');
       } catch (error) { await this.ctx.storage.put('lastError', String(error).slice(0,180)); }
     }
@@ -102,7 +102,7 @@ export class AutoNews {
 }
 
 // One isolated SQLite-backed object per random attachment URL. 512 KiB chunks
-// fit below the 2 MiB individual value limit; an alarm removes files after 7 days.
+// fit below the 2 MiB individual value limit; an alarm removes files after 90 days.
 export class EncryptedFile {
   constructor(ctx) { this.ctx = ctx; }
 
@@ -116,7 +116,7 @@ export class EncryptedFile {
         entries[`part-${String(index).padStart(3, '0')}`] = bytes.slice(offset, offset + 524288);
       await this.ctx.storage.put(entries);
       await this.ctx.storage.put('length', bytes.length);
-      await this.ctx.storage.setAlarm(Date.now() + 7 * 86400_000);
+      await this.ctx.storage.setAlarm(Date.now() + 90 * 86400_000);
       return json({ ok: true });
     }
     const length = await this.ctx.storage.get('length');
