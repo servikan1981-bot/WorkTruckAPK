@@ -80,8 +80,14 @@ public class MessagingService extends Service {
     }
 
     private void startPresenceSender() {
-        // Public ntfy.sh has a daily publishing quota. Presence heartbeats
-        // consumed it and prevented real chat messages from being delivered.
+        if (presenceSenderWorker != null && presenceSenderWorker.isAlive()) return;
+        presenceSenderWorker = new Thread(() -> {
+            while (running) {
+                sendPresenceHeartbeat();
+                sleep(120_000L);
+            }
+        }, "OurFamilyPresenceSender");
+        presenceSenderWorker.start();
     }
 
     private void startPresenceListener() {
@@ -150,7 +156,19 @@ public class MessagingService extends Service {
     }
 
     private void sendPresenceHeartbeat() {
-        // Disabled for the same reason as startPresenceSender().
+        String relay = SecureStore.relay(this);
+        // The public service limits publishers to 250 messages/day. Even one
+        // heartbeat every two minutes would exhaust that quota on its own.
+        try {
+            Uri uri = Uri.parse(relay);
+            if ("ntfy.sh".equalsIgnoreCase(uri.getHost())) return;
+            String code = SecureStore.familyCode(this);
+            String role = SecureStore.role(this);
+            if (code.isEmpty() || !FamilyDirectory.validRole(role)) return;
+            String topic = FamilyDirectory.presenceTopic(code);
+            String wire = "of5presence|" + FamilyDirectory.tag(code, role) + "|" + System.currentTimeMillis();
+            NativeRelayTransport.postOnce(this, topic, wire, 1);
+        } catch (Exception ignored) {}
     }
 
     private void startNewsWorker() {

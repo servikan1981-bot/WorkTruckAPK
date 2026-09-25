@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.7</title>
+<title>Наша семья 6.0.8</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -81,7 +81,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья 6.0.7</h1>
+    <h1>Наша семья 6.0.8</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -201,6 +201,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <div id="settingsPop" class="settings-pop hidden">
   <button id="aboutMenuBtn">ℹ️ О приложении</button>
   <button id="updateMenuBtn">⬆️ Проверить обновления</button>
+  <button id="relayMenuBtn">🌐 Сервер сообщений</button>
   <button id="systemCallMenuBtn">📞 Системные входящие звонки</button>
   <button id="videoLayoutMenuBtn">🎥 Варианты видео</button>
   <button id="themeMenuBtn">🎨 Тема</button>
@@ -208,11 +209,22 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   <button id="resetBtn">Сменить профиль / код</button>
 </div>
 
+<div id="relayModal" class="modal-backdrop hidden">
+  <div class="modal-card">
+    <div class="modal-title">Сервер сообщений</div>
+    <p class="sub">Одинаковый адрес сервера нужен на обоих телефонах. Семейный код и история чатов сохранятся.</p>
+    <input id="relaySetting" class="code" type="url" inputmode="url" autocomplete="url" aria-label="Адрес сервера сообщений">
+    <div id="relayCheckResult" class="sub" style="margin:12px 0" aria-live="polite"></div>
+    <button id="saveRelayBtn" class="primary wide">Проверить и сохранить</button>
+    <button id="closeRelayBtn" class="option-btn" style="margin-top:8px;width:100%">Отмена</button>
+  </div>
+</div>
+
 <div id="aboutModal" class="modal-backdrop hidden">
   <div class="modal-card">
     <div class="about-logo">👨‍👩‍👧‍👦</div>
     <div class="modal-title">Наша семья</div>
-    <div id="aboutVersion" class="about-version">v6.0.7</div>
+    <div id="aboutVersion" class="about-version">v6.0.8</div>
     <div class="about-copy">Семейный мессенджер: личные и групповые чаты, аудио- и видеозвонки, семейные новости, фото, видео и файлы.</div>
     <button id="closeAboutBtn" class="primary wide" style="margin-top:16px">Готово</button>
   </div>
@@ -286,13 +298,23 @@ var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={};
 var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},callTimeout=null,currentFacing='user',cameraSwitchBusy=false,speakerOn=false;
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[];
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.7',reactionTargetId='',pendingMessageNavigation=null;
+var APP_VERSION='6.0.8',reactionTargetId='',pendingMessageNavigation=null;
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'light',videoLayout:'side'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
 var EMOJIS="😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥳 🤩 🥺 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥱 😤 😡 😠 🤬 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 😴 🤤 😪 😵 🤐 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👻 💀 ☠️ 👽 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾 ❤️".split(' ');
 
 function toast(t){var e=$('toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(function(){e.classList.remove('show');},3000);}
+function relayErrorText(value){
+ var e=String(value||'');
+ if(e.includes('429'))return 'Лимит сервера сообщений исчерпан (429). Нужен собственный сервер.';
+ if(e.includes('403')||e.includes('401'))return 'Сервер отклонил доступ ('+(e.includes('403')?'403':'401')+').';
+ if(e.includes('timeout')||e.includes('SocketTimeout'))return 'Сервер не отвечает. Проверьте интернет и адрес сервера.';
+ if(e.includes('UnknownHost'))return 'Адрес сервера не найден. Проверьте его написание.';
+ if(e.includes('SSL'))return 'Ошибка защищённого подключения к серверу.';
+ if(e.includes('http:'))return 'Сервер вернул HTTP '+(e.match(/http:(\d+)/)||[])[1]+'.';
+ return 'Не удалось отправить: '+e.slice(0,60);
+}
 function initials(n){return (n||'?').slice(0,1).toUpperCase();}
 function fmt(ts){return new Date(ts).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
 function randomId(){var a=crypto.getRandomValues(new Uint8Array(16));return Array.from(a).map(function(x){return x.toString(16).padStart(2,'0');}).join('');}
@@ -527,7 +549,7 @@ function expectedRecipients(m){
 function receiptState(m){
  if(!m||m.from!==role)return null;
  ensureReceiptFields(m);
- if(m.sendFailed)return {text:'!',cls:'receipt failed',title:'Ошибка отправки'};
+ if(m.sendFailed)return {text:'!',cls:'receipt failed',title:m.sendError||'Ошибка отправки'};
  if(m.sent===false)return {text:'…',cls:'receipt',title:'Отправляется'};
  var expected=expectedRecipients(m);
  if(expected.length&&expected.every(function(x){return m.readBy.includes(x);}))return {text:'✓✓',cls:'receipt read',title:'Прочитано'};
@@ -568,9 +590,13 @@ async function markThreadRead(t){
 }
 function onlineNow(member){
  var ts=presenceMap[member]||0;
- return member===role;
+ return member===role||(!/https:\/\/ntfy\.sh\/?$/i.test(relayBase)&&ts>0&&Date.now()-ts<300000);
 }
-function presenceLabel(member){return member===role?'в сети':'статус недоступен';}
+function presenceLabel(member){
+ if(member===role)return 'в сети';
+ if(/https:\/\/ntfy\.sh\/?$/i.test(relayBase))return presenceMap[member]&&Date.now()-presenceMap[member]<300000?'недавно был в сети':'статус недоступен';
+ return onlineNow(member)?'в сети':'не в сети';
+}
 async function pollPresence(){
  if(presenceBusy)return;presenceBusy=true;
  try{
@@ -599,7 +625,7 @@ function renderPresence(){
  if(currentThread&&currentThread.type==='direct')$('chatSubtitle').textContent=presenceLabel(currentThread.peer);
  if(currentThread&&currentThread.type==='group'){
    var online=currentThread.members.filter(function(x){return onlineNow(x);}).length;
-   $('chatSubtitle').textContent='Статус участников недоступен';
+   $('chatSubtitle').textContent=/https:\/\/ntfy\.sh\/?$/i.test(relayBase)?'Статус участников недоступен':online+' из '+currentThread.members.length+' в сети';
  }
 }
 function startPresence(){
@@ -646,7 +672,7 @@ function lastMsg(arr){return arr.length?arr.slice().sort(function(a,b){return a.
 
 function hideTransientPanels(){
  var changed=false;
- ['settingsPop','attachMenu','emojiPanel','newsCaptureMenu','aboutModal','videoLayoutModal','themeModal','reactionPicker','photoViewer'].forEach(function(id){
+ ['settingsPop','attachMenu','emojiPanel','newsCaptureMenu','relayModal','aboutModal','videoLayoutModal','themeModal','reactionPicker','photoViewer'].forEach(function(id){
    var el=$(id);if(el&&!el.classList.contains('hidden')){el.classList.add('hidden');changed=true;}
  });
  return changed;
@@ -1032,10 +1058,10 @@ async function retryMessage(id){
  var failed=false;
  for(var i=0;i<peers.length;i++){
    try{await publishEnvelope(peers[i],m.kind==='direct'?'direct_chat':'group_chat',data,3,m.kind==='direct'?'direct_chat':'group_chat',m.id);}
-   catch(e){failed=true;}
+   catch(e){failed=true;m.sendError=relayErrorText(e);}
  }
- m.retrying=false;m.sendFailed=failed;m.sent=!failed;saveMessages();renderMessages();
- toast(failed?'Отправка пока недоступна':'Сообщение отправлено');
+ m.retrying=false;m.sendFailed=failed;m.sent=!failed;if(!failed)delete m.sendError;saveMessages();renderMessages();
+ toast(failed?m.sendError:'Сообщение отправлено');
 }
 async function sendCurrentMessage(){
  if(!currentThread)return;
@@ -1051,8 +1077,8 @@ async function sendCurrentMessage(){
        publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalTo:peer,text:text,ts:ts},2,'admin_copy','-').catch(function(){});
      }
    }catch(e){
-     var m=messages.find(function(x){return x.id===id;});if(m){m.sendFailed=true;m.sent=false;saveMessages();renderMessages();}
-     toast(String(e).includes('429')?'Лимит сервиса: повторите позже':'Не удалось отправить сообщение');
+      var m=messages.find(function(x){return x.id===id;});if(m){m.sendFailed=true;m.sent=false;m.sendError=relayErrorText(e);saveMessages();renderMessages();}
+      toast(relayErrorText(e));
    }
  }else{
    var members=currentThread.members.slice(),gid=currentThread.groupId,recipients=members.filter(function(x){return x!==role;});
@@ -1571,6 +1597,25 @@ $('camBtn').addEventListener('click',function(){if(!localStream)return;var t=loc
 $('switchCamBtn').addEventListener('click',switchCamera);
 $('speakerBtn').addEventListener('click',function(){setSpeaker(!speakerOn);});
 $('menuBtn').addEventListener('click',function(){$('settingsPop').classList.toggle('hidden');});
+$('relayMenuBtn').addEventListener('click',function(){
+ $('settingsPop').classList.add('hidden');$('relaySetting').value=relayBase;
+ $('relayCheckResult').textContent='';$('relayModal').classList.remove('hidden');
+});
+$('closeRelayBtn').addEventListener('click',function(){$('relayModal').classList.add('hidden');});
+$('relayModal').addEventListener('click',function(e){if(e.target===$('relayModal'))$('relayModal').classList.add('hidden');});
+$('saveRelayBtn').addEventListener('click',async function(){
+ var url=$('relaySetting').value.trim().replace(/\/+$/,'');
+ if(!/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/.test(url)){$('relayCheckResult').textContent='Введите полный адрес https://…';return;}
+ var button=$('saveRelayBtn');button.disabled=true;$('relayCheckResult').textContent='Проверяю отправку…';
+ try{
+   var result=String(AndroidBridge.probeRelay(url,ownTopic));
+   if(result!=='OK'){$('relayCheckResult').textContent=relayErrorText(result);return;}
+   if(!AndroidBridge.saveProfile(role,code,url,turnUrl,turnUser,turnPass))throw new Error('profile');
+   relayBase=url;AndroidBridge.configure(ownTopic,role,relayBase,ownTag);
+   presenceMap={};pollPresence();$('relayModal').classList.add('hidden');toast('Сервер проверен и сохранён');
+ }catch(e){$('relayCheckResult').textContent=relayErrorText(e);}
+ finally{button.disabled=false;}
+});
 $('updateMenuBtn').addEventListener('click',function(){
  $('settingsPop').classList.add('hidden');
  try{AndroidBridge.checkForUpdates();toast('Проверяю обновления…');}catch(e){toast('Не удалось проверить обновления');}

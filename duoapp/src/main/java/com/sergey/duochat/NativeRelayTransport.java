@@ -17,11 +17,6 @@ public final class NativeRelayTransport {
         String first = postAttempt(context, topic, message, priority);
         if ("OK".equals(first)) return first;
 
-        if (first.startsWith("ERR:http:429")) {
-            sleepQuietly(5500L);
-            return postAttempt(context, topic, message, priority);
-        }
-
         if (first.startsWith("ERR:http:5") || first.startsWith("ERR:Socket") ||
                 first.startsWith("ERR:Connect") || first.startsWith("ERR:UnknownHost")) {
             sleepQuietly(900L);
@@ -34,14 +29,24 @@ public final class NativeRelayTransport {
         return postAttempt(context, topic, message, priority);
     }
 
+    // One explicit user-initiated publish verifies that the chosen relay can accept messages.
+    public static String probe(Context context, String relay, String topic) {
+        if (relay == null || !relay.matches("https://[^\\s/]+(?:/[^\\s]*)?")) return "ERR:url";
+        return postAttempt(context, topic, "of5probe|" + System.currentTimeMillis(), 1, relay);
+    }
+
     private static String postAttempt(Context context, String topic, String message, int priority) {
+        return postAttempt(context, topic, message, priority, null);
+    }
+
+    private static String postAttempt(Context context, String topic, String message, int priority, String relayOverride) {
         if (context == null) return "ERR:context";
         if (topic == null || !topic.matches("[a-zA-Z0-9_-]{12,100}")) return "ERR:topic";
         if (message == null || message.isEmpty() || message.length() > 8000) return "ERR:message";
         priority = Math.max(1, Math.min(5, priority));
 
         SharedPreferences prefs = SecureStore.prefs(context);
-        String relay = prefs.getString("relay_base", "https://ntfy.sh");
+        String relay = relayOverride != null ? relayOverride : prefs.getString("relay_base", "https://ntfy.sh");
         if (relay == null || !relay.startsWith("https://")) relay = "https://ntfy.sh";
         relay = relay.replaceAll("/+$", "");
 

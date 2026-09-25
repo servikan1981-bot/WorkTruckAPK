@@ -389,6 +389,20 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String probeRelay(String relayBase, String topic) {
+            final String[] result = {"ERR:timeout"};
+            Thread thread = new Thread(() -> result[0] = NativeRelayTransport.probe(
+                    MainActivity.this, relayBase, topic), "OurFamilyRelayProbe");
+            thread.start();
+            try { thread.join(16000L); } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return "ERR:interrupted";
+            }
+            if (thread.isAlive()) { thread.interrupt(); return "ERR:timeout"; }
+            return result[0];
+        }
+
+        @JavascriptInterface
         public String uploadAttachment(String base64) {
             return NativeAttachmentTransport.uploadBase64(MainActivity.this, base64);
         }
