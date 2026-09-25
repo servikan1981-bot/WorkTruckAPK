@@ -287,7 +287,7 @@ public final class UpdateManager {
         c.setUseCaches(false);
         c.setRequestProperty("Cache-Control", "no-cache");
         c.setRequestProperty("Pragma", "no-cache");
-        c.setRequestProperty("User-Agent", "OurFamily/6.0.2 Android");
+        c.setRequestProperty("User-Agent", "OurFamily/6.0.11 Android");
         c.setRequestProperty("Accept", "application/json,text/plain,*/*");
         c.connect();
         if (c.getResponseCode() < 200 || c.getResponseCode() >= 300) {
