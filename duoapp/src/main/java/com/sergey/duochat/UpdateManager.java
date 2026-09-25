@@ -36,6 +36,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class UpdateManager {
     private static final String META_URL =
             "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/latest.json";
+    private static final String META_API_URL =
+            "https://api.github.com/repos/servikan1981-bot/WorkTruckAPK/contents/updates/latest.json?ref=family-stable-6";
     private static final long CHECK_INTERVAL_MS = 6L * 60L * 60L * 1000L;
     private static final String PREF_LAST_CHECK = "update_last_check_v6";
     private static final String PREF_PENDING_INSTALL = "update_pending_install_v6";
@@ -52,15 +54,24 @@ public final class UpdateManager {
         SharedPreferences p = SecureStore.prefs(activity);
         long now = System.currentTimeMillis();
         if (!force && now - p.getLong(PREF_LAST_CHECK, 0L) < CHECK_INTERVAL_MS) return;
-        if (!CHECKING.compareAndSet(false, true)) return;
+        if (!CHECKING.compareAndSet(false, true)) {
+            if (force) Toast.makeText(activity, "Проверка уже выполняется", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         new Thread(() -> {
             try {
-                p.edit().putLong(PREF_LAST_CHECK, now).apply();
                 UpdateInfo info = fetchInfo();
-                if (info == null || info.versionCode <= currentVersionCode(activity)) return;
+                p.edit().putLong(PREF_LAST_CHECK, now).apply();
+                if (info.versionCode <= currentVersionCode(activity)) {
+                    if (force) activity.runOnUiThread(() ->
+                            Toast.makeText(activity, "У вас уже последняя версия", Toast.LENGTH_LONG).show());
+                    return;
+                }
                 activity.runOnUiThread(() -> showUpdateDialog(activity, info));
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                if (force) activity.runOnUiThread(() ->
+                        Toast.makeText(activity, "Не удалось проверить обновления. Проверьте интернет и повторите.", Toast.LENGTH_LONG).show());
             } finally {
                 CHECKING.set(false);
             }
@@ -126,15 +137,13 @@ public final class UpdateManager {
     }
 
     private static UpdateInfo fetchInfo() throws Exception {
-        HttpURLConnection c = open(META_URL);
         String text;
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
-            StringBuilder out = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) out.append(line);
-            text = out.toString();
-        } finally {
-            c.disconnect();
+        try {
+            text = readText(META_URL);
+        } catch (Exception primary) {
+            // A separate GitHub endpoint avoids a stale or unreachable raw CDN.
+            JSONObject wrapper = new JSONObject(readText(META_API_URL));
+            text = new String(Base64.decode(wrapper.getString("content"), Base64.DEFAULT), StandardCharsets.UTF_8);
         }
 
         JSONObject o = new JSONObject(text);
@@ -152,6 +161,18 @@ public final class UpdateManager {
         i.notes = o.optString("notes", "");
         if (i.versionCode <= 0 || i.apkBase64Parts.isEmpty() || i.sha256.length() != 64) return null;
         return i;
+    }
+
+    private static String readText(String url) throws Exception {
+        HttpURLConnection c = open(url);
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
+            StringBuilder out = new StringBuilder();
+            String line;
+            while ((line = br.readLine()) != null) out.append(line);
+            return out.toString();
+        } finally {
+            c.disconnect();
+        }
     }
 
     private static void showUpdateDialog(Activity activity, UpdateInfo info) {
