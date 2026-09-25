@@ -69,9 +69,9 @@ export class AutoNews {
     const now = Date.now();
     const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
     const count = this.ctx.storage.sql.exec('SELECT COUNT(*) AS total FROM articles WHERE day = ?', day).one().total;
-    const lastTry = (await this.ctx.storage.get('lastTry')) || 0;
+    const lastTry = (await this.ctx.storage.get('lastTryAutoV2')) || 0;
     if (count < 2 && now - lastTry >= 15 * 60_000) {
-      await this.ctx.storage.put('lastTry', now);
+      await this.ctx.storage.put('lastTryAutoV2', now);
       try {
         const response = await globalThis.fetch('https://wildcar.org/news/rss.xml', { signal: AbortSignal.timeout(10000), headers: { 'Accept': 'application/rss+xml, application/xml' } });
         if (!response.ok) throw new Error('RSS unavailable');
