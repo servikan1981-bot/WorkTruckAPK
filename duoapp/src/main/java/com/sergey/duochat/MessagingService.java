@@ -46,6 +46,7 @@ public class MessagingService extends Service {
     private volatile HttpURLConnection activePresenceConnection;
     private Thread worker;
     private Thread newsWorker;
+    private Thread familyNewsWorker;
     private Thread presenceSenderWorker;
     private Thread presenceListenerWorker;
     private Thread updateWorker;
@@ -59,6 +60,7 @@ public class MessagingService extends Service {
         running = true;
         startWorker();
         startNewsWorker();
+        startFamilyNewsWorker();
         startPresenceSender();
         startPresenceListener();
         startUpdateWorker();
@@ -76,6 +78,7 @@ public class MessagingService extends Service {
         }
         if (worker == null || !worker.isAlive()) startWorker();
         if (newsWorker == null || !newsWorker.isAlive()) startNewsWorker();
+        if (familyNewsWorker == null || !familyNewsWorker.isAlive()) startFamilyNewsWorker();
         if (presenceSenderWorker == null || !presenceSenderWorker.isAlive()) startPresenceSender();
         if (presenceListenerWorker == null || !presenceListenerWorker.isAlive()) startPresenceListener();
         if (updateWorker == null || !updateWorker.isAlive()) startUpdateWorker();
@@ -193,10 +196,21 @@ public class MessagingService extends Service {
         newsWorker = new Thread(() -> {
             while (running) {
                 try { PositiveNewsFetcher.checkAndStore(MessagingService.this); } catch (Exception ignored) {}
-                sleep(30L * 60L * 1000L);
+                sleep(5L * 60L * 1000L);
             }
         }, "OurFamilyPositiveNews");
         newsWorker.start();
+    }
+
+    private void startFamilyNewsWorker() {
+        if (familyNewsWorker != null && familyNewsWorker.isAlive()) return;
+        familyNewsWorker = new Thread(() -> {
+            while (running) {
+                FamilyNewsStore.sync(MessagingService.this);
+                sleep(25_000L);
+            }
+        }, "OurFamilySharedNews");
+        familyNewsWorker.start();
     }
 
     private void listenLoop() {

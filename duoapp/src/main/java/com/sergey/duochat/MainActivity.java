@@ -527,6 +527,24 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String loadFamilyNews() {
+            return FamilyNewsStore.load(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public String publishFamilyNews(String id, String ciphertext) {
+            return FamilyNewsStore.publish(MainActivity.this, id, ciphertext);
+        }
+
+        @JavascriptInterface
+        public void refreshFamilyNews() {
+            new Thread(() -> {
+                FamilyNewsStore.sync(MainActivity.this);
+                PositiveNewsFetcher.checkAndStore(MainActivity.this);
+            }, "OurFamilyNewsRefresh").start();
+        }
+
+        @JavascriptInterface
         public void checkForUpdates() {
             runOnUiThread(() -> UpdateManager.checkAsync(MainActivity.this, true));
         }
