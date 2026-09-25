@@ -10,6 +10,6 @@
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v611test_05.b64",
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v611test_06.b64"
   ],
-  "sha256": "03198536fc700893c6b9bc8990f0c931d635aba48d48eb6fc77a5b45b7882180",
-  "notes": "Candidate for emulator tests only"
+  "sha256": "6cc3edbfbd90bd57e6c65ce46e67c33746b285f23885c73745af8a6b6d877bc4",
+  "notes": "Candidate: restored startup, faster messages and calls, visible update errors."
 }
