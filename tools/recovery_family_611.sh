@@ -40,4 +40,9 @@ PY
 adb shell uiautomator dump /sdcard/family-611.xml >/dev/null
 adb exec-out cat /sdcard/family-611.xml > /tmp/family-611.xml
 grep -q 'Света' /tmp/family-611.xml
+adb shell am force-stop "$pkg"
+adb shell am start -W -n "$pkg/$act"
+sleep 5
+test -n "$(adb shell pidof "$pkg")"
+if adb logcat -d -b crash | grep -A 4 'FATAL EXCEPTION' | grep -q "Process: $pkg"; then adb logcat -d -b crash > /tmp/family-611-crash.log; cat /tmp/family-611-crash.log; exit 1; fi
 echo 'PASS: Android 6.0.11 upgraded over 6.10 and restored existing profile'
