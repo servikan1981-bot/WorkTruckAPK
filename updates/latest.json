@@ -1,15 +1,15 @@
 {
-  "versionCode": 6008,
-  "versionName": "6.0.8",
+  "versionCode": 6009,
+  "versionName": "6.0.9",
   "apkBase64Parts": [
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v608_00.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v608_01.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v608_02.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v608_03.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v608_04.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v608_05.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v608_06.b64"
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v609_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v609_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v609_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v609_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v609_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v609_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v609_06.b64"
   ],
-  "sha256": "6a9b2a446a1aad61e842c73824a1ae5d40e78e1f3831cf6f1c1a313649836cc8",
-  "notes": "Диагностика ошибок отправки, смена сервера без потери истории и онлайн-статус на собственном сервере."
+  "sha256": "1c24be9c22fd31f8ba572f4497b6e6398be3f8775fb799e2cd8a870a66fae7d4",
+  "notes": "Исправлена отправка сообщений: бесплатный семейный сервер подключается автоматически. Онлайн-статусы показывают запущенное приложение. По умолчанию тема «Океан» и видео «Окно в окне»."
 }
