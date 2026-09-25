@@ -176,7 +176,7 @@ jobs:
           test -f "$APK"
           test -s "$APK"
           unzip -t "$APK" >/dev/null
-          unzip -p "$APK" assets/index.html | grep -q "Наша семья 6.0.10"
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья · v6.0.10"
           sha256sum "$APK"
           ls -lh "$APK"
 
