@@ -73,5 +73,8 @@ test('all family devices read identical encrypted family and automatic news', as
   assert.equal(first.status, 200); assert.equal(second.status, 200);
   const a = await first.json(), b = await second.json();
   assert.deepEqual(a, b);
-  assert.ok(Array.isArray(a) && a.length >= 2 && a.length <= 20, 'shared source must supply the daily two stories');
+  if (!Array.isArray(a) || a.length < 2 || a.length > 20) {
+    const diagnostic = await (await fetch(relay + '/news/auto-status')).text();
+    assert.fail('shared source must supply the daily two stories; status=' + diagnostic);
+  }
 });
