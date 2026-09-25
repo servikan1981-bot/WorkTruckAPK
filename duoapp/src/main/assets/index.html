@@ -1256,7 +1256,7 @@ async function prepareLocalMedia(kind){
      var pc=callPeers[peer].pc;
      stream.getTracks().forEach(function(track){
        var already=pc.getSenders().some(function(sender){return sender.track&&sender.track.id===track.id;});
-       if(!already)pc.addTrack(track,stream);
+       if(!already)try{pc.addTrack(track,stream);}catch(e){}
      });
    });
    ensureVideoTile(role,localStream,true,kind);
@@ -1346,7 +1346,7 @@ function callSignalKind(base){return activeCall&&activeCall.type==='group'?'grou
 function createPeer(peer){
  if(callPeers[peer])return callPeers[peer];
  var pc=new RTCPeerConnection({iceServers:iceServers(),iceCandidatePoolSize:8,bundlePolicy:'max-bundle',iceTransportPolicy:'all'});
- var ps={pc:pc,pending:[],restart:0,connectTimer:null};callPeers[peer]=ps;
+ var ps={pc:pc,pending:[],restart:0,connectTimer:null,failureTimer:null};callPeers[peer]=ps;
  if(localStream)localStream.getTracks().forEach(function(t){pc.addTrack(t,localStream);});
  pc.onicecandidate=function(ev){
    if(!ev.candidate||!activeCall)return;
@@ -1363,9 +1363,13 @@ function createPeer(peer){
    if(!activeCall||!callPeers[peer]||pc.connectionState==='connected'||pc.connectionState==='closed')return;
    if(ps.restart<1&&shouldOffer(peer)){ps.restart++;restartPeer(peer);}
  },10000);
+ ps.failureTimer=setTimeout(function(){
+   if(activeCall&&callPeers[peer]&&pc.connectionState!=='connected')$('callState').textContent='Нет соединения. Проверьте сеть.';
+ },25000);
  pc.onconnectionstatechange=function(){
    if(pc.connectionState==='connected'){
      if(ps.connectTimer){clearTimeout(ps.connectTimer);ps.connectTimer=null;}
+     if(ps.failureTimer){clearTimeout(ps.failureTimer);ps.failureTimer=null;}
      ps.restart=0;updateCallState();
    }else if(pc.connectionState==='failed'){
      if(ps.restart<1&&shouldOffer(peer)){ps.restart++;restartPeer(peer);}
@@ -1410,7 +1414,7 @@ async function flushCandidates(peer){
  for(var i=0;i<q.length;i++)try{await ps.pc.addIceCandidate(q[i]);}catch(e){}
 }
 function removePeer(peer){
- var ps=callPeers[peer];if(ps){if(ps.connectTimer)clearTimeout(ps.connectTimer);try{ps.pc.close();}catch(e){}delete callPeers[peer];}
+ var ps=callPeers[peer];if(ps){if(ps.connectTimer)clearTimeout(ps.connectTimer);if(ps.failureTimer)clearTimeout(ps.failureTimer);try{ps.pc.close();}catch(e){}delete callPeers[peer];}
  delete remoteStreams[peer];
  var tile=$('tile-'+peer);if(tile)tile.remove();
 }
