@@ -1,4 +1,4 @@
-name: Build Our Family 6.0.10 Candidate
+name: Build Our Family 6.0.11 Stable
 
 on:
   workflow_dispatch:
@@ -32,9 +32,9 @@ jobs:
       - name: Validate stable identity
         run: |
           grep -q "applicationId 'com.sergey.ourfamily'" duoapp/build.gradle
-          grep -q "versionCode 6010" duoapp/build.gradle
-          grep -q "versionName '6.0.10'" duoapp/build.gradle
-          grep -q 'android:label="Наша семья 6.0.10"' duoapp/src/main/AndroidManifest.xml
+          grep -q "versionCode 6011" duoapp/build.gradle
+          grep -q "versionName '6.0.11'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.11"' duoapp/src/main/AndroidManifest.xml
           grep -q 'REQUEST_INSTALL_PACKAGES' duoapp/src/main/AndroidManifest.xml
           grep -q 'UpdateFileProvider' duoapp/src/main/AndroidManifest.xml
 
@@ -47,7 +47,7 @@ jobs:
           blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
           assert blocks
           Path('/tmp/family6.js').write_text('\n'.join(blocks))
-          assert "APP_VERSION='6.0.10'" in h
+          assert "APP_VERSION='6.0.11'" in h
           PY
           node --check /tmp/family6.js
           H=duoapp/src/main/assets/index.html
@@ -122,7 +122,7 @@ jobs:
           R=duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
           A=duoapp/src/main/java/com/sergey/duochat/NativeAttachmentTransport.java
           if grep -q "fetch(" "$H"; then
-            echo "WebView network fetch must not remain in stable 6.0.10"
+            echo "WebView network fetch must not remain in stable 6.0.11"
             exit 1
           fi
           grep -q "AndroidBridge.sendRelay" "$H"
@@ -134,6 +134,23 @@ jobs:
           grep -q "downloadBase64" "$A"
           grep -q '"ntfy.sh".equalsIgnoreCase(uri.getHost())' "$S"
           grep -q "presenceListenLoop" "$S"
+
+      - name: Validate low-latency relay client and call setup
+        run: |
+          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          H=duoapp/src/main/assets/index.html
+          grep -q 'after=" + cursor + "&wait=25' "$S"
+          grep -q 'setReadTimeout(32000)' "$S"
+          grep -q 'sleep(80L)' "$S"
+          if grep -q 'workers.dev") ? 20_000L\|workers.dev") ? 30_000L' "$S"; then
+            echo "Old 20/30 second workers.dev polling delays remain"
+            exit 1
+          fi
+          grep -q "iceCandidatePoolSize:8" "$H"
+          grep -q "connectTimer=setTimeout" "$H"
+          grep -q "10000" "$H"
+          grep -q "var mediaPromise=prepareLocalMedia(inv.kind)" "$H"
+          grep -q "await publishEnvelope(inv.from,'direct_accept'" "$H"
 
       - name: Validate update system
         run: |
@@ -176,13 +193,13 @@ jobs:
           test -f "$APK"
           test -s "$APK"
           unzip -t "$APK" >/dev/null
-          unzip -p "$APK" assets/index.html | grep -q "Наша семья · v6.0.10"
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья · v6.0.11"
           sha256sum "$APK"
           ls -lh "$APK"
 
       - name: Upload unsigned release
         uses: actions/upload-artifact@v4
         with:
-          name: OurFamily_6_0_10_unsigned
+          name: OurFamily_6_0_11_unsigned
           path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
           if-no-files-found: error
