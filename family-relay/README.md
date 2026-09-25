@@ -5,7 +5,7 @@ Cloudflare Workers Free and SQLite-backed Durable Objects. The relay accepts the
 ## Deploy
 
 1. Log into a Cloudflare account with Workers Free enabled. Create an account-scoped token using the **Edit Cloudflare Workers** permission, restricted to this account.
-2. In the `servikan1981-bot/WorkTruckAPK` GitHub repository settings, add repository Actions secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Never place the token in a commit or chat.
+2. In the `servikan1981-bot/WorkTruckAPK` GitHub repository settings, add the repository Actions secret `CLOUDFLARE_API_TOKEN`. The account ID is already set in the deployment workflow. Never place the token in a commit or chat.
 3. Run the **Deploy free Our Family relay** workflow on the `family-stable-6` branch, or push a change to this directory. The job tests the deployed `/health` route and prints its HTTPS `workers.dev` URL.
 4. On **each phone**, open “Сервер сообщений”, enter that same URL, and press “Проверить и сохранить”.
 
