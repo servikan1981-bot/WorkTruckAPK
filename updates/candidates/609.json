@@ -10,6 +10,6 @@
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v609_05.b64",
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v609_06.b64"
   ],
-  "sha256": "65148790af7c4022e3f22e96301081ceb0f777cb5e0a66edb9d2e6a5dd7cd7d1",
-  "notes": "Кандидат: точные статусы на бесплатном сервере, тема «Океан» и видео «Окно в окне» по умолчанию."
+  "sha256": "1c24be9c22fd31f8ba572f4497b6e6398be3f8775fb799e2cd8a870a66fae7d4",
+  "notes": "Исправлена отправка сообщений: бесплатный семейный сервер подключается автоматически. Онлайн-статусы показывают запущенное приложение. По умолчанию тема «Океан» и видео «Окно в окне»."
 }
