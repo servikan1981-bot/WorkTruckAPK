@@ -24,7 +24,7 @@ jobs:
           python3 - <<'PY'
           import json,uuid,urllib.request,urllib.error
           body=json.dumps({'topic':'of5-'+uuid.uuid4().hex,'message':'of5probe|'+uuid.uuid4().hex}).encode()
-          req=urllib.request.Request('https://our-family-relay.family-860c7981b2d4.workers.dev/',data=body,headers={'Content-Type':'application/json'})
+          req=urllib.request.Request('https://our-family-relay.family-860c7981b2d4.workers.dev/',data=body,headers={'Content-Type':'application/json','User-Agent':'OurFamily/6.0.18 Android'})
           try:urllib.request.urlopen(req,timeout=10).close()
           except urllib.error.HTTPError as e:print('Probe HTTP',e.code)
           PY
