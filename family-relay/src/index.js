@@ -344,7 +344,7 @@ export default {
       });
       if (Number(query.get('wait')) > 0 && typeof WebSocketPair === 'function') {
         const subscription = await mailbox.fetch(new Request(`https://internal/subscribe?${query.toString()}`, {
-          headers: { 'X-Topic': topic }
+          headers: { 'X-Topic': topic, 'Upgrade': 'websocket' }
         }));
         if (subscription.status !== 101) return subscription;
         const socket = subscription.webSocket;
@@ -369,6 +369,7 @@ export default {
         headers: { 'X-Topic': topic }
       }));
     } catch (error) {
+      console.error('relay route error', String(error?.stack || error));
       return json({ error: 'relay unavailable' }, 503);
     }
   }
