@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.16</title>
+<title>Наша семья 6.0.17</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -18,6 +18,7 @@ h1{font-size:27px;margin:0 0 7px}.sub{color:var(--muted);line-height:1.4;margin:
 .body{flex:1;overflow:auto;padding:13px}.section-title{font-size:13px;color:var(--muted);font-weight:850;text-transform:uppercase;letter-spacing:.04em;margin:13px 3px 8px}
 #home,#chat,#picker,#news,#adminArchive,#adminChat{display:flex;flex-direction:column}
 #checkers{display:flex;flex-direction:column}.game-entry{width:100%;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);padding:11px;font-weight:850;margin:0 0 10px;text-align:left}.game-invite{padding:11px;background:var(--card);border-top:1px solid var(--line);color:var(--ink);font-weight:850}.checkers-body{flex:1;overflow:auto;padding:15px 12px;text-align:center}.checkers-board{width:min(100%,460px);aspect-ratio:1;margin:14px auto;background:#573d0e;padding:8px;display:grid;grid-template-columns:repeat(8,1fr);box-shadow:0 10px 22px rgba(36,25,11,.22);border:2px solid #332609}.checkers-cell{border:0;border-radius:0;min-width:0;min-height:0;display:grid;place-items:center;padding:2px;background:#d9ba99}.checkers-cell.dark{background:#805f4b}.checkers-cell.selected{outline:3px solid #ffcb38;outline-offset:-3px}.checkers-cell.legal{box-shadow:inset 0 0 0 4px rgba(255,205,56,.75)}.checkers-cell.last{box-shadow:inset 0 0 0 3px rgba(47,111,237,.55)}.checkers-piece{width:79%;aspect-ratio:1;border-radius:50%;box-shadow:inset 0 3px 4px rgba(255,255,255,.45),inset 0 -5px 5px rgba(0,0,0,.26),0 3px 3px rgba(0,0,0,.3);display:grid;place-items:center;font-size:22px;font-weight:900}.checkers-piece.white{background:repeating-radial-gradient(circle,#fafafa 0 3px,#e3e3e3 4px 6px);color:#605449;border:2px solid #fff}.checkers-piece.black{background:repeating-radial-gradient(circle,#383838 0 3px,#292929 4px 6px);color:#fff;border:2px solid #222}.checkers-actions{display:flex;gap:9px;max-width:460px;margin:15px auto}.checkers-actions button{flex:1}.game-request{position:fixed;left:14px;right:14px;bottom:max(18px,env(safe-area-inset-bottom));z-index:90;background:var(--card);color:var(--ink);border-radius:20px;padding:17px;box-shadow:var(--shadow)}.game-request strong{display:block;font-size:18px;margin-bottom:12px}
+.checkers-board{grid-template-rows:repeat(8,minmax(0,1fr));touch-action:none}.checkers-cell{width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none}.checkers-piece{pointer-events:none}.checkers-drag{position:fixed;z-index:95;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 9px 18px rgba(0,0,0,.4),inset 0 3px 4px rgba(255,255,255,.4)}
 .actionbar{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}.action{border:0;border-radius:16px;padding:13px;font-weight:850}.action.blue{background:#e9f0ff;color:#245aca}.action.green{background:#e5f7ef;color:#0c8252}
 .thread{width:100%;border:0;background:#fff;border-radius:18px;padding:11px;margin-bottom:8px;display:flex;align-items:center;gap:11px;text-align:left;box-shadow:0 3px 10px rgba(30,45,70,.05)}.tavatar{width:48px;height:48px;border-radius:50%;background:#edf3ff;color:#2f6fed;display:grid;place-items:center;font-weight:900;flex:none}.tbody{flex:1;min-width:0}.tname{font-weight:850}.preview{font-size:12px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.badge{min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--blue);color:white;font-size:11px;font-weight:900;display:grid;place-items:center}
 .permission{background:#fff4d8;border:1px solid #efd487;border-radius:15px;padding:12px;font-size:13px;line-height:1.4;margin-bottom:10px}.permission button{border:0;border-radius:11px;background:#172033;color:white;padding:8px 11px;font-weight:800;margin-top:8px}
@@ -105,7 +106,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v6.0.16</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.17</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
     <button id="menuBtn" class="iconbtn">⋮</button>
   </div>
   <div class="body">
@@ -312,8 +313,8 @@ var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteS
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.16',reactionTargetId='',pendingMessageNavigation=null;
-var games={},activeGameId='',pendingGameAcceptId='',gameSending=false;
+var APP_VERSION='6.0.17',reactionTargetId='',pendingMessageNavigation=null;
+var games={},activeGameId='',pendingGameAcceptId='',gameSending=false,checkersDrag=null,suppressCheckersClick=0;
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'ocean',videoLayout:'pip'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
@@ -951,23 +952,61 @@ function renderCheckers(){
   g.status==='declined'?'Приглашение отклонено':g.status==='ended'?(s.winner===own?'Вы победили':'Партия завершена'):
   s.winner?(s.winner===own?'Вы победили':'Победил '+NAMES[gamePeer(g)]):s.turn===own?'Ваш ход':'Ход '+NAMES[gamePeer(g)];
  $('checkersStatus').textContent=status;
- $('checkersHint').textContent=g.status==='active'&&!s.winner&&s.turn===own?(s.forced!=null?'Продолжайте взятие':'Нажмите шашку, затем выделенную клетку'):'Партия сохранена на обоих телефонах';
+ $('checkersHint').textContent=gameSending?'Отправляю ход…':g.status==='active'&&!s.winner&&s.turn===own?(s.forced!=null?'Продолжайте взятие':'Перетащите шашку на доступную клетку'):'Партия сохранена на обоих телефонах';
  $('checkersResignBtn').classList.toggle('hidden',g.status!=='active'||!!s.winner);
  var box=$('checkersBoard');box.innerHTML='';
  var legal=g.status==='active'&&s.turn===own?CheckersRules.moves(s.board,own,s.forced):[];
  var selected=legal.filter(function(m){return m.from===g.selected;});
  var reverse=own==='w';
  for(var i=0;i<64;i++){
-  var pos=reverse?63-i:i,row=Math.floor(pos/8),col=pos%8,p=s.board[pos],cell=document.createElement('button');
+  var pos=reverse?63-i:i,row=Math.floor(pos/8),col=pos%8,p=s.board[pos],cell=document.createElement('button');cell.type='button';cell.dataset.pos=String(pos);
   cell.className='checkers-cell'+((row+col)%2===0?' dark':'');
   if(g.selected===pos)cell.classList.add('selected');
   if(selected.some(function(m){return m.to===pos;}))cell.classList.add('legal');
   if(s.last&&(s.last.from===pos||s.last.to===pos))cell.classList.add('last');
   cell.setAttribute('aria-label','Клетка '+(col+1)+', '+(row+1)+(p?' шашка '+(p.toLowerCase()==='b'?'чёрная':'белая'):''));
   if(p){var piece=document.createElement('span');piece.className='checkers-piece '+(p.toLowerCase()==='w'?'white':'black');if(p!==p.toLowerCase())piece.textContent='♛';cell.appendChild(piece);}
-  (function(n){cell.addEventListener('click',function(){checkersCell(n);});})(pos);box.appendChild(cell);
+  (function(n){cell.addEventListener('click',function(){if(Date.now()<suppressCheckersClick)return;checkersCell(n);});})(pos);box.appendChild(cell);
  }
 }
+function endCheckersDrag(){
+ if(!checkersDrag)return;
+ if(checkersDrag.ghost)checkersDrag.ghost.remove();
+ checkersDrag=null;
+}
+function checkersPointerDown(e){
+ if(e.button!==0&&e.pointerType==='mouse')return;
+ var cell=e.target.closest('.checkers-cell'),g=games[activeGameId];
+ if(!cell||!g||g.status!=='active'||g.state.winner||gameSending||g.state.turn!==gameSide(g))return;
+ var from=Number(cell.dataset.pos),legal=CheckersRules.moves(g.state.board,gameSide(g),g.state.forced);
+ if(!legal.some(function(m){return m.from===from;}))return;
+ e.preventDefault();cell.setPointerCapture(e.pointerId);
+ g.selected=from;
+ var piece=cell.querySelector('.checkers-piece');
+ checkersDrag={pointerId:e.pointerId,from:from,startX:e.clientX,startY:e.clientY,legal:legal.filter(function(m){return m.from===from;}),piece:piece,ghost:null,moved:false};
+ cell.classList.add('selected');
+ Array.from($('checkersBoard').children).forEach(function(c){c.classList.toggle('legal',checkersDrag.legal.some(function(m){return m.to===Number(c.dataset.pos);}));});
+}
+function checkersPointerMove(e){
+ var d=checkersDrag;if(!d||e.pointerId!==d.pointerId)return;
+ if(!d.moved&&Math.hypot(e.clientX-d.startX,e.clientY-d.startY)<7)return;
+ if(!d.moved){
+  d.moved=true;d.ghost=d.piece.cloneNode(true);d.ghost.classList.add('checkers-drag');
+  var rect=d.piece.getBoundingClientRect();d.ghost.style.width=rect.width+'px';d.ghost.style.height=rect.height+'px';
+  document.body.appendChild(d.ghost);d.piece.style.opacity='.25';
+ }
+ d.ghost.style.left=e.clientX+'px';d.ghost.style.top=e.clientY+'px';
+}
+function checkersPointerUp(e){
+ var d=checkersDrag;if(!d||e.pointerId!==d.pointerId)return;
+ e.preventDefault();suppressCheckersClick=Date.now()+450;
+ var target=document.elementFromPoint(e.clientX,e.clientY),cell=target&&target.closest('.checkers-cell');
+ var to=cell?Number(cell.dataset.pos):-1,valid=d.moved&&d.legal.some(function(m){return m.to===to;});
+ var from=d.from,g=games[activeGameId];endCheckersDrag();
+ if(valid&&g){sendCheckersMove(g,from,to);return;}
+ if(g)renderCheckers();
+}
+function checkersPointerCancel(e){if(checkersDrag&&e.pointerId===checkersDrag.pointerId){endCheckersDrag();renderCheckers();}}
 function checkersCell(pos){
  var g=games[activeGameId];if(!g||g.status!=='active'||g.state.winner||gameSending)return;
  var side=gameSide(g),s=g.state;if(s.turn!==side)return;
@@ -998,12 +1037,12 @@ async function declineCheckers(id){
 }
 async function sendCheckersMove(g,from,to){
  var next=CheckersRules.play(g.state,from,to);if(!next)return;
- gameSending=true;
+ var previous=g.state,previousStatus=g.status;gameSending=true;
+ g.state=next;if(next.winner)g.status='ended';g.selected=next.forced;g.updated=Date.now();saveGames();renderCheckers();renderHome();
  try{
   await publishEnvelope(gamePeer(g),'game_move',{gameId:g.id,seq:next.seq,from:from,to:to},4,'game_move',g.id);
-  g.state=next;if(next.winner)g.status='ended';g.selected=next.forced;g.updated=Date.now();saveGames();renderCheckers();renderHome();
- }catch(e){toast(relayErrorText(e&&e.message||e));}
- finally{gameSending=false;}
+ }catch(e){g.state=previous;g.status=previousStatus;g.selected=from;saveGames();toast('Ход не отправлен. '+relayErrorText(e&&e.message||e));}
+ finally{gameSending=false;renderCheckers();renderHome();}
 }
 async function resignCheckers(){
  var g=games[activeGameId];if(!g||g.status!=='active'||g.state.winner||!confirm('Сдаться в этой партии?'))return;
@@ -1073,14 +1112,14 @@ async function pickerVideo(){
  else startGroupCall(sortedMembers([role].concat(sel)),'video');
 }
 
-async function publishEnvelope(toRole,kind,data,priority,wireKind,callId){
+async function publishEnvelope(toRole,kind,data,priority,wireKind,callId,nonBlocking){
  var recipientTag=await roleTag(toRole),topic=await inboxTopic(toRole);
  var payload={v:5,id:randomId(),kind:kind,from:role,to:toRole,ts:Date.now(),data:data||{}};
  var enc=await encryptFor(toRole,payload),size=1700,total=Math.ceil(enc.length/size),group=randomId(),wk=wireKind||kind,cid=callId||'-';
  for(var i=0;i<total;i++){
    var wire='of5|'+ownTag+'|'+recipientTag+'|'+wk+'|'+cid+'|'+group+'|'+i+'|'+total+'|'+enc.slice(i*size,(i+1)*size);
    var result='';
-   try{result=String(AndroidBridge.sendRelay(topic,wire,priority||3)||'');}catch(e){result='ERR:bridge';}
+   try{result=String((nonBlocking?AndroidBridge.queueRelay(topic,wire,priority||3):AndroidBridge.sendRelay(topic,wire,priority||3))||'');}catch(e){result='ERR:bridge';}
    if(result!=='OK')throw new Error(result||'ERR:relay');
  }
  return payload;
@@ -1208,21 +1247,18 @@ async function processPayload(p){
    try{
      await prepareLocalMedia(activeCall.kind);
      var existing=callPeers[peer];
-     if(existing&&existing.pc.signalingState==='have-local-offer'){
-       if(!existing.offerResent){
-         existing.offerResent=true;
-         await publishEnvelope(peer,'direct_offer',{callId:activeCall.id,sdp:existing.pc.localDescription},5,'direct_offer',activeCall.id);
-       }
-     }else if(!existing)await makeOffer(peer,false);
+     if(!existing)await makeOffer(peer,false);
    }catch(e){toast('Не удалось подготовить камеру');endCall(true);}
    return;
  }
  if(p.kind==='direct_offer'){
+   markCall('offer_received');
    if(activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId){await answerOffer(peer,d.sdp,false);}
    else if(!activeCall&&d.callId&&d.sdp)pendingEarlyOffers[d.callId]={peer:peer,sdp:d.sdp};
    return;
  }
  if(p.kind==='direct_answer'&&activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId){
+   markCall('answer_received');
    activeCall.accepted=true;stopRingback();await applyAnswer(peer,d.sdp);return;
  }
  if(p.kind==='direct_candidate'){
@@ -1409,6 +1445,7 @@ async function prepareLocalMedia(kind){
    video:kind==='video'?{facingMode:{ideal:currentFacing},width:{ideal:640},height:{ideal:480}}:false
  }).then(function(stream){
    localStream=stream;
+   markCall('media_ready');
    // An ICE candidate may have created the peer before camera permission finished.
    Object.keys(callPeers).forEach(function(peer){
      var pc=callPeers[peer].pc;
@@ -1506,7 +1543,7 @@ function callSignalKind(base){return activeCall&&activeCall.type==='group'?'grou
 function createPeer(peer){
  if(callPeers[peer])return callPeers[peer];
  var pc=new RTCPeerConnection({iceServers:iceServers(),iceCandidatePoolSize:8,bundlePolicy:'max-bundle',iceTransportPolicy:'all'});
- var ps={pc:pc,pending:[],restart:0,connectTimer:null,failureTimer:null,sdpPublishing:false,candidateQueue:[],candidateSending:false,answering:false,offerResent:false};callPeers[peer]=ps;
+ var ps={pc:pc,pending:[],restart:0,connectTimer:null,failureTimer:null,sdpPublishing:false,candidateQueue:[],candidateSending:false,answering:false};callPeers[peer]=ps;
  if(localStream)localStream.getTracks().forEach(function(t){pc.addTrack(t,localStream);});
  pc.onicecandidate=function(ev){
    if(!ev.candidate||!activeCall)return;
@@ -1547,7 +1584,7 @@ async function drainCandidateQueue(peer,ps){
  try{
    while(ps.candidateQueue.length&&activeCall&&callPeers[peer]===ps){
      var candidate=ps.candidateQueue.shift(),k=callSignalKind('candidate');
-     try{await publishEnvelope(peer,k,{callId:activeCall.id,candidate:candidate},4,k,activeCall.id);}catch(e){}
+     try{await publishEnvelope(peer,k,{callId:activeCall.id,candidate:candidate},4,k,activeCall.id,true);}catch(e){}
    }
  }finally{ps.candidateSending=false;}
 }
@@ -1881,6 +1918,10 @@ $('resumeCheckersBtn').addEventListener('click',function(){var running=Object.va
 $('inviteCheckersBtn').addEventListener('click',inviteCheckers);
 $('checkersBackBtn').addEventListener('click',function(){activeGameId='';if(currentThread){showScreen('chat');renderMessages();}else{showScreen('home');renderHome();}});
 $('checkersResignBtn').addEventListener('click',resignCheckers);
+$('checkersBoard').addEventListener('pointerdown',checkersPointerDown);
+$('checkersBoard').addEventListener('pointermove',checkersPointerMove);
+$('checkersBoard').addEventListener('pointerup',checkersPointerUp);
+$('checkersBoard').addEventListener('pointercancel',checkersPointerCancel);
 $('checkersAcceptBtn').addEventListener('click',function(){acceptCheckers(pendingGameAcceptId);});
 $('checkersDeclineBtn').addEventListener('click',function(){declineCheckers(pendingGameAcceptId);});
 $('newsBackBtn').addEventListener('click',function(){showScreen('home');renderHome();});

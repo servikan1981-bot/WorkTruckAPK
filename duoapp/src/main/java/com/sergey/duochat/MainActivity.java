@@ -28,8 +28,18 @@ import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends Activity {
+    private static final ThreadPoolExecutor SIGNAL_POSTER = new ThreadPoolExecutor(
+            2, 2, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(128), r -> {
+                Thread t = new Thread(r, "OurFamilyIceSignal");
+                t.setDaemon(true);
+                return t;
+            });
     private WebView webView;
     private static final int PERMISSION_REQUEST = 2001;
     private static final int FILE_CHOOSER_REQUEST = 2002;
@@ -399,7 +409,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void logCallMetric(String phase) {
-            if (phase != null && phase.matches("invite_start|accepted|offer_sent|answer_sent|video_track|connected|remote_frame")) {
+            if (phase != null && phase.matches("invite_start|accepted|media_ready|offer_sent|offer_received|answer_sent|answer_received|video_track|connected|remote_frame")) {
                 android.util.Log.i("OurFamilyCall", phase + " " + System.currentTimeMillis());
             }
         }
@@ -407,6 +417,19 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public String sendRelay(String topic, String message, int priority) {
             return NativeRelayTransport.postBlocking(MainActivity.this, topic, message, priority);
+        }
+
+        @JavascriptInterface
+        public String queueRelay(String topic, String message, int priority) {
+            if (topic == null || !topic.matches("[a-zA-Z0-9_-]{12,100}") ||
+                    message == null || message.isEmpty() || message.length() > 8000) return "ERR:message";
+            try {
+                android.content.Context app = getApplicationContext();
+                SIGNAL_POSTER.execute(() -> NativeRelayTransport.post(app, topic, message, priority));
+                return "OK";
+            } catch (RejectedExecutionException e) {
+                return "ERR:signal_queue_full";
+            }
         }
 
         @JavascriptInterface
@@ -591,7 +614,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "6.0.16";
+            return "6.0.17";
         }
     }
 
