@@ -29,7 +29,11 @@ adb shell am start -W -n "$pkg/$act"
 sleep 8
 adb logcat -d -b crash > /tmp/family-615-crash.log
 if adb logcat -d -b crash | grep -A 4 'FATAL EXCEPTION' | grep -q "Process: $pkg"; then cat /tmp/family-615-crash.log; exit 1; fi
-adb shell pidof "$pkg"
+for attempt in $(seq 1 10); do
+  if [ -n "$(adb shell pidof "$pkg")" ]; then break; fi
+  sleep 2
+done
+test -n "$(adb shell pidof "$pkg")"
 python3 - <<'PY'
 import sys
 sys.path.insert(0,'tools')
@@ -49,6 +53,12 @@ if [ "${FAMILY_API_LEVEL:-0}" -ge 34 ]; then
   adb shell appops set "$pkg" USE_FULL_SCREEN_INTENT allow
   adb shell am force-stop "$pkg"
   adb shell am start -W -n "$pkg/$act"
+  python3 - <<'PY'
+import sys
+sys.path.insert(0,'tools')
+from e2e_family_610 import tap
+tap('ПОЗЖЕ', optional=True)
+PY
 fi
 for attempt in $(seq 1 18); do
   adb shell uiautomator dump /sdcard/family-615.xml >/dev/null
