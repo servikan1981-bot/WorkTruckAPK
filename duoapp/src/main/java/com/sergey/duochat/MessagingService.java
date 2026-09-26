@@ -386,6 +386,7 @@ public class MessagingService extends Service {
                 String callSeenKey = "v5_call_notified_" + callId;
                 if (prefs.getBoolean(callSeenKey, false)) return;
                 prefs.edit().putBoolean(callSeenKey, true).apply();
+                android.util.Log.i("OurFamilyCall", "invite_received " + System.currentTimeMillis());
 
                 boolean group = kind.startsWith("group_");
                 boolean audio = kind.contains("audio");
