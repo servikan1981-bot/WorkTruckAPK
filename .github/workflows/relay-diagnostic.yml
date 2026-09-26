@@ -1,0 +1,28 @@
+name: Diagnose family relay writes
+on:
+  push:
+    branches: [family-stable-6]
+    paths: ['.github/workflows/relay-diagnostic.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe disposable inbox and presence
+        run: |
+          python3 - <<'PY'
+          import json,uuid,urllib.request,urllib.error
+          base='https://our-family-relay.family-860c7981b2d4.workers.dev'
+          for kind in ('health','inbox','presence'):
+              topic=('of5p-' if kind=='presence' else 'of5-')+uuid.uuid4().hex
+              if kind=='health':url=base+'/health';body=None
+              else:url=base+'/';body=json.dumps({'topic':topic,'message':'of5probe|'+uuid.uuid4().hex}).encode()
+              req=urllib.request.Request(url,data=body,headers={'Content-Type':'application/json','User-Agent':'OurFamily/6.0.18 Android'})
+              try:
+                  with urllib.request.urlopen(req,timeout=20) as response:
+                      print(kind,response.status,response.read(400).decode('utf-8','replace'))
+              except urllib.error.HTTPError as e:
+                  print(kind,e.code,e.read(500).decode('utf-8','replace'))
+          PY
