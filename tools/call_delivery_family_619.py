@@ -30,7 +30,9 @@ def wait_event(serial, phase, count, timeout):
 def main():
     helper.profile(A, 'Сергей')
     helper.profile(B, 'Света')
+    helper.tap(A, 'Новый чат')
     helper.tap(A, 'Света')
+    helper.tap(A, 'Написать')
     for trial in range(2):
         helper.adb(A, 'logcat', '-c')
         helper.adb(B, 'logcat', '-c')
