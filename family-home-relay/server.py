@@ -238,7 +238,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    server = ThreadingHTTPServer((os.environ.get('FAMILY_BIND', '127.0.0.1'), int(os.environ.get('FAMILY_PORT', '8787'))), Handler)
+    port = os.environ.get('PORT') or os.environ.get('FAMILY_PORT', '8787')
+    default_bind = '0.0.0.0' if os.environ.get('PORT') else '127.0.0.1'
+    server = ThreadingHTTPServer((os.environ.get('FAMILY_BIND', default_bind), int(port)), Handler)
     server.daemon_threads = True
     print('OurFamily home relay listening on', server.server_address, flush=True)
     server.serve_forever()
