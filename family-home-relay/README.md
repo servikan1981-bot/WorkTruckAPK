@@ -31,6 +31,25 @@ restricts downloads to the currently selected host, so old attachments require
 a separate migration strategy before switching. This relay does not replace
 the WebRTC STUN/TURN infrastructure or the APK update feed.
 
+## Temporary Railway Free hosting
+
+Deploy this directory as the Railway service root (`family-home-relay`). The
+included Dockerfile uses Python's standard library; Railway supplies `PORT`
+and the server binds to all interfaces automatically. Create a Railway volume
+with mount path `/data` **before** accepting any real messages. The container
+stores its SQLite database and uploaded encrypted files there. Do not set
+`FAMILY_DATA` to an ephemeral path. Generate a public Railway domain and check
+`https://YOUR_DOMAIN/health` before changing any phones. Keep one service
+replica because the SQLite database and long-poll notifications are local to
+one process.
+
+The Free plan has usage credits, not unlimited resources; monitor usage and
+save a backup of `/data` regularly. The existing app setting “Сервер
+сообщений” accepts the new HTTPS base URL on each family phone. Test the
+protocol from outside Railway before switching, especially attachment upload,
+incoming calls, and old attachment migration. Railway does not provide a TURN
+relay for WebRTC in this setup.
+
 Run the existing protocol checks from repository root with:
 
 ```bash
