@@ -8,8 +8,10 @@
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_03.b64",
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_04.b64",
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_05.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_06.b64"
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_06.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_07.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_08.b64"
   ],
-  "sha256": "eaa9282d4f460c833a0f69a1ea95cd9d93d7c2f34a618e56bbe3e39c24c6196a",
+  "sha256": "78e3ed3f6c1d351f54ab06b3c87a28a8b69e1dc1a5f8896d966f9b6a418002de",
   "notes": "Кандидат: ускорение видео и управление шашками перетаскиванием."
 }
