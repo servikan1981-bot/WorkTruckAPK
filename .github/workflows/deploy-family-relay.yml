@@ -55,6 +55,17 @@ jobs:
                   raise SystemExit('Cloudflare rejected workers.dev subdomain registration')
               print('Created workers.dev subdomain: ' + created['result']['subdomain'])
           PY
+      - name: Test real local Durable Object long poll
+        working-directory: family-relay
+        run: |
+          npx --yes wrangler@4 dev --local --port 8787 > /tmp/family-relay-local.log 2>&1 &
+          wrangler_pid=$!
+          trap 'kill "$wrangler_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8787/health >/dev/null; then break; fi
+            sleep 2
+          done
+          node --test test/socket-live.mjs
       - name: Deploy Worker with SQLite Durable Objects
         if: steps.access.outputs.ready == 'true'
         id: publish

@@ -37,6 +37,16 @@ export class TopicMailbox {
     for (const waiter of [...this.waiters]) waiter.finish();
   }
 
+  sendToSubscribers(rows) {
+    if (!this.ctx.getWebSockets || !rows.length) return;
+    const body = rows.map(row => JSON.stringify({
+      seq: row.seq, id: row.id, time: row.time, event: 'message', message: row.message
+    })).join('\n') + '\n';
+    for (const socket of this.ctx.getWebSockets()) {
+      try { socket.send(body); socket.close(1000, 'delivered'); } catch (_) {}
+    }
+  }
+
   rowsFor(url, topic) {
     const afterRaw = url.searchParams.get('after') || '';
     const after = /^\d+$/.test(afterRaw) ? Number.parseInt(afterRaw, 10) : 0;
@@ -69,6 +79,9 @@ export class TopicMailbox {
             this.ctx.storage.sql.exec('INSERT INTO events (id, time, message) VALUES (?, ?, ?)', crypto.randomUUID(), time, wire);
           this.ctx.storage.sql.exec('DELETE FROM events WHERE time < ?', time - 86400);
         });
+        this.sendToSubscribers(this.ctx.storage.sql.exec(
+          'SELECT seq, id, time, message FROM events ORDER BY seq DESC LIMIT ?', messages.length
+        ).toArray().reverse());
         this.wakeWaiters();
         return json({ ok: true, count: messages.length });
       }
@@ -83,11 +96,23 @@ export class TopicMailbox {
       const retention = familyNewsPattern.test(topic) ? 90 * 86400 : topic.startsWith('of5p-') ? 300 : 86400;
       this.ctx.storage.sql.exec('DELETE FROM events WHERE time < ?', time - retention);
       if (newsId) this.ctx.storage.sql.exec('DELETE FROM news_dedupe WHERE created_at < ?', time - retention);
+      this.sendToSubscribers(this.ctx.storage.sql.exec(
+        'SELECT seq, id, time, message FROM events WHERE id = ?', event.id
+      ).toArray());
       this.wakeWaiters();
       return json(event);
     }
 
     const topic = request.headers.get('X-Topic');
+    if (url.pathname === '/subscribe') {
+      const rows = this.rowsFor(url, topic);
+      if (rows.length) return new Response(rows.map(row => JSON.stringify({
+        seq: row.seq, id: row.id, time: row.time, event: 'message', topic, message: row.message
+      })).join('\n') + '\n', { headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' } });
+      const [client, server] = Object.values(new WebSocketPair());
+      this.ctx.acceptWebSocket(server);
+      return new Response(null, { status: 101, webSocket: client });
+    }
     const waitSeconds = Math.max(0, Math.min(25, Number.parseInt(url.searchParams.get('wait') || '0', 10) || 0));
     let waiter = null;
     if (waitSeconds > 0) waiter = this.makeWaiter(waitSeconds * 1000);
@@ -308,7 +333,7 @@ export default {
       const id = env.MAILBOX.idFromName(topic);
       const mailbox = env.MAILBOX.get(id);
       if (request.method === 'POST') {
-        return mailbox.fetch(new Request('https://internal/post', {
+        return await mailbox.fetch(new Request('https://internal/post', {
           method: 'POST', body: JSON.stringify(Array.isArray(messages) ? { topic, messages } : { topic, message })
         }));
       }
@@ -317,7 +342,30 @@ export default {
         after: url.searchParams.get('after') || '0',
         wait: url.searchParams.get('wait') || '0'
       });
-      return mailbox.fetch(new Request(`https://internal/list?${query.toString()}`, {
+      if (Number(query.get('wait')) > 0 && typeof WebSocketPair === 'function') {
+        const subscription = await mailbox.fetch(new Request(`https://internal/subscribe?${query.toString()}`, {
+          headers: { 'X-Topic': topic }
+        }));
+        if (subscription.status !== 101) return subscription;
+        const socket = subscription.webSocket;
+        socket.accept();
+        const body = await new Promise(resolve => {
+          let done = false;
+          const finish = value => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            try { socket.close(1000, 'done'); } catch (_) {}
+            resolve(value);
+          };
+          const timer = setTimeout(() => finish(''), Math.min(25, Number(query.get('wait'))) * 1000);
+          socket.addEventListener('message', event => finish(String(event.data || '')));
+          socket.addEventListener('close', () => finish(''));
+          socket.addEventListener('error', () => finish(''));
+        });
+        return new Response(body, { headers: { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-store' } });
+      }
+      return await mailbox.fetch(new Request(`https://internal/list?${query.toString()}`, {
         headers: { 'X-Topic': topic }
       }));
     } catch (error) {
