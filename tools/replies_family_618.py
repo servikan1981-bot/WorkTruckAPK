@@ -40,9 +40,13 @@ def main():
     h.profile(A, 'Сергей')
     h.profile(B, 'Света')
     assert 'Работа в фоне' in ui(A), 'Background setup missing'
+    h.tap(A, 'Новый чат')
     h.tap(A, 'Света')
+    h.tap(A, 'Написать')
     write(A, 'Original618')
+    h.tap(B, 'Новый чат')
     h.tap(B, 'Сергей')
+    h.tap(B, 'Написать')
     wait_text(B, 'Original618')
     h.tap(B, 'Ответить')
     wait_text(B, 'Original618')
