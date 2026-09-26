@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -27,6 +28,55 @@ public final class NativeRelayTransport {
 
     public static String postOnce(Context context, String topic, String message, int priority) {
         return postAttempt(context, topic, message, priority);
+    }
+
+    public static String postBatchBlocking(Context context, String topic, String messagesJson, int priority) {
+        try {
+            JSONArray messages = new JSONArray(messagesJson);
+            if (messages.length() < 2 || messages.length() > 16) return "ERR:batch_size";
+            for (int i = 0; i < messages.length(); i++) {
+                String wire = messages.getString(i);
+                if (wire.isEmpty() || wire.length() > 8000) return "ERR:message";
+            }
+            final String[] result = {"ERR:timeout"};
+            Thread t = new Thread(() -> result[0] = postBatch(context, topic, messages, priority), "OurFamilyRelayBatch");
+            t.start();t.join(42000L);
+            if (t.isAlive()) { t.interrupt();return "ERR:timeout"; }
+            return result[0];
+        } catch (Exception e) { return "ERR:batch"; }
+    }
+
+    private static String postBatch(Context context, String topic, JSONArray messages, int priority) {
+        String first = postBatchAttempt(context, topic, messages, priority);
+        if ("OK".equals(first)) return first;
+        if (first.startsWith("ERR:http:5") || first.startsWith("ERR:Socket") ||
+                first.startsWith("ERR:Connect") || first.startsWith("ERR:UnknownHost")) {
+            sleepQuietly(450L);
+            return postBatchAttempt(context, topic, messages, priority);
+        }
+        return first;
+    }
+
+    private static String postBatchAttempt(Context context, String topic, JSONArray messages, int priority) {
+        if (context == null || topic == null || !topic.matches("[a-zA-Z0-9_-]{12,100}")) return "ERR:topic";
+        String relay = SecureStore.relay(context);
+        if (relay == null || !relay.startsWith("https://")) relay = SecureStore.DEFAULT_RELAY;
+        HttpURLConnection c = null;
+        try {
+            JSONObject body = new JSONObject();body.put("topic", topic);body.put("messages", messages);
+            body.put("priority", Math.max(1, Math.min(5, priority)));
+            c = (HttpURLConnection) new URL(relay.replaceAll("/+$", "") + "/").openConnection();
+            c.setConnectTimeout(12000);c.setReadTimeout(12000);c.setUseCaches(false);
+            c.setDoOutput(true);c.setRequestMethod("POST");
+            c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
+            c.setRequestProperty("Accept", "application/json");
+            c.setRequestProperty("User-Agent", "OurFamily/6.0.17 Android");
+            byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
+            try (OutputStream out = c.getOutputStream()) { out.write(bytes);out.flush(); }
+            int status = c.getResponseCode();
+            return status >= 200 && status < 300 ? "OK" : "ERR:http:" + status;
+        } catch (Exception e) { return "ERR:" + e.getClass().getSimpleName(); }
+        finally { if (c != null) c.disconnect(); }
     }
 
     // One explicit user-initiated publish verifies that the chosen relay can accept messages.

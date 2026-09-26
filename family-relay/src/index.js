@@ -58,8 +58,20 @@ export class TopicMailbox {
   async fetch(request) {
     const url = new URL(request.url);
     if (request.method === 'POST') {
-      const { topic, message } = await request.json();
+      const { topic, message, messages } = await request.json();
       const time = Math.floor(Date.now() / 1000);
+      if (Array.isArray(messages)) {
+        if (familyNewsPattern.test(topic) || !messages.length || messages.length > 16 ||
+            messages.some(value => typeof value !== 'string' || !value.length || value.length > 8000))
+          return json({ error: 'invalid batch' }, 400);
+        this.ctx.storage.transactionSync(() => {
+          for (const wire of messages)
+            this.ctx.storage.sql.exec('INSERT INTO events (id, time, message) VALUES (?, ?, ?)', crypto.randomUUID(), time, wire);
+          this.ctx.storage.sql.exec('DELETE FROM events WHERE time < ?', time - 86400);
+        });
+        this.wakeWaiters();
+        return json({ ok: true, count: messages.length });
+      }
       const newsId = familyNewsPattern.test(topic) && /^of6news\|([a-f0-9]{32})\|[A-Za-z0-9+/=]+$/.exec(message)?.[1];
       if (familyNewsPattern.test(topic) && !newsId) return json({ error: 'invalid encrypted news' }, 400);
       if (newsId) {
@@ -274,25 +286,30 @@ export default {
         return json({ attachment: { url: `${url.origin}/attachment/${path[0]}` } });
       }
 
-      let topic, message;
+      let topic, message, messages;
       if (path.length === 0 && request.method === 'POST') {
         const body = await request.json();
         topic = body.topic;
         message = body.message;
+        messages = body.messages;
       } else if (path.length === 2 && path[1] === 'json' && request.method === 'GET') {
         topic = path[0];
       } else {
         return json({ error: 'route not found' }, 404);
       }
       if (typeof topic !== 'string' || !topicPattern.test(topic)) return json({ error: 'invalid topic' }, 400);
-      if (request.method === 'POST' && (typeof message !== 'string' || !message.length || message.length > 8000))
-        return json({ error: 'invalid message' }, 400);
+      if (request.method === 'POST') {
+        const validSingle = typeof message === 'string' && message.length > 0 && message.length <= 8000;
+        const validBatch = Array.isArray(messages) && messages.length > 0 && messages.length <= 16 &&
+          !familyNewsPattern.test(topic) && messages.every(value => typeof value === 'string' && value.length > 0 && value.length <= 8000);
+        if (!validSingle && !validBatch) return json({ error: 'invalid message' }, 400);
+      }
 
       const id = env.MAILBOX.idFromName(topic);
       const mailbox = env.MAILBOX.get(id);
       if (request.method === 'POST') {
         return mailbox.fetch(new Request('https://internal/post', {
-          method: 'POST', body: JSON.stringify({ topic, message })
+          method: 'POST', body: JSON.stringify(Array.isArray(messages) ? { topic, messages } : { topic, message })
         }));
       }
       const query = new URLSearchParams({

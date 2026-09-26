@@ -308,7 +308,7 @@ var NAMES={};MEMBERS.forEach(function(m){NAMES[m.id]=m.name;});
 var role='',code='',relayBase='https://our-family-relay.family-860c7981b2d4.workers.dev',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='',presenceTopic='';
 var roleTags={},cryptoKeys={},packetChunks={},processedPayloads=new Set(),rawInFlight=new Set();
 var messages=[],currentThread=null,pickerMode='new',pickerSelected=new Set(),pollBusy=false,pollTimer=null;
-var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={},pendingEarlyOffers={},pendingEarlyCandidates={};
+var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={},pendingEarlyOffers={},pendingEarlyCandidates={},incomingWarmCallId='';
 var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteStreams={},callTimeout=null,currentFacing='user',cameraSwitchBusy=false,speakerOn=false;
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
@@ -1116,8 +1116,19 @@ async function publishEnvelope(toRole,kind,data,priority,wireKind,callId,nonBloc
  var recipientTag=await roleTag(toRole),topic=await inboxTopic(toRole);
  var payload={v:5,id:randomId(),kind:kind,from:role,to:toRole,ts:Date.now(),data:data||{}};
  var enc=await encryptFor(toRole,payload),size=1700,total=Math.ceil(enc.length/size),group=randomId(),wk=wireKind||kind,cid=callId||'-';
+ var wires=[];
  for(var i=0;i<total;i++){
    var wire='of5|'+ownTag+'|'+recipientTag+'|'+wk+'|'+cid+'|'+group+'|'+i+'|'+total+'|'+enc.slice(i*size,(i+1)*size);
+   wires.push(wire);
+ }
+ if(total>1&&total<=16&&/^(direct|group)_(offer|answer)$/.test(wk)&&AndroidBridge.sendRelayBatch){
+   var batchResult='';
+   try{batchResult=String(AndroidBridge.sendRelayBatch(topic,JSON.stringify(wires),priority||3)||'');}catch(e){batchResult='ERR:bridge';}
+   if(batchResult==='OK')return payload;
+   if(batchResult!=='ERR:http:400'&&batchResult!=='ERR:http:404')throw new Error(batchResult||'ERR:relay');
+ }
+ for(var i=0;i<wires.length;i++){
+   var wire=wires[i];
    var result='';
    try{result=String((nonBlocking?AndroidBridge.queueRelay(topic,wire,priority||3):AndroidBridge.sendRelay(topic,wire,priority||3))||'');}catch(e){result='ERR:bridge';}
    if(result!=='OK')throw new Error(result||'ERR:relay');
@@ -1292,6 +1303,12 @@ function showIncoming(peer,kind,group){
  $('incomingName').textContent=NAMES[peer]+' звонит';
  $('incomingKind').textContent=group?(kind==='audio'?'Групповой аудиозвонок':'Групповой видеозвонок'):(kind==='audio'?'Аудиозвонок':'Видеозвонок');
  $('incomingCard').classList.remove('hidden');
+ if(kind==='video'&&pendingInvite&&!activeCall&&document.visibilityState==='visible'){
+   incomingWarmCallId=pendingInvite.id;
+   prepareLocalMedia('video').then(function(stream){
+     if(incomingWarmCallId!==pendingInvite?.id&&!activeCall){stream.getTracks().forEach(function(t){t.stop();});if(localStream===stream)localStream=null;}
+   }).catch(function(){});
+ }
 }
 function maybeAutoAccept(){
  if(pendingNativeAccept&&pendingInvite&&pendingNativeAccept.callId===pendingInvite.id){
@@ -1464,6 +1481,7 @@ function showCall(title,state){
  $('callState').textContent=state||'Соединение…';
  $('callOverlay').classList.remove('hidden');
  $('videoGrid').innerHTML='';
+ if(localStream&&activeCall)ensureVideoTile(role,localStream,true,activeCall.kind);
  $('switchCamBtn').style.display=(activeCall&&activeCall.kind==='video')?'':'none';
  setSpeaker(!!(activeCall&&activeCall.kind==='video'));
  applyVideoLayout();
@@ -1682,6 +1700,7 @@ async function startGroupCall(members,kind){
 async function acceptPendingInvite(){
  if(!pendingInvite)return;
  var inv=pendingInvite;pendingInvite=null;$('incomingCard').classList.add('hidden');
+ incomingWarmCallId='';
  activeCall={id:inv.id,type:inv.type,kind:inv.kind,inviter:inv.from,members:inv.members.slice()};
  if(inv.type==='group')activeCall.joined=new Set([role,inv.from]);
  showCall(inv.type==='group'?(inv.kind==='audio'?'Групповой аудиозвонок':'Групповой видеозвонок'):((inv.kind==='audio'?'Аудиозвонок · ':'Видеозвонок · ')+NAMES[inv.from]),'Подготовка…');
@@ -1715,6 +1734,8 @@ async function maybeConnectGroupPeer(peer){
 }
 async function declinePendingInvite(){
  if(!pendingInvite)return;var inv=pendingInvite;pendingInvite=null;$('incomingCard').classList.add('hidden');
+ incomingWarmCallId='';
+ if(localStream){localStream.getTracks().forEach(function(t){t.stop();});localStream=null;}
  try{
    if(inv.type==='direct')await publishEnvelope(inv.from,'direct_hangup',{callId:inv.id},4,'direct_hangup',inv.id);
    else await publishEnvelope(inv.from,'group_decline',{callId:inv.id},4,'group_decline',inv.id);
@@ -1722,7 +1743,7 @@ async function declinePendingInvite(){
 }
 function endCall(send){
  if(!activeCall){$('callOverlay').classList.add('hidden');return;}
- var c=activeCall;clearTimeout(callTimeout);stopRingback();try{AndroidBridge.resetAudioRoute();}catch(e){}
+ var c=activeCall;incomingWarmCallId='';clearTimeout(callTimeout);stopRingback();try{AndroidBridge.resetAudioRoute();}catch(e){}
  if(send){
    if(c.type==='direct'){
      publishEnvelope(c.peer,'direct_hangup',{callId:c.id},4,'direct_hangup',c.id).catch(function(){});

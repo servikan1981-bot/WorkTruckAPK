@@ -48,7 +48,20 @@ class MemoryStorage {
   delete(key) { this.entries.delete(key); return Promise.resolve(); }
   setAlarm(time) { this.alarmTime = time; return Promise.resolve(); }
   deleteAll() { this.entries.clear(); return Promise.resolve(); }
+  transactionSync(callback) { return callback(); }
 }
+
+test('batched signaling chunks arrive in order and reject malformed batches', async () => {
+  const env=environment(),topic='of5-'+'e'.repeat(48),base='https://family.example/';
+  const messages=['of5|sender|receiver|direct_offer|call|group|0|2|abc',
+                  'of5|sender|receiver|direct_offer|call|group|1|2|def'];
+  const post=await worker.fetch(new Request(base,{method:'POST',body:JSON.stringify({topic,messages})}),env);
+  assert.equal(post.status,200);assert.equal((await post.json()).count,2);
+  const rows=await worker.fetch(new Request(base+topic+'/json?since=10m'),env);
+  assert.deepEqual((await rows.text()).trim().split('\n').map(x=>JSON.parse(x).message),messages);
+  const invalid=await worker.fetch(new Request(base,{method:'POST',body:JSON.stringify({topic,messages:['ok','']})}),env);
+  assert.equal(invalid.status,400);
+});
 
 function environment() {
   function namespace(ctor) {

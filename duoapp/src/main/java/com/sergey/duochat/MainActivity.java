@@ -420,6 +420,11 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String sendRelayBatch(String topic, String messagesJson, int priority) {
+            return NativeRelayTransport.postBatchBlocking(MainActivity.this, topic, messagesJson, priority);
+        }
+
+        @JavascriptInterface
         public String queueRelay(String topic, String message, int priority) {
             if (topic == null || !topic.matches("[a-zA-Z0-9_-]{12,100}") ||
                     message == null || message.isEmpty() || message.length() > 8000) return "ERR:message";
