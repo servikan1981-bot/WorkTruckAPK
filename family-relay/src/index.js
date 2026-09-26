@@ -105,6 +105,37 @@ const textOf = (xml, name) => {
     .replace(/\s+/g, ' ').trim();
 };
 
+const moscowDay = now => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
+}).format(now);
+
+async function internetQuote(day) {
+  // Forismatic supports Russian and a numeric key, so the daily pick is stable.
+  const seed = Number(day.replaceAll('-', '')) % 1_000_000;
+  try {
+    const url = `https://api.forismatic.com/api/1.0/?method=getQuote&format=json&lang=ru&key=${seed}`;
+    const response = await globalThis.fetch(url, { signal: AbortSignal.timeout(5500) });
+    if (response.ok) {
+      const data = await response.json();
+      const text = String(data.quoteText || '').replace(/\s+/g, ' ').trim();
+      const author = String(data.quoteAuthor || '').replace(/\s+/g, ' ').trim();
+      if (text.length >= 20 && text.length <= 350 && author.length >= 2 && author.length <= 90)
+        return { text, author, source: 'Forismatic', sourceUrl: 'https://www.forismatic.com/' };
+    }
+  } catch (_) { /* Fall back to the daily source. */ }
+  // The public quote-of-the-day endpoint needs no account or token.
+  const response = await globalThis.fetch('https://favqs.com/api/qotd', {
+    signal: AbortSignal.timeout(6500), headers: { Accept: 'application/vnd.favqs.v2+json' }
+  });
+  if (!response.ok) throw new Error('quote providers unavailable');
+  const data = await response.json();
+  const text = String(data.quote?.body || '').replace(/\s+/g, ' ').trim();
+  const author = String(data.quote?.author || '').replace(/\s+/g, ' ').trim();
+  if (data.error_code || text.length < 20 || text.length > 350 || author.length < 2 || author.length > 90)
+    throw new Error('quote provider returned invalid data');
+  return { text, author, source: 'FavQs', sourceUrl: 'https://favqs.com/' };
+}
+
 export class AutoNews {
   constructor(ctx) {
     this.ctx = ctx;
@@ -113,12 +144,29 @@ export class AutoNews {
   }
 
   async fetch(request) {
-    if (new URL(request.url).pathname === '/status') {
+    const pathname = new URL(request.url).pathname;
+    if (pathname === '/quote') {
+      const day = moscowDay(Date.now());
+      const previous = await this.ctx.storage.get('dailyQuote');
+      if (previous?.date === day) return json(previous);
+      const now = Date.now();
+      if (now - ((await this.ctx.storage.get('dailyQuoteLastTry')) || 0) < 60_000)
+        return json({ error: 'quote pending' }, 503);
+      await this.ctx.storage.put('dailyQuoteLastTry', now);
+      try {
+        const quote = { date: day, ...await internetQuote(day) };
+        await this.ctx.storage.put('dailyQuote', quote);
+        return json(quote);
+      } catch (_) {
+        return json({ error: 'quote unavailable' }, 503);
+      }
+    }
+    if (pathname === '/status') {
       return json({ count: this.ctx.storage.sql.exec('SELECT COUNT(*) AS total FROM articles').one().total,
         lastError: (await this.ctx.storage.get('lastError')) || '', lastTry: (await this.ctx.storage.get('lastTryAutoV4')) || 0 });
     }
     const now = Date.now();
-    const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+    const day = moscowDay(now);
     const count = this.ctx.storage.sql.exec('SELECT COUNT(*) AS total FROM articles WHERE day = ?', day).one().total;
     const lastTry = (await this.ctx.storage.get('lastTryAutoV4')) || 0;
     if (count < 2 && now - lastTry >= 15 * 60_000) {
@@ -193,6 +241,8 @@ export default {
         return env.AUTO_NEWS.get(env.AUTO_NEWS.idFromName('shared-positive-news')).fetch('https://internal/news');
       if (request.method === 'GET' && url.pathname === '/news/auto-status')
         return env.AUTO_NEWS.get(env.AUTO_NEWS.idFromName('shared-positive-news')).fetch('https://internal/status');
+      if (request.method === 'GET' && url.pathname === '/quote/today')
+        return env.AUTO_NEWS.get(env.AUTO_NEWS.idFromName('shared-positive-news')).fetch('https://internal/quote');
 
       const attachment = /^\/attachment\/(of5file-[a-f0-9]{32})$/.exec(url.pathname);
       if (attachment && request.method === 'GET') {

@@ -123,3 +123,18 @@ test('all family devices read identical encrypted family and automatic news', as
     assert.fail('shared source must supply the daily two stories; status=' + diagnostic);
   }
 });
+
+test('all family devices receive the same daily internet quote', async () => {
+  let first;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const response = await fetch(relay + '/quote/today');
+    if (response.ok) { first = await response.json(); break; }
+    if (attempt === 5) assert.fail('daily quote unavailable: ' + await response.text());
+    await new Promise(resolve => setTimeout(resolve, 12000));
+  }
+  const second = await (await fetch(relay + '/quote/today')).json();
+  assert.deepEqual(first, second);
+  assert.match(first.date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok(first.text.length >= 20 && first.author.length >= 2);
+  assert.ok(['Forismatic', 'FavQs'].includes(first.source));
+});
