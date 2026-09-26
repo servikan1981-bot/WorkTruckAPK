@@ -30,7 +30,7 @@ def write(serial, text):
             h.adb(serial, 'shell', 'input', 'tap', str((x1+x2)//2), str((y1+y2)//2))
             break
     else:
-        raise AssertionError('Composer absent')
+        raise AssertionError('Composer absent: ' + ui(serial)[-4000:])
     h.adb(serial, 'shell', 'input', 'text', text)
     h.adb(serial, 'shell', 'input', 'keyevent', '4')
     h.tap(serial, '➤')
