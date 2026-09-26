@@ -55,6 +55,8 @@ jobs:
           name: family-quote-upgrade-api-${{ matrix.api-level }}
           path: |
             /tmp/family-615-crash.log
+            /tmp/family-615-denied.png
+            /tmp/family-615-denied-logcat.txt
             /tmp/family-615.xml
             /tmp/family-615-menu.xml
             /tmp/family-615.png

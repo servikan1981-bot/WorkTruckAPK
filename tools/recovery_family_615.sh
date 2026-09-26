@@ -37,8 +37,14 @@ from e2e_family_610 import tap
 tap('ПОЗЖЕ', optional=True)
 PY
 if [ "${FAMILY_API_LEVEL:-0}" -ge 34 ]; then
-  adb shell uiautomator dump /sdcard/family-615.xml >/dev/null
-  adb exec-out cat /sdcard/family-615.xml > /tmp/family-615.xml
+  for attempt in $(seq 1 12); do
+    adb shell uiautomator dump /sdcard/family-615.xml >/dev/null
+    adb exec-out cat /sdcard/family-615.xml > /tmp/family-615.xml
+    if grep -q 'Android требует отдельное разрешение' /tmp/family-615.xml; then break; fi
+    sleep 2
+  done
+  adb exec-out screencap -p > /tmp/family-615-denied.png
+  adb logcat -d -t 1500 > /tmp/family-615-denied-logcat.txt
   grep -q 'Android требует отдельное разрешение' /tmp/family-615.xml
   adb shell appops set "$pkg" USE_FULL_SCREEN_INTENT allow
   adb shell am force-stop "$pkg"
