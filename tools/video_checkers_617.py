@@ -31,6 +31,7 @@ def phases(serial):
     Path('/tmp/' + serial + '-call.log').write_text(log)
     return {phase: [int(v) for v in re.findall(r'OurFamilyCall: ' + phase + r' (\d+)', log)]
             for phase in ('accepted', 'media_ready', 'offer_sent', 'offer_received',
+                          'offer_apply_start', 'remote_description', 'answer_local_description',
                           'answer_sent', 'answer_received', 'connected', 'remote_frame')}
 
 
@@ -54,7 +55,7 @@ def main():
                   callee['remote_frame'][-1] - callee['accepted'][-1])
             print(f'VIDEO accept-to-first-frame caller={ms[0]}ms callee={ms[1]}ms', flush=True)
             print('CALLER PHASES', caller, 'CALLEE PHASES', callee, flush=True)
-            assert all(0 <= value < 5000 for value in ms), 'Video first frame exceeded five seconds'
+            video_slow = not all(0 <= value < 5000 for value in ms)
             break
         time.sleep(1)
     else:
@@ -84,6 +85,7 @@ def main():
     while time.monotonic() < deadline:
         if 'Клетка 1, 5 шашка чёрная' in text(B):
             print('CHECKERS dragged black piece and received move on Sveta device', flush=True)
+            assert not video_slow, 'Video first frame exceeded five seconds'
             return
         time.sleep(1)
     raise AssertionError('Dragged move did not reach Sveta: ' + text(B)[-2000:])

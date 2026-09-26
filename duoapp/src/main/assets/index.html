@@ -1562,7 +1562,7 @@ function createPeer(peer){
  ps.connectTimer=setTimeout(function(){
    if(!activeCall||!callPeers[peer]||pc.connectionState==='connected'||pc.connectionState==='closed')return;
    if(ps.restart<1&&shouldOffer(peer)){ps.restart++;restartPeer(peer);}
- },10000);
+ },20000);
  ps.failureTimer=setTimeout(function(){
    if(activeCall&&callPeers[peer]&&pc.connectionState!=='connected')$('callState').textContent='Нет соединения. Проверьте сеть.';
  },25000);
@@ -1606,13 +1606,17 @@ async function makeOffer(peer,restart){
 async function restartPeer(peer){try{$('callState').textContent='Восстановление связи…';await makeOffer(peer,true);}catch(e){}}
 async function answerOffer(peer,sdp,isGroup){
  if(!sdp)return;
- if(activeCall&&!localStream)await prepareLocalMedia(activeCall.kind);
  var ps=createPeer(peer);
  if(ps.answering||(ps.pc.signalingState==='stable'&&ps.pc.remoteDescription&&ps.pc.remoteDescription.sdp===sdp.sdp))return;
  ps.answering=true;ps.sdpPublishing=true;
+ var mediaPromise=activeCall&&!localStream?prepareLocalMedia(activeCall.kind):Promise.resolve();
  try{
-   await ps.pc.setRemoteDescription(new RTCSessionDescription(sdp));await flushCandidates(peer);
+   markCall('offer_apply_start');
+   await ps.pc.setRemoteDescription(new RTCSessionDescription(sdp));markCall('remote_description');
+   flushCandidates(peer);
+   await mediaPromise;
    var ans=await ps.pc.createAnswer();await ps.pc.setLocalDescription(ans);
+   markCall('answer_local_description');
    var k=isGroup?'group_answer':'direct_answer';
    await publishEnvelope(peer,k,{callId:activeCall.id,sdp:ps.pc.localDescription},5,k,activeCall.id);
    markCall('answer_sent');
@@ -1690,9 +1694,8 @@ async function acceptPendingInvite(){
        await publishEnvelope(inv.from,'direct_accept',{callId:inv.id},5,'direct_accept',inv.id);
        await mediaPromise;
      }else{
-       await mediaPromise;
        var buffered=pendingEarlyCandidates[inv.id]||[];
-       for(var i=0;i<buffered.length;i++)if(buffered[i].peer===inv.from)await applyCandidate(inv.from,buffered[i].candidate);
+       for(var i=0;i<buffered.length;i++)if(buffered[i].peer===inv.from)applyCandidate(inv.from,buffered[i].candidate);
        await answerOffer(inv.from,early.sdp,false);
      }
      delete pendingEarlyOffers[inv.id];delete pendingEarlyCandidates[inv.id];

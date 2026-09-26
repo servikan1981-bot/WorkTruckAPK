@@ -409,7 +409,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void logCallMetric(String phase) {
-            if (phase != null && phase.matches("invite_start|accepted|media_ready|offer_sent|offer_received|answer_sent|answer_received|video_track|connected|remote_frame")) {
+            if (phase != null && phase.matches("invite_start|accepted|media_ready|offer_sent|offer_received|offer_apply_start|remote_description|answer_local_description|answer_sent|answer_received|video_track|connected|remote_frame")) {
                 android.util.Log.i("OurFamilyCall", phase + " " + System.currentTimeMillis());
             }
         }
