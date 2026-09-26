@@ -35,7 +35,7 @@ sys.path.insert(0,'tools')
 from e2e_family_610 import tap,snapshot,adb,enter_profile
 tap('Новый чат')
 tap('Света')
-tap('Написать')
+if 'Написать' in ET.tostring(snapshot(),encoding='unicode'):tap('Написать')
 tap('Пригласить в шашки')
 for i in range(10):
     root=ET.tostring(snapshot(),encoding='unicode')
