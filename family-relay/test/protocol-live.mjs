@@ -136,5 +136,5 @@ test('all family devices receive the same daily internet quote', async () => {
   assert.deepEqual(first, second);
   assert.match(first.date, /^\d{4}-\d{2}-\d{2}$/);
   assert.ok(first.text.length >= 20 && first.author.length >= 2);
-  assert.ok(['Forismatic', 'FavQs'].includes(first.source));
+  assert.ok(['Forismatic', 'Викицитатник'].includes(first.source));
 });

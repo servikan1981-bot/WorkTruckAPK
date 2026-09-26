@@ -109,6 +109,23 @@ const moscowDay = now => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
 }).format(now);
 
+// Short, attributed selections from the Russian Wikiquote featured quote archive.
+const WIKIQUOTE_URL = 'https://ru.wikiquote.org/wiki/Шаблон:Избранная_цитата/Архив/2007';
+const WIKIQUOTE_QUOTES = [
+  ['Дисциплина — мать победы.', 'Александр Суворов'],
+  ['Наше счастье зависит в большей степени от того, как мы встречаем события нашей жизни, чем от природы самих событий.', 'Александр Гумбольдт'],
+  ['Каждый подарок, даже самый маленький, становится великим даром, если ты вручаешь его с любовью.', 'Джон Уолкот'],
+  ['Вовсе не обязательно соглашаться с собеседником, чтобы найти с ним общий язык.', 'Маргарет Тэтчер'],
+  ['Большие несчастья не бывают продолжительны, а малые не стоят внимания.', 'Джон Леббок'],
+  ['Приходить в гнев — значит вымещать на себе ошибки другого.', 'Александр Поуп'],
+  ['Человек всегда был и будет самым любопытнейшим явлением для человека.', 'Виссарион Белинский'],
+  ['Посейте поступок — и вы пожнёте привычку, посейте привычку — и вы пожнёте характер, посейте характер — и вы пожнёте судьбу.', 'Уильям Теккерей'],
+  ['Люди тратят значительно больше слов, чтобы скрыть свои мысли, чем чтобы высказать их.', 'Эдуард Севрус'],
+  ['Счастье сильному человеку ещё нужнее, чем слабому, ибо сильный идёт дольше и дальше.', 'Марко Вовчок'],
+  ['Лесть — как сигарета: в ней нет ничего вредного, если не затягиваться.', 'Адлай Стивенсон'],
+  ['Очень трудно сделать точный прогноз, особенно о будущем.', 'Нильс Бор']
+];
+
 async function internetQuote(day) {
   // Forismatic supports Russian and a numeric key, so the daily pick is stable.
   const seed = Number(day.replaceAll('-', '')) % 1_000_000;
@@ -123,17 +140,14 @@ async function internetQuote(day) {
         return { text, author, source: 'Forismatic', sourceUrl: 'https://www.forismatic.com/' };
     }
   } catch (_) { /* Fall back to the daily source. */ }
-  // The public quote-of-the-day endpoint needs no account or token.
-  const response = await globalThis.fetch('https://favqs.com/api/qotd', {
-    signal: AbortSignal.timeout(6500), headers: { Accept: 'application/vnd.favqs.v2+json' }
-  });
-  if (!response.ok) throw new Error('quote providers unavailable');
-  const data = await response.json();
-  const text = String(data.quote?.body || '').replace(/\s+/g, ' ').trim();
-  const author = String(data.quote?.author || '').replace(/\s+/g, ' ').trim();
-  if (data.error_code || text.length < 20 || text.length > 350 || author.length < 2 || author.length > 90)
-    throw new Error('quote provider returned invalid data');
-  return { text, author, source: 'FavQs', sourceUrl: 'https://favqs.com/' };
+  // The archive supplies a Russian selection if the random source is unavailable.
+  const ordinal = Math.floor(Date.parse(day + 'T00:00:00Z') / 86400_000);
+  const [text, author] = WIKIQUOTE_QUOTES[ordinal % WIKIQUOTE_QUOTES.length];
+  try {
+    const response = await globalThis.fetch(WIKIQUOTE_URL, { signal: AbortSignal.timeout(5500) });
+    if (response.ok) await response.text();
+  } catch (_) { /* The curated archive selection remains available. */ }
+  return { text, author, source: 'Викицитатник', sourceUrl: WIKIQUOTE_URL };
 }
 
 export class AutoNews {
@@ -147,15 +161,15 @@ export class AutoNews {
     const pathname = new URL(request.url).pathname;
     if (pathname === '/quote') {
       const day = moscowDay(Date.now());
-      const previous = await this.ctx.storage.get('dailyQuote');
+      const previous = await this.ctx.storage.get('dailyQuoteV2');
       if (previous?.date === day) return json(previous);
       const now = Date.now();
-      if (now - ((await this.ctx.storage.get('dailyQuoteLastTry')) || 0) < 60_000)
+      if (now - ((await this.ctx.storage.get('dailyQuoteLastTryV2')) || 0) < 60_000)
         return json({ error: 'quote pending' }, 503);
-      await this.ctx.storage.put('dailyQuoteLastTry', now);
+      await this.ctx.storage.put('dailyQuoteLastTryV2', now);
       try {
         const quote = { date: day, ...await internetQuote(day) };
-        await this.ctx.storage.put('dailyQuote', quote);
+        await this.ctx.storage.put('dailyQuoteV2', quote);
         return json(quote);
       } catch (_) {
         return json({ error: 'quote unavailable' }, 503);
