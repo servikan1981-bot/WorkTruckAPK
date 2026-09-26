@@ -1,0 +1,15 @@
+{
+  "versionCode": 6017,
+  "versionName": "6.0.17",
+  "apkBase64Parts": [
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_06.b64"
+  ],
+  "sha256": "4916111b91216c404dc3b14b1fee3ae17d2bed9d6f6a41f76f00b2a587077052",
+  "notes": "Кандидат: ускорение видео и управление шашками перетаскиванием."
+}
