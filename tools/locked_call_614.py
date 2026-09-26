@@ -44,7 +44,9 @@ def main():
         evidence('missing-answer')
         raise AssertionError('No accessible Answer button over keyguard')
 
-    evidence('ringing')
+    # Keep the answer tap ahead of slow diagnostic captures: the caller times out.
+    Path('/tmp/ringing-emulator-5556.png').write_bytes(
+        subprocess.check_output(['adb', '-s', B, 'exec-out', 'screencap', '-p'], timeout=15))
     bounds = list(map(int, re.findall(r'\d+', buttons[0].get('bounds', ''))))
     height = int(re.search(r'(\d+)x(\d+)', adb(B, 'shell', 'wm', 'size')).group(2))
     assert len(bounds) == 4 and height * .12 < bounds[1] < bounds[3] < height * .9, \
@@ -54,7 +56,9 @@ def main():
     assert 'IncomingCallActivity' in window, 'Incoming call screen not foreground'
     print('PASS: Answer button visible above secure keyguard at', bounds)
 
+    print('Tapping Answer at', time.time(), flush=True)
     tap(B, 'Принять')
+    print('Answer tap completed at', time.time(), flush=True)
     deadline = time.monotonic() + 50
     while time.monotonic() < deadline:
         logs = {serial: adb(serial, 'logcat', '-d', '-s', 'OurFamilyCall:I', '*:S')
