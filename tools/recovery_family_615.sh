@@ -53,12 +53,8 @@ if [ "${FAMILY_API_LEVEL:-0}" -ge 34 ]; then
   adb shell appops set "$pkg" USE_FULL_SCREEN_INTENT allow
   adb shell am force-stop "$pkg"
   adb shell am start -W -n "$pkg/$act"
-  python3 - <<'PY'
-import sys
-sys.path.insert(0,'tools')
-from e2e_family_610 import tap
-tap('ПОЗЖЕ', optional=True)
-PY
+  sleep 2
+  adb shell input tap 154 414
 fi
 for attempt in $(seq 1 18); do
   adb shell uiautomator dump /sdcard/family-615.xml >/dev/null
