@@ -1,4 +1,4 @@
-name: Build Our Family 6.0.15 Stable
+name: Build Our Family 6.0.16 Stable
 
 on:
   workflow_dispatch:
@@ -32,9 +32,9 @@ jobs:
       - name: Validate stable identity
         run: |
           grep -q "applicationId 'com.sergey.ourfamily'" duoapp/build.gradle
-          grep -q "versionCode 6015" duoapp/build.gradle
-          grep -q "versionName '6.0.15'" duoapp/build.gradle
-          grep -q 'android:label="Наша семья 6.0.15"' duoapp/src/main/AndroidManifest.xml
+          grep -q "versionCode 6016" duoapp/build.gradle
+          grep -q "versionName '6.0.16'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.16"' duoapp/src/main/AndroidManifest.xml
           grep -q 'REQUEST_INSTALL_PACKAGES' duoapp/src/main/AndroidManifest.xml
           grep -q 'UpdateFileProvider' duoapp/src/main/AndroidManifest.xml
 
@@ -47,13 +47,17 @@ jobs:
           blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
           assert blocks
           Path('/tmp/family6.js').write_text('\n'.join(blocks))
-          assert "APP_VERSION='6.0.15'" in h
+          assert "APP_VERSION='6.0.16'" in h
           PY
           node --check /tmp/family6.js
+          node --check duoapp/src/main/assets/checkers.js
+          node tools/test_checkers.cjs
           H=duoapp/src/main/assets/index.html
           for token in direct_chat group_chat receipt_read REACTIONS openPhotoViewer scrollChatToBottom consumeNativeNavigation familyPresenceTopic openAdminArchiveScreen switchCamera enableSelfDrag startRingback speakerBtn "Семейные новости"; do
             grep -q "$token" "$H"
           done
+          grep -q 'game_invite' "$H"
+          grep -q 'notifyCheckers' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
 
       - name: Validate lock-screen call acceptance
         run: |
@@ -122,7 +126,7 @@ jobs:
           R=duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
           A=duoapp/src/main/java/com/sergey/duochat/NativeAttachmentTransport.java
           if grep -q "fetch(" "$H"; then
-            echo "WebView network fetch must not remain in stable 6.0.15"
+            echo "WebView network fetch must not remain in stable 6.0.16"
             exit 1
           fi
           grep -q "AndroidBridge.sendRelay" "$H"
@@ -193,13 +197,13 @@ jobs:
           test -f "$APK"
           test -s "$APK"
           unzip -t "$APK" >/dev/null
-          unzip -p "$APK" assets/index.html | grep -q "Наша семья · v6.0.15"
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья · v6.0.16"
           sha256sum "$APK"
           ls -lh "$APK"
 
       - name: Upload unsigned release
         uses: actions/upload-artifact@v4
         with:
-          name: OurFamily_6_0_15_unsigned
+          name: OurFamily_6_0_16_unsigned
           path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
           if-no-files-found: error

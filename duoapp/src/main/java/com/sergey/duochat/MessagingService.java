@@ -380,6 +380,10 @@ public class MessagingService extends Service {
                 notifyIncomingCall(senderRole, callId,
                         group ? (audio ? "group_audio" : "group_video") : (audio ? "audio" : "video"),
                         id);
+            } else if (("game_invite".equals(kind) || "game_accept".equals(kind) ||
+                    "game_move".equals(kind)) && "0".equals(chunkIndex) &&
+                    age <= 86_400_000L && !callId.isEmpty()) {
+                notifyCheckers(senderRole, callId, kind, id);
             } else if ("news_post".equals(kind)) {
                 if ("0".equals(chunkIndex)) notifyMessage(senderRole, id, "Новая семейная новость", "", "news");
             } else if ("admin_copy".equals(kind) && "sergey".equals(SecureStore.role(this))) {
@@ -427,6 +431,33 @@ public class MessagingService extends Service {
 
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         nm.notify(8600 + Math.abs(eventId.hashCode() % 1000), n);
+    }
+
+    private void notifyCheckers(String senderRole, String gameId, String kind, String eventId) {
+        Intent open = new Intent(this, MainActivity.class);
+        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        open.putExtra("open_message_id", gameId);
+        open.putExtra("open_sender_role", senderRole);
+        open.putExtra("open_message_kind", "checkers");
+        PendingIntent view = PendingIntent.getActivity(this, eventId.hashCode(), open,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder b = Build.VERSION.SDK_INT >= 26
+                ? new Notification.Builder(this, CH_MESSAGES) : new Notification.Builder(this);
+        b.setSmallIcon(R.drawable.ic_launcher)
+                .setContentTitle(FamilyDirectory.name(senderRole))
+                .setContentText("game_invite".equals(kind) ? "Приглашает играть в шашки" :
+                        "game_accept".equals(kind) ? "Принял(а) приглашение в шашки" : "Ваш ход в шашках")
+                .setContentIntent(view).setAutoCancel(true)
+                .setCategory(Notification.CATEGORY_MESSAGE).setPriority(Notification.PRIORITY_HIGH);
+        if ("game_invite".equals(kind)) {
+            Intent accept = new Intent(open);
+            accept.putExtra("open_game_accept", true);
+            PendingIntent action = PendingIntent.getActivity(this, eventId.hashCode() + 1, accept,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            b.addAction(new Notification.Action.Builder(R.drawable.ic_launcher, "Принять", action).build());
+        }
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        nm.notify(10000 + Math.abs(gameId.hashCode() % 2000), b.build());
     }
 
     private void notifyIncomingCall(String callerRole, String callId, String kind, String eventId) {
@@ -544,7 +575,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья 6.0.15")
+                .setContentTitle("Наша семья 6.0.16")
                 .setContentText("Фоновая связь и статус в сети включены")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)

@@ -200,6 +200,7 @@ public class MainActivity extends Activity {
             o.put("messageId", messageId);
             o.put("senderRole", senderRole == null ? "" : senderRole);
             o.put("kind", messageKind == null ? "" : messageKind);
+            o.put("accept", "checkers".equals(messageKind) && intent.getBooleanExtra("open_game_accept", false));
             SecureStore.prefs(this).edit()
                     .putString("pending_message_navigation", o.toString())
                     .apply();
@@ -582,7 +583,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "6.0.15";
+            return "6.0.16";
         }
     }
 

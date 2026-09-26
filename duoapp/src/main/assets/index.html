@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.15</title>
+<title>Наша семья 6.0.16</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -17,6 +17,7 @@ h1{font-size:27px;margin:0 0 7px}.sub{color:var(--muted);line-height:1.4;margin:
 .topbar{background:#fff;border-bottom:1px solid var(--line);padding:11px 12px;padding-top:max(11px,env(safe-area-inset-top));display:flex;align-items:center;gap:9px}.avatar{width:43px;height:43px;border-radius:50%;background:#eaf0ff;color:#2f6fed;display:grid;place-items:center;font-weight:900;flex:none}.who{min-width:0;flex:1}.name{font-weight:900;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.status{font-size:12px;color:var(--muted)}.status.ok{color:var(--green)}.iconbtn{width:41px;height:41px;border:0;border-radius:13px;background:#f3f6fa;font-size:20px;flex:none}
 .body{flex:1;overflow:auto;padding:13px}.section-title{font-size:13px;color:var(--muted);font-weight:850;text-transform:uppercase;letter-spacing:.04em;margin:13px 3px 8px}
 #home,#chat,#picker,#news,#adminArchive,#adminChat{display:flex;flex-direction:column}
+#checkers{display:flex;flex-direction:column}.game-entry{width:100%;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);padding:11px;font-weight:850;margin:0 0 10px;text-align:left}.game-invite{padding:11px;background:var(--card);border-top:1px solid var(--line);color:var(--ink);font-weight:850}.checkers-body{flex:1;overflow:auto;padding:15px 12px;text-align:center}.checkers-board{width:min(100%,460px);aspect-ratio:1;margin:14px auto;background:#573d0e;padding:8px;display:grid;grid-template-columns:repeat(8,1fr);box-shadow:0 10px 22px rgba(36,25,11,.22);border:2px solid #332609}.checkers-cell{border:0;border-radius:0;min-width:0;min-height:0;display:grid;place-items:center;padding:2px;background:#d9ba99}.checkers-cell.dark{background:#805f4b}.checkers-cell.selected{outline:3px solid #ffcb38;outline-offset:-3px}.checkers-cell.legal{box-shadow:inset 0 0 0 4px rgba(255,205,56,.75)}.checkers-cell.last{box-shadow:inset 0 0 0 3px rgba(47,111,237,.55)}.checkers-piece{width:79%;aspect-ratio:1;border-radius:50%;box-shadow:inset 0 3px 4px rgba(255,255,255,.45),inset 0 -5px 5px rgba(0,0,0,.26),0 3px 3px rgba(0,0,0,.3);display:grid;place-items:center;font-size:22px;font-weight:900}.checkers-piece.white{background:repeating-radial-gradient(circle,#fafafa 0 3px,#e3e3e3 4px 6px);color:#605449;border:2px solid #fff}.checkers-piece.black{background:repeating-radial-gradient(circle,#383838 0 3px,#292929 4px 6px);color:#fff;border:2px solid #222}.checkers-actions{display:flex;gap:9px;max-width:460px;margin:15px auto}.checkers-actions button{flex:1}.game-request{position:fixed;left:14px;right:14px;bottom:max(18px,env(safe-area-inset-bottom));z-index:90;background:var(--card);color:var(--ink);border-radius:20px;padding:17px;box-shadow:var(--shadow)}.game-request strong{display:block;font-size:18px;margin-bottom:12px}
 .actionbar{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}.action{border:0;border-radius:16px;padding:13px;font-weight:850}.action.blue{background:#e9f0ff;color:#245aca}.action.green{background:#e5f7ef;color:#0c8252}
 .thread{width:100%;border:0;background:#fff;border-radius:18px;padding:11px;margin-bottom:8px;display:flex;align-items:center;gap:11px;text-align:left;box-shadow:0 3px 10px rgba(30,45,70,.05)}.tavatar{width:48px;height:48px;border-radius:50%;background:#edf3ff;color:#2f6fed;display:grid;place-items:center;font-weight:900;flex:none}.tbody{flex:1;min-width:0}.tname{font-weight:850}.preview{font-size:12px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.badge{min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--blue);color:white;font-size:11px;font-weight:900;display:grid;place-items:center}
 .permission{background:#fff4d8;border:1px solid #efd487;border-radius:15px;padding:12px;font-size:13px;line-height:1.4;margin-bottom:10px}.permission button{border:0;border-radius:11px;background:#172033;color:white;padding:8px 11px;font-weight:800;margin-top:8px}
@@ -104,7 +105,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v6.0.15</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.16</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
     <button id="menuBtn" class="iconbtn">⋮</button>
   </div>
   <div class="body">
@@ -115,6 +116,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
       <button id="newVideoBtn" class="action green">🎥 Видеозвонок</button>
     </div>
     <button id="newsBtn" class="news-action">📰 Семейные новости · ссылки · фото · видео · поздравления</button>
+    <button id="resumeCheckersBtn" class="game-entry hidden">♟ Продолжить партию в шашки</button>
     <button id="adminArchiveBtn" class="primary wide hidden" style="margin-bottom:11px">Семейный архив</button>
     <div class="section-title">Участники</div>
     <div id="presenceList" class="presence-grid"></div>
@@ -147,6 +149,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
     <button id="audioBtn" class="iconbtn">📞</button>
     <button id="videoBtn" class="iconbtn">🎥</button>
   </div>
+  <button id="inviteCheckersBtn" class="game-invite hidden">♟ Пригласить в шашки</button>
   <div id="messages"></div>
   <div class="composer">
     <button id="attachBtn" class="mini" aria-label="Вложение">＋</button>
@@ -164,6 +167,13 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   </div>
   <div id="emojiPanel" class="emoji-panel hidden"></div>
 </section>
+
+<section id="checkers" class="screen hidden">
+  <div class="topbar"><button id="checkersBackBtn" class="iconbtn">‹</button><div class="who"><div id="checkersTitle" class="name">Шашки</div><div id="checkersStatus" class="status"></div></div></div>
+  <div class="checkers-body"><div id="checkersBoard" class="checkers-board" aria-label="Доска для шашек"></div><div id="checkersHint" class="muted"></div><div class="checkers-actions"><button id="checkersResignBtn" class="game-entry">Сдаться</button></div></div>
+</section>
+
+<div id="checkersRequest" class="game-request hidden"><strong id="checkersRequestText"></strong><div class="incoming-actions"><button id="checkersDeclineBtn" class="decline">Отклонить</button><button id="checkersAcceptBtn" class="accept">Принять</button></div></div>
 
 <section id="news" class="screen hidden">
   <div class="topbar">
@@ -283,6 +293,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <div id="adminOnce" class="admin-once hidden">Сергей — админ, имеет доступ ко всему приложению.</div>
 <div id="toast" class="toast"></div>
 
+<script src="checkers.js"></script>
 <script>
 (function(){
 'use strict';
@@ -301,7 +312,8 @@ var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteS
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.15',reactionTargetId='',pendingMessageNavigation=null;
+var APP_VERSION='6.0.16',reactionTargetId='',pendingMessageNavigation=null;
+var games={},activeGameId='',pendingGameAcceptId='',gameSending=false;
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'ocean',videoLayout:'pip'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
@@ -698,10 +710,13 @@ function hideTransientPanels(){
  return changed;
 }
 function showScreen(id){
- ['setup','home','picker','chat','news','adminArchive','adminChat'].forEach(function(x){$(x).classList.toggle('hidden',x!==id);});
+ ['setup','home','picker','chat','news','adminArchive','adminChat','checkers'].forEach(function(x){$(x).classList.toggle('hidden',x!==id);});
  hideTransientPanels();
 }
 function renderHome(){
+ var running=Object.values(games).filter(function(g){return g.status==='active'&&g.players.includes(role);}).sort(function(a,b){return b.updated-a.updated;});
+ $('resumeCheckersBtn').classList.toggle('hidden',!running.length);
+ if(running.length)$('resumeCheckersBtn').textContent='♟ Продолжить партию с '+NAMES[running[0].players.find(function(x){return x!==role;})];
  if(role){$('myName').textContent='Наша семья · v'+APP_VERSION;$('myAvatar').textContent=initials(NAMES[role]);$('mainStatus').textContent=NAMES[role]+' · '+presenceLabel(role);}
  renderPresence();
 
@@ -863,6 +878,14 @@ function scrollToMessage(messageId){
 }
 function tryOpenPendingMessage(){
  if(!pendingMessageNavigation||!pendingMessageNavigation.messageId)return false;
+ if(pendingMessageNavigation.kind==='checkers'){
+  var game=games[pendingMessageNavigation.messageId];if(!game)return false;
+  var accept=pendingMessageNavigation.accept;pendingMessageNavigation=null;
+  if(accept&&game.status==='invited'&&game.invitee===role)acceptCheckers(game.id);
+  else if(game.status==='invited'&&game.invitee===role)showCheckersRequest();
+  else openCheckers(game.id);
+  return true;
+ }
  var id=pendingMessageNavigation.messageId,m=messages.find(function(x){return x.id===id;});
  if(!m)return false;
  pendingMessageNavigation=null;
@@ -877,7 +900,7 @@ function tryOpenPendingMessage(){
 function consumeNativeNavigation(){
  try{
    var raw=AndroidBridge.consumePendingNavigation();if(!raw)return;
-   var n=JSON.parse(raw);if(!n.messageId)return;
+ var n=JSON.parse(raw);if(!n.messageId)return;
    pendingMessageNavigation=n;
    if(!tryOpenPendingMessage()){pollInbox();setTimeout(tryOpenPendingMessage,350);setTimeout(tryOpenPendingMessage,900);}
  }catch(e){}
@@ -886,6 +909,7 @@ function consumeNativeNavigation(){
 function openDirect(peer){
  currentThread={type:'direct',peer:peer};
  $('chatTitle').textContent=NAMES[peer];$('chatSubtitle').textContent=presenceLabel(peer);$('chatAvatar').textContent=initials(NAMES[peer]);$('membersBtn').classList.add('hidden');
+ $('inviteCheckersBtn').classList.remove('hidden');
  showScreen('chat');renderMessages();renderHome();markThreadRead(currentThread);
 }
 function openGroup(gid,members){
@@ -895,7 +919,115 @@ function openGroup(gid,members){
  var online=currentThread.members.filter(function(x){return onlineNow(x);}).length;
  $('chatSubtitle').textContent=online+' из '+currentThread.members.length+' в сети';
  $('chatAvatar').textContent='👥';$('membersBtn').classList.remove('hidden');
+ $('inviteCheckersBtn').classList.add('hidden');
  showScreen('chat');renderMessages();renderHome();markThreadRead(currentThread);
+}
+function saveGames(){try{localStorage.setItem('of5_checkers_'+ownTag,JSON.stringify(Object.values(games).slice(-40)));}catch(e){toast('Не удалось сохранить партию');}}
+function loadGames(){
+ games={};try{
+  var arr=JSON.parse(localStorage.getItem('of5_checkers_'+ownTag)||'[]');
+  if(Array.isArray(arr))arr.forEach(function(g){if(g&&/^[a-f0-9]{32}$/.test(g.id)&&Array.isArray(g.state&&g.state.board)&&g.state.board.length===64&&g.players&&g.players.includes(role))games[g.id]=g;});
+ }catch(e){}
+ showCheckersRequest();
+}
+function gamePeer(g){return g.players.find(function(x){return x!==role;});}
+function gameSide(g){return role===g.inviter?'b':'w';}
+function showCheckersRequest(){
+ var candidates=Object.values(games).filter(function(g){return g.status==='invited'&&g.invitee===role&&Date.now()-g.updated<86400000;}).sort(function(a,b){return b.updated-a.updated;});
+ var g=candidates[0];pendingGameAcceptId=g?g.id:'';
+ $('checkersRequest').classList.toggle('hidden',!g);
+ if(g)$('checkersRequestText').textContent=NAMES[g.inviter]+' приглашает вас в шашки';
+}
+function openCheckers(id){
+ var g=games[id];if(!g)return;
+ activeGameId=id;g.selected=null;
+ $('checkersRequest').classList.add('hidden');
+ $('checkersTitle').textContent='Шашки · '+NAMES[gamePeer(g)];
+ showScreen('checkers');renderCheckers();
+}
+function renderCheckers(){
+ var g=games[activeGameId];if(!g)return;
+ var s=g.state,own=gameSide(g),status=g.status==='invited'?(role===g.inviter?'Ждём ответа':'Приглашение'):
+  g.status==='declined'?'Приглашение отклонено':g.status==='ended'?(s.winner===own?'Вы победили':'Партия завершена'):
+  s.winner?(s.winner===own?'Вы победили':'Победил '+NAMES[gamePeer(g)]):s.turn===own?'Ваш ход':'Ход '+NAMES[gamePeer(g)];
+ $('checkersStatus').textContent=status;
+ $('checkersHint').textContent=g.status==='active'&&!s.winner&&s.turn===own?(s.forced!=null?'Продолжайте взятие':'Нажмите шашку, затем выделенную клетку'):'Партия сохранена на обоих телефонах';
+ $('checkersResignBtn').classList.toggle('hidden',g.status!=='active'||!!s.winner);
+ var box=$('checkersBoard');box.innerHTML='';
+ var legal=g.status==='active'&&s.turn===own?CheckersRules.moves(s.board,own,s.forced):[];
+ var selected=legal.filter(function(m){return m.from===g.selected;});
+ var reverse=own==='w';
+ for(var i=0;i<64;i++){
+  var pos=reverse?63-i:i,row=Math.floor(pos/8),col=pos%8,p=s.board[pos],cell=document.createElement('button');
+  cell.className='checkers-cell'+((row+col)%2===0?' dark':'');
+  if(g.selected===pos)cell.classList.add('selected');
+  if(selected.some(function(m){return m.to===pos;}))cell.classList.add('legal');
+  if(s.last&&(s.last.from===pos||s.last.to===pos))cell.classList.add('last');
+  cell.setAttribute('aria-label','Клетка '+(col+1)+', '+(row+1)+(p?' шашка '+(p.toLowerCase()==='b'?'чёрная':'белая'):''));
+  if(p){var piece=document.createElement('span');piece.className='checkers-piece '+(p.toLowerCase()==='w'?'white':'black');if(p!==p.toLowerCase())piece.textContent='♛';cell.appendChild(piece);}
+  (function(n){cell.addEventListener('click',function(){checkersCell(n);});})(pos);box.appendChild(cell);
+ }
+}
+function checkersCell(pos){
+ var g=games[activeGameId];if(!g||g.status!=='active'||g.state.winner||gameSending)return;
+ var side=gameSide(g),s=g.state;if(s.turn!==side)return;
+ var legal=CheckersRules.moves(s.board,side,s.forced);
+ if(g.selected!=null&&legal.some(function(m){return m.from===g.selected&&m.to===pos;})){
+  sendCheckersMove(g,g.selected,pos);return;
+ }
+ g.selected=legal.some(function(m){return m.from===pos;})?pos:null;renderCheckers();
+}
+async function inviteCheckers(){
+ if(!currentThread||currentThread.type!=='direct')return;
+ var peer=currentThread.peer;
+ var old=Object.values(games).find(function(g){return g.status==='active'&&gamePeer(g)===peer&&!g.state.winner;});
+ if(old){openCheckers(old.id);return;}
+ var id=randomId(),g={id:id,players:[role,peer],inviter:role,invitee:peer,status:'invited',updated:Date.now(),state:{board:CheckersRules.initial(),turn:'b',forced:null,winner:null,seq:0,last:null}};
+ try{await publishEnvelope(peer,'game_invite',{gameId:id},4,'game_invite',id);games[id]=g;saveGames();openCheckers(id);}
+ catch(e){toast(relayErrorText(e&&e.message||e));}
+}
+async function acceptCheckers(id){
+ var g=games[id];if(!g||g.invitee!==role||g.status!=='invited')return;
+ try{await publishEnvelope(g.inviter,'game_accept',{gameId:id},4,'game_accept',id);g.status='active';g.updated=Date.now();saveGames();showCheckersRequest();openCheckers(id);}
+ catch(e){toast(relayErrorText(e&&e.message||e));}
+}
+async function declineCheckers(id){
+ var g=games[id];if(!g||g.invitee!==role||g.status!=='invited')return;
+ try{await publishEnvelope(g.inviter,'game_decline',{gameId:id},3,'game_decline',id);g.status='declined';g.updated=Date.now();saveGames();showCheckersRequest();renderHome();}
+ catch(e){toast(relayErrorText(e&&e.message||e));}
+}
+async function sendCheckersMove(g,from,to){
+ var next=CheckersRules.play(g.state,from,to);if(!next)return;
+ gameSending=true;
+ try{
+  await publishEnvelope(gamePeer(g),'game_move',{gameId:g.id,seq:next.seq,from:from,to:to},4,'game_move',g.id);
+  g.state=next;if(next.winner)g.status='ended';g.selected=next.forced;g.updated=Date.now();saveGames();renderCheckers();renderHome();
+ }catch(e){toast(relayErrorText(e&&e.message||e));}
+ finally{gameSending=false;}
+}
+async function resignCheckers(){
+ var g=games[activeGameId];if(!g||g.status!=='active'||g.state.winner||!confirm('Сдаться в этой партии?'))return;
+ try{await publishEnvelope(gamePeer(g),'game_resign',{gameId:g.id,seq:g.state.seq},4,'game_resign',g.id);g.state.winner=gameSide(g)==='b'?'w':'b';g.status='ended';g.updated=Date.now();saveGames();renderCheckers();renderHome();}
+ catch(e){toast(relayErrorText(e&&e.message||e));}
+}
+function receiveCheckers(p){
+ var d=p.data||{},id=d.gameId,peer=p.from;
+ if(!/^[a-f0-9]{32}$/.test(id||''))return;
+ var g=games[id];
+ if(p.kind==='game_invite'){
+  if(g||Date.now()-p.ts>86400000)return;
+  games[id]={id:id,players:[peer,role],inviter:peer,invitee:role,status:'invited',updated:p.ts||Date.now(),state:{board:CheckersRules.initial(),turn:'b',forced:null,winner:null,seq:0,last:null}};
+  saveGames();showCheckersRequest();tryOpenPendingMessage();return;
+ }
+ if(!g||gamePeer(g)!==peer)return;
+ if(p.kind==='game_accept'&&g.inviter===role&&g.status==='invited'){g.status='active';toast(NAMES[peer]+' принял приглашение');}
+ else if(p.kind==='game_decline'&&g.inviter===role&&g.status==='invited'){g.status='declined';toast(NAMES[peer]+' отклонил приглашение');}
+ else if(p.kind==='game_move'&&g.status==='active'&&g.state.turn!==gameSide(g)&&d.seq===g.state.seq+1){
+  var next=CheckersRules.play(g.state,d.from,d.to);if(!next)return;
+  g.state=next;if(next.winner)g.status='ended';
+ }else if(p.kind==='game_resign'&&g.status==='active'&&d.seq===g.state.seq){g.state.winner=gameSide(g);g.status='ended';}
+ else return;
+ g.updated=Date.now();saveGames();renderHome();if(activeGameId===id)renderCheckers();
 }
 function renderMessages(){
  var box=$('messages');box.innerHTML='';if(!currentThread)return;
@@ -1019,6 +1151,8 @@ function startPolling(){clearInterval(pollTimer);pollInbox();pollTimer=setInterv
 async function processPayload(p){
  if(!p||p.v!==5||p.to!==role||p.from===role)return;
  var d=p.data||{},peer=p.from;
+
+ if(['game_invite','game_accept','game_decline','game_move','game_resign'].includes(p.kind)){receiveCheckers(p);return;}
 
  if(p.kind==='receipt_delivered'||p.kind==='receipt_read'){
    applyReceipt(d.messageId,peer,p.kind==='receipt_read'?'read':'delivered');return;
@@ -1706,6 +1840,7 @@ function checkFullScreenPermission(){
 function requestFullScreen(){try{AndroidBridge.requestFullScreenCallPermission();}catch(e){}}
 async function configure(){
  ownTag=await roleTag(role);ownTopic=await inboxTopic(role);
+ loadGames();renderHome();
  try{AndroidBridge.configure(ownTopic,role,relayBase,ownTag);}catch(e){}
  startPolling();startPresence();consumeNativeAction();consumeNativeNavigation();checkFullScreenPermission();try{AndroidBridge.refreshDailyQuote();}catch(e){}
 }
@@ -1742,6 +1877,12 @@ $('startBtn').addEventListener('click',async function(){
 $('newChatBtn').addEventListener('click',function(){openPicker('new',[]);});
 $('newVideoBtn').addEventListener('click',function(){openPicker('new',[]);});
 $('newsBtn').addEventListener('click',openNews);
+$('resumeCheckersBtn').addEventListener('click',function(){var running=Object.values(games).filter(function(g){return g.status==='active'&&g.players.includes(role);}).sort(function(a,b){return b.updated-a.updated;});if(running.length)openCheckers(running[0].id);});
+$('inviteCheckersBtn').addEventListener('click',inviteCheckers);
+$('checkersBackBtn').addEventListener('click',function(){activeGameId='';if(currentThread){showScreen('chat');renderMessages();}else{showScreen('home');renderHome();}});
+$('checkersResignBtn').addEventListener('click',resignCheckers);
+$('checkersAcceptBtn').addEventListener('click',function(){acceptCheckers(pendingGameAcceptId);});
+$('checkersDeclineBtn').addEventListener('click',function(){declineCheckers(pendingGameAcceptId);});
 $('newsBackBtn').addEventListener('click',function(){showScreen('home');renderHome();});
 $('pickerBackBtn').addEventListener('click',function(){showScreen(currentThread?'chat':'home');});
 $('selectAllBtn').addEventListener('click',toggleAll);
