@@ -10,6 +10,23 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - name: Read today's Durable Object use
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import datetime,json,os,urllib.request,urllib.error
+          day=(datetime.datetime.now(datetime.timezone.utc).date()-datetime.timedelta(days=1)).isoformat()
+          query='''query { viewer { accounts(filter: {accountTag: "860c7981b2d45d79a28a2f18ab9f101f"}) { durableObjectsPeriodicGroups(filter: {date_gt: "'''+day+'''"}, limit: 1000) { sum { duration rowsRead rowsWritten } } durableObjectsInvocationsAdaptiveGroups(filter: {date_gt: "'''+day+'''"}, limit: 1000) { sum { requests errors } } } } }'''
+          req=urllib.request.Request('https://api.cloudflare.com/client/v4/graphql',data=json.dumps({'query':query}).encode(),headers={'Authorization':'Bearer '+os.environ['CLOUDFLARE_API_TOKEN'],'Content-Type':'application/json'})
+          try:
+              with urllib.request.urlopen(req,timeout=20) as response: data=json.load(response)
+              if data.get('errors'):print('Analytics error:',str(data['errors'])[:350])
+              else:
+                  a=data['data']['viewer']['accounts'][0]
+                  print('DO daily totals',{'duration_GB_s':sum(x['sum']['duration'] for x in a['durableObjectsPeriodicGroups']),'rowsRead':sum(x['sum']['rowsRead'] for x in a['durableObjectsPeriodicGroups']),'rowsWritten':sum(x['sum']['rowsWritten'] for x in a['durableObjectsPeriodicGroups']),'requests':sum(x['sum']['requests'] for x in a['durableObjectsInvocationsAdaptiveGroups'])})
+          except urllib.error.HTTPError as error:print('Analytics HTTP',error.code)
+          PY
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
