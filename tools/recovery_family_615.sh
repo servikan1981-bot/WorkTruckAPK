@@ -53,12 +53,16 @@ if [ "${FAMILY_API_LEVEL:-0}" -ge 34 ]; then
   adb shell appops set "$pkg" USE_FULL_SCREEN_INTENT allow
   adb shell am force-stop "$pkg"
   adb shell am start -W -n "$pkg/$act"
-  sleep 2
-  adb shell input tap 154 414
+  sleep 5
 fi
 for attempt in $(seq 1 18); do
   adb shell uiautomator dump /sdcard/family-615.xml >/dev/null
   adb exec-out cat /sdcard/family-615.xml > /tmp/family-615.xml
+  if grep -q 'ПОЗЖЕ' /tmp/family-615.xml; then
+    adb shell input tap 154 414
+    sleep 2
+    continue
+  fi
   if grep -q 'ЦИТАТА ДНЯ' /tmp/family-615.xml && grep -Eq 'Forismatic|Викицитатник' /tmp/family-615.xml; then break; fi
   sleep 3
 done
@@ -90,7 +94,10 @@ if grep -q 'Разрешение экрана звонка' /tmp/family-615-menu
 fi
 adb shell am force-stop "$pkg"
 adb shell am start -W -n "$pkg/$act"
-sleep 5
+for attempt in $(seq 1 10); do
+  if [ -n "$(adb shell pidof "$pkg")" ]; then break; fi
+  sleep 2
+done
 test -n "$(adb shell pidof "$pkg")"
 if adb logcat -d -b crash | grep -A 4 'FATAL EXCEPTION' | grep -q "Process: $pkg"; then adb logcat -d -b crash > /tmp/family-615-crash.log; cat /tmp/family-615-crash.log; exit 1; fi
 echo 'PASS: 6.0.14 upgraded to 6.0.15, permission prompt disappeared, and shared daily quote appeared'
