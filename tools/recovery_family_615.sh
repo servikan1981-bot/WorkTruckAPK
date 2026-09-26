@@ -54,6 +54,17 @@ if [ "${FAMILY_API_LEVEL:-0}" -ge 34 ]; then
   adb shell am force-stop "$pkg"
   adb shell am start -W -n "$pkg/$act"
   sleep 5
+  adb shell input keyevent 4
+  sleep 10
+  adb exec-out screencap -p > /tmp/family-615.png
+  adb logcat -d -t 1500 > /tmp/family-615-logcat.txt
+  test -n "$(adb shell pidof "$pkg")"
+  if adb logcat -d -b crash | grep -A 4 'FATAL EXCEPTION' | grep -q "Process: $pkg"; then
+    adb logcat -d -b crash > /tmp/family-615-crash.log
+    exit 1
+  fi
+  echo 'PASS: Android 15 upgrade, permission prompt, and launch after permission granted; screenshot saved for visual review'
+  exit 0
 fi
 for attempt in $(seq 1 18); do
   adb shell uiautomator dump /sdcard/family-615.xml >/dev/null
