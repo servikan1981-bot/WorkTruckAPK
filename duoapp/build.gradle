@@ -8,7 +8,7 @@ android {
         applicationId 'com.sergey.ourfamily'
         minSdk 24
         targetSdk 35
-        versionCode 6018
-        versionName '6.0.18'
+        versionCode 6019
+        versionName '6.0.19'
     }
 }

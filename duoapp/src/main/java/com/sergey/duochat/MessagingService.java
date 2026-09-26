@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MessagingService extends Service {
     public static final String ACTION_RESTART = "com.sergey.duochat.RESTART_LISTENER";
@@ -51,6 +53,7 @@ public class MessagingService extends Service {
     private Thread presenceListenerWorker;
     private Thread updateWorker;
     private final Map<String, Set<Integer>> chatChunks = new HashMap<>();
+    private final ExecutorService receiptSender = Executors.newSingleThreadExecutor();
 
     @Override
     public void onCreate() {
@@ -129,11 +132,12 @@ public class MessagingService extends Service {
             BufferedReader reader = null;
             HttpURLConnection c = null;
             try {
-                URL url = new URL(relay + "/" + topic + "/json?since=2m&after=" + cursor + "&wait=25");
+                int waitSeconds = relayWaitSeconds(relay);
+                URL url = new URL(relay + "/" + topic + "/json?since=2m&after=" + cursor + "&wait=" + waitSeconds);
                 c = (HttpURLConnection) url.openConnection();
                 activePresenceConnection = c;
                 c.setConnectTimeout(12000);
-                c.setReadTimeout(32000);
+                c.setReadTimeout((waitSeconds + 7) * 1000);
                 c.setUseCaches(false);
                 c.setRequestProperty("Accept", "application/x-ndjson");
                 c.connect();
@@ -237,13 +241,13 @@ public class MessagingService extends Service {
             BufferedReader reader = null;
             try {
                 String query = instantRelay
-                        ? "/json?since=10m&after=" + cursor + "&wait=25"
+                        ? "/json?since=10m&after=" + cursor + "&wait=" + relayWaitSeconds(relay)
                         : "/json?since=10m";
                 URL url = new URL(relay + "/" + topic + query);
                 HttpURLConnection c = (HttpURLConnection) url.openConnection();
                 activeConnection = c;
                 c.setConnectTimeout(12000);
-                c.setReadTimeout(instantRelay ? 32000 : 0);
+                c.setReadTimeout(instantRelay ? (relayWaitSeconds(relay) + 7) * 1000 : 12000);
                 c.setUseCaches(false);
                 c.setRequestProperty("Accept", "application/x-ndjson");
                 c.connect();
@@ -273,10 +277,18 @@ public class MessagingService extends Service {
     private boolean isInstantRelay(String relay) {
         try {
             String host = Uri.parse(relay).getHost();
-            return host != null && host.endsWith(".workers.dev");
+            return host != null && !host.equalsIgnoreCase("ntfy.sh");
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private int relayWaitSeconds(String relay) {
+        // KeenDNS Cloud proxies HTTP requests; limit the held request to 2s.
+        try {
+            String host = Uri.parse(relay).getHost();
+            return host != null && host.endsWith(".workers.dev") ? 25 : 2;
+        } catch (Exception ignored) { return 2; }
     }
 
     private String relayCursorKey(String type, String relay, String topic) {
@@ -399,7 +411,9 @@ public class MessagingService extends Service {
             String token = FamilyDirectory.controlToken(code, messageId, "delivered", myRole, senderRole);
             String wire = "of5ack|" + myTag + "|" + senderTag + "|" + messageId + "|delivered|" + token;
             String topic = FamilyDirectory.inboxTopic(code, senderRole);
-            NativeRelayTransport.post(this, topic, wire, 2);
+            // Sending a receipt must not block the inbox reader before a call invite.
+            receiptSender.execute(() -> NativeRelayTransport.post(
+                    getApplicationContext(), topic, wire, 2));
         } catch (Exception ignored) {}
     }
 
@@ -575,7 +589,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья 6.0.18")
+                .setContentTitle("Наша семья 6.0.19")
                 .setContentText("Фоновая связь и статус в сети включены")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
@@ -595,6 +609,7 @@ public class MessagingService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        receiptSender.shutdown();
         try { if (activeConnection != null) activeConnection.disconnect(); } catch (Exception ignored) {}
         try { if (activePresenceConnection != null) activePresenceConnection.disconnect(); } catch (Exception ignored) {}
         super.onDestroy();
