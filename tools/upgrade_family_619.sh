@@ -18,7 +18,7 @@ from e2e_family_610 import enter_profile
 enter_profile('Сергей')
 PY
 adb install -r /tmp/family-619.apk
-test "$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionCode=\([0-9]*\).*/\1/p' | head -1 | tr -d '\r')" = 6018
+test "$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionCode=\([0-9]*\).*/\1/p' | head -1 | tr -d '\r')" = 6019
 adb shell am force-stop "$pkg"
 adb logcat -c
 adb shell am start -W -n "$pkg/com.sergey.duochat.MainActivity"

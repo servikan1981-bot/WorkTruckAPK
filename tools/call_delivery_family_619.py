@@ -1,7 +1,9 @@
 """Check call invitation and video between two Android emulators."""
 import os
 import re
+import subprocess
 import time
+from pathlib import Path
 
 import video_family_613 as helper
 
@@ -21,7 +23,8 @@ def wait_event(serial, phase, count, timeout):
         if len(events) >= count:
             return events[-1]
         time.sleep(0.5)
-    raise AssertionError(f'{serial}: {phase} did not arrive in {timeout}s')
+    raise AssertionError(f'{serial}: {phase} did not arrive in {timeout}s; logs: '
+                         + helper.adb(serial, 'logcat', '-d', '-s', 'OurFamilyCall:I', '*:S')[-1500:])
 
 
 def main():
@@ -56,4 +59,15 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    finally:
+        for serial in (A, B):
+            try:
+                Path('/tmp/' + serial + '-call.log').write_text(
+                    helper.adb(serial, 'logcat', '-d', '-s', 'OurFamilyCall:I', '*:S'))
+                Path('/tmp/' + serial + '-screen.png').write_bytes(
+                    subprocess.check_output(['adb', '-s', serial, 'exec-out', 'screencap', '-p']))
+                print(serial, helper.adb(serial, 'logcat', '-d', '-s', 'OurFamilyCall:I', '*:S')[-1000:], flush=True)
+            except Exception:
+                pass

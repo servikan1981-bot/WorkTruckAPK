@@ -32,3 +32,13 @@ jobs:
           target: google_apis
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-front emulated -camera-back emulated
           script: bash tools/call_delivery_family_619.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: family-619-call-diagnostics
+          path: |
+            /tmp/emulator-5554-call.log
+            /tmp/emulator-5556-call.log
+            /tmp/emulator-5554-screen.png
+            /tmp/emulator-5556-screen.png
+          if-no-files-found: ignore
