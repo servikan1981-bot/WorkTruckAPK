@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.14</title>
+<title>Наша семья 6.0.15</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -20,6 +20,7 @@ h1{font-size:27px;margin:0 0 7px}.sub{color:var(--muted);line-height:1.4;margin:
 .actionbar{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:13px}.action{border:0;border-radius:16px;padding:13px;font-weight:850}.action.blue{background:#e9f0ff;color:#245aca}.action.green{background:#e5f7ef;color:#0c8252}
 .thread{width:100%;border:0;background:#fff;border-radius:18px;padding:11px;margin-bottom:8px;display:flex;align-items:center;gap:11px;text-align:left;box-shadow:0 3px 10px rgba(30,45,70,.05)}.tavatar{width:48px;height:48px;border-radius:50%;background:#edf3ff;color:#2f6fed;display:grid;place-items:center;font-weight:900;flex:none}.tbody{flex:1;min-width:0}.tname{font-weight:850}.preview{font-size:12px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.badge{min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--blue);color:white;font-size:11px;font-weight:900;display:grid;place-items:center}
 .permission{background:#fff4d8;border:1px solid #efd487;border-radius:15px;padding:12px;font-size:13px;line-height:1.4;margin-bottom:10px}.permission button{border:0;border-radius:11px;background:#172033;color:white;padding:8px 11px;font-weight:800;margin-top:8px}
+.daily-quote{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:15px;padding:11px 13px;margin-bottom:10px;box-shadow:0 3px 10px rgba(30,45,70,.05)}.quote-label{font-size:11px;font-weight:900;color:var(--blue);margin-bottom:5px}.quote-text{font-size:14px;line-height:1.4}.quote-credit{font-size:11px;color:var(--muted);margin-top:6px}.quote-credit a{color:var(--blue);text-decoration:none}
 #messages,#adminMessages{flex:1;overflow:auto;padding:14px 11px;display:flex;flex-direction:column;gap:7px}.bubble{max-width:84%;padding:10px 11px;border-radius:16px;box-shadow:0 2px 7px rgba(25,35,55,.05)}.mine{align-self:flex-end;background:#dce9ff;border-bottom-right-radius:5px}.theirs{align-self:flex-start;background:#fff;border-bottom-left-radius:5px}.sender{font-size:11px;font-weight:850;color:#446089;margin-bottom:3px}.msgtext{font-size:15px;line-height:1.35;white-space:pre-wrap;word-break:break-word}.meta{font-size:10px;color:#718096;text-align:right;margin-top:4px}
 .composer{background:#fff;border-top:1px solid var(--line);padding:9px 9px max(9px,env(safe-area-inset-bottom));display:flex;gap:7px;align-items:flex-end}.composer textarea{flex:1;resize:none;min-height:44px;max-height:120px;border:1px solid var(--line);border-radius:17px;padding:10px 12px;outline:none}.send{width:45px;height:45px;border:0;border-radius:50%;background:var(--blue);color:#fff;font-size:20px}
 .pickrow{background:#fff;border-radius:16px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:11px}.pickrow input{width:21px;height:21px}.picker-actions{background:#fff;border-top:1px solid var(--line);padding:10px 10px max(10px,env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -103,11 +104,12 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v6.0.14</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.15</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
     <button id="menuBtn" class="iconbtn">⋮</button>
   </div>
   <div class="body">
     <div id="permissionBanner" class="permission hidden">Android требует отдельное разрешение для полноэкранного входящего звонка.<br><button id="fullScreenPermissionBtn">Разрешить</button></div>
+    <div id="dailyQuote" class="daily-quote hidden" aria-live="polite"><div class="quote-label">ЦИТАТА ДНЯ</div><div id="quoteText" class="quote-text">Загружаем цитату дня…</div><div id="quoteCredit" class="quote-credit hidden"></div></div>
     <div class="actionbar">
       <button id="newChatBtn" class="action blue">✚ Новый чат</button>
       <button id="newVideoBtn" class="action green">🎥 Видеозвонок</button>
@@ -299,7 +301,7 @@ var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteS
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.14',reactionTargetId='',pendingMessageNavigation=null;
+var APP_VERSION='6.0.15',reactionTargetId='',pendingMessageNavigation=null;
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'ocean',videoLayout:'pip'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
@@ -1679,12 +1681,33 @@ document.addEventListener('click',function(e){
  if(!t.closest('#newsCaptureMenu')&&!t.closest('#newsCameraBtn'))$('newsCaptureMenu').classList.add('hidden');
 });
 
-function checkFullScreenPermission(){try{$('permissionBanner').classList.toggle('hidden',!!AndroidBridge.canUseFullScreenCall());}catch(e){$('permissionBanner').classList.add('hidden');}}
+function moscowDay(){
+ var parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+ var values={};parts.forEach(function(p){values[p.type]=p.value;});return values.year+'-'+values.month+'-'+values.day;
+}
+function renderDailyQuote(){
+ var text=$('quoteText'),credit=$('quoteCredit');credit.classList.add('hidden');credit.textContent='';
+ try{
+   var quote=JSON.parse(AndroidBridge.loadDailyQuote()||'{}');
+   if(quote.date!==moscowDay()||!quote.text||!quote.author){text.textContent='Загружаем цитату дня…';return;}
+   text.textContent='«'+quote.text+'»';
+   credit.textContent='— '+quote.author+(quote.source==='Forismatic'||quote.source==='FavQs'?' · '+quote.source:'');
+   credit.classList.remove('hidden');
+ }catch(e){text.textContent='Загружаем цитату дня…';}
+}
+window.__ourFamilyDailyQuoteUpdated=renderDailyQuote;
+function checkFullScreenPermission(){
+ var allowed=true;try{allowed=!!AndroidBridge.canUseFullScreenCall();}catch(e){}
+ $('permissionBanner').classList.toggle('hidden',allowed);
+ $('fullScreenMenuBtn').classList.toggle('hidden',allowed);
+ $('dailyQuote').classList.toggle('hidden',!allowed);
+ if(allowed)renderDailyQuote();
+}
 function requestFullScreen(){try{AndroidBridge.requestFullScreenCallPermission();}catch(e){}}
 async function configure(){
  ownTag=await roleTag(role);ownTopic=await inboxTopic(role);
  try{AndroidBridge.configure(ownTopic,role,relayBase,ownTag);}catch(e){}
- startPolling();startPresence();consumeNativeAction();consumeNativeNavigation();checkFullScreenPermission();
+ startPolling();startPresence();consumeNativeAction();consumeNativeNavigation();checkFullScreenPermission();try{AndroidBridge.refreshDailyQuote();}catch(e){}
 }
 async function enter(){
  loadUiSettings();refreshAutoNews();
@@ -1817,8 +1840,9 @@ $('resetBtn').addEventListener('click',function(){if(confirm('Сменить п�
 $('adminArchiveBtn').addEventListener('click',openAdminArchiveScreen);
 $('adminBackBtn').addEventListener('click',function(){showScreen('home');});
 $('adminChatBackBtn').addEventListener('click',openAdminArchiveScreen);
-window.addEventListener('focus',function(){pollInbox();pollPresence();checkFullScreenPermission();refreshAutoNews();refreshSharedNews();try{AndroidBridge.refreshFamilyNews();}catch(e){}if(!$('news').classList.contains('hidden'))renderNews();});
+window.addEventListener('focus',function(){pollInbox();pollPresence();checkFullScreenPermission();refreshAutoNews();refreshSharedNews();try{AndroidBridge.refreshFamilyNews();AndroidBridge.refreshDailyQuote();}catch(e){}if(!$('news').classList.contains('hidden'))renderNews();});
 setInterval(function(){refreshAutoNews();refreshSharedNews().then(migrateLegacyNews);if(!$('news').classList.contains('hidden'))renderNews();},20000);
+setInterval(function(){checkFullScreenPermission();try{AndroidBridge.refreshDailyQuote();}catch(e){}},60000);
 window.addEventListener('online',function(){pollInbox();pollPresence();});
 document.addEventListener('visibilitychange',function(){
  if(!document.hidden){pollPresence();if(!$('chat').classList.contains('hidden'))scrollChatToBottom();}

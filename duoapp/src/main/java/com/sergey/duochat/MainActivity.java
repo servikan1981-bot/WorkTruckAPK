@@ -534,6 +534,20 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public String loadDailyQuote() {
+            return DailyQuoteFetcher.load(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void refreshDailyQuote() {
+            new Thread(() -> {
+                DailyQuoteFetcher.checkAndStore(MainActivity.this);
+                if (webView != null) webView.post(() -> webView.evaluateJavascript(
+                        "window.__ourFamilyDailyQuoteUpdated && window.__ourFamilyDailyQuoteUpdated();", null));
+            }, "OurFamilyDailyQuote").start();
+        }
+
+        @JavascriptInterface
         public String loadFamilyNews() {
             return FamilyNewsStore.load(MainActivity.this);
         }
@@ -568,7 +582,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "6.0.14";
+            return "6.0.15";
         }
     }
 
