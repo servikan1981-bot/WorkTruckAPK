@@ -1691,7 +1691,7 @@ function renderDailyQuote(){
    var quote=JSON.parse(AndroidBridge.loadDailyQuote()||'{}');
    if(quote.date!==moscowDay()||!quote.text||!quote.author){text.textContent='Загружаем цитату дня…';return;}
    text.textContent='«'+quote.text+'»';
-   credit.textContent='— '+quote.author+(quote.source==='Forismatic'||quote.source==='FavQs'?' · '+quote.source:'');
+   credit.textContent='— '+quote.author+(quote.source==='Forismatic'||quote.source==='Викицитатник'?' · '+quote.source:'');
    credit.classList.remove('hidden');
  }catch(e){text.textContent='Загружаем цитату дня…';}
 }
