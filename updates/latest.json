@@ -1,15 +1,15 @@
 {
-  "versionCode": 6013,
-  "versionName": "6.0.13",
+  "versionCode": 6014,
+  "versionName": "6.0.14",
   "apkBase64Parts": [
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v613_00.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v613_01.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v613_02.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v613_03.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v613_04.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v613_05.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v613_06.b64"
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v614_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v614_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v614_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v614_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v614_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v614_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v614_06.b64"
   ],
-  "sha256": "11eea2ae6f03f634e5546a3ef54750bf69aaa4e8adeab166f38d0fabdba4fa7a",
-  "notes": "Ускорено подключение видеозвонка: подготовка WebRTC во время вызова и более быстрая доставка первого кадра."
+  "sha256": "d156012082d1497c30cd7002b3c00c39634d64d6672e101b3eda237ce02916fd",
+  "notes": "Исправлен ответ на видеозвонок при заблокированном экране: кнопки видны сразу, после принятия открывается видеосвязь."
 }
