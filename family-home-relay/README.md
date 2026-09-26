@@ -14,10 +14,13 @@ Only opaque encrypted application payloads are saved. Back up the `data` folder.
 4. Keep the machine awake, give the process an automatic restart, and make
    regular backups of `data` (SQLite database plus encrypted attachment files).
 
-The service deliberately listens only on loopback. The Android app requires a
-public **HTTPS** hostname. Configure TLS via a reverse proxy only after
-checking whether the home connection has a public IP and router port forwarding.
-If behind CGNAT, choose a stable tunnel with a documented service limit. Do not
+The Windows launcher listens on the local network so that KeenDNS can reach it.
+Allow Python through Windows Firewall on the **private network only**. Restrict
+port 8787 to the Keenetic's LAN address when setting a custom firewall rule.
+The Android app requires a public **HTTPS** hostname. With a private WAN IP,
+use KeenDNS Cloud access and a separate fourth-level web-app domain. In that
+rule choose the registered Windows computer, HTTP, TCP port 8787; the router
+provides the public HTTPS certificate. Do not
 replace the currently configured Cloudflare URL on phones before the public
 `/health`, message publish, long poll, and file round-trip pass from mobile data.
 
