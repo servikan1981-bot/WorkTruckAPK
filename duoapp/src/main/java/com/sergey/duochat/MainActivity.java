@@ -12,6 +12,7 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.provider.MediaStore;
 import android.webkit.JavascriptInterface;
@@ -497,11 +498,48 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void requestFullScreenCallPermission() {
             if (Build.VERSION.SDK_INT < 34) return;
-            try {
-                Intent i = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT);
-                i.setData(Uri.parse("package:" + getPackageName()));
-                startActivity(i);
-            } catch (Exception ignored) {}
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT);
+                    i.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(i);
+                } catch (Exception ignored) {}
+            });
+        }
+
+        @JavascriptInterface
+        public boolean notificationsAllowed() {
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            return (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
+                    && (Build.VERSION.SDK_INT < 24 || nm != null && nm.areNotificationsEnabled());
+        }
+
+        @JavascriptInterface
+        public void requestNotifications() {
+            if (Build.VERSION.SDK_INT >= 33 && !notificationsAllowed())
+                runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, PERMISSION_REQUEST));
+            else runOnUiThread(() -> {
+                Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                startActivity(intent);
+            });
+        }
+
+        @JavascriptInterface
+        public boolean backgroundAllowed() {
+            if (Build.VERSION.SDK_INT < 23) return true;
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            return pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
+        }
+
+        @JavascriptInterface
+        public void openBackgroundSettings() {
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
+                    startActivity(i);
+                } catch (Exception ignored) {}
+            });
         }
 
         @JavascriptInterface
@@ -619,7 +657,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "6.0.17";
+            return "6.0.18";
         }
     }
 

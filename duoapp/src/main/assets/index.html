@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.17</title>
+<title>Наша семья 6.0.18</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -76,6 +76,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 .about-version{font-size:26px;font-weight:950;margin:8px 0}.about-copy{color:var(--muted);line-height:1.45}.about-logo{font-size:42px}
 .react-open{border:0;background:transparent;color:var(--muted);font-size:15px;padding:0 4px;margin-left:5px;vertical-align:middle}.reaction-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}.reaction-chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:3px 7px;font-size:13px;line-height:1}.reaction-chip.mine-reaction{border-color:var(--blue);background:color-mix(in srgb,var(--card) 78%,var(--blue) 22%)}
 .reaction-picker-card{width:min(430px,100%);background:var(--card);color:var(--ink);border-radius:22px;padding:14px;box-shadow:var(--shadow)}.reaction-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.reaction-choice{border:1px solid var(--line);background:var(--card);font-size:28px;border-radius:14px;padding:10px 4px}
+.reply-reference{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--blue);border-radius:5px;background:rgba(47,111,237,.09);color:var(--ink);padding:5px 8px;margin-bottom:7px;font:inherit;font-size:12px;overflow:hidden}.reply-reference strong,.reply-reference span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.reply-reference strong{color:var(--blue)}.reply-open{border:0;background:transparent;color:var(--muted);padding:0 5px;font-size:12px;font-weight:800}.reply-draft{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--card);border-top:1px solid var(--line)}.reply-draft .reply-reference{margin:0;flex:1;min-width:0}.reply-draft>button{border:0;background:transparent;color:var(--ink);font-size:24px}
 .photo-viewer{position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:220;display:flex;align-items:center;justify-content:center;touch-action:pinch-zoom}.photo-viewer img{max-width:100vw;max-height:100vh;object-fit:contain}.photo-close{position:absolute;right:14px;top:max(14px,env(safe-area-inset-top));width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:25px;z-index:2}.attachment-img{cursor:zoom-in}
 @media(max-width:420px){.emoji-panel{grid-template-columns:repeat(7,1fr)}.news-composer{grid-template-columns:auto auto 1fr auto}}
 </style>
@@ -106,11 +107,11 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v6.0.17</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.18</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
     <button id="menuBtn" class="iconbtn">⋮</button>
   </div>
   <div class="body">
-    <div id="permissionBanner" class="permission hidden">Android требует отдельное разрешение для полноэкранного входящего звонка.<br><button id="fullScreenPermissionBtn">Разрешить</button></div>
+    <div id="permissionBanner" class="permission hidden"><strong>Настройка звонков и уведомлений</strong><div id="notificationPermissionRow" class="hidden">Уведомления о сообщениях и звонках<br><button id="notificationPermissionBtn">Включить уведомления</button></div><div id="fullScreenPermissionRow" class="hidden">Кнопка «Принять» поверх экрана блокировки<br><button id="fullScreenPermissionBtn">Разрешить полноэкранный звонок</button></div><div id="backgroundPermissionRow" class="hidden">Работа в фоне для получения звонков и сообщений<br><button id="backgroundPermissionBtn">Открыть настройки батареи</button></div><div class="hint">В настройках батареи выберите для приложения «Без ограничений». Названия пунктов зависят от телефона.</div></div>
     <div id="dailyQuote" class="daily-quote hidden" aria-live="polite"><div class="quote-label">ЦИТАТА ДНЯ</div><div id="quoteText" class="quote-text">Загружаем цитату дня…</div><div id="quoteCredit" class="quote-credit hidden"></div></div>
     <div class="actionbar">
       <button id="newChatBtn" class="action blue">✚ Новый чат</button>
@@ -152,6 +153,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   </div>
   <button id="inviteCheckersBtn" class="game-invite hidden">♟ Пригласить в шашки</button>
   <div id="messages"></div>
+  <div id="replyDraft" class="reply-draft hidden"><div id="replyDraftText" class="reply-reference"></div><button id="cancelReplyBtn" aria-label="Отменить ответ">×</button></div>
   <div class="composer">
     <button id="attachBtn" class="mini" aria-label="Вложение">＋</button>
     <button id="emojiBtn" class="mini" aria-label="Смайлы">😊</button>
@@ -313,7 +315,7 @@ var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteS
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.17',reactionTargetId='',pendingMessageNavigation=null;
+var APP_VERSION='6.0.18',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
 var games={},activeGameId='',pendingGameAcceptId='',gameSending=false,checkersDrag=null,suppressCheckersClick=0;
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'ocean',videoLayout:'pip'},attachmentKeys={},attachmentDbPromise=null;
@@ -908,12 +910,14 @@ function consumeNativeNavigation(){
 }
 
 function openDirect(peer){
+ clearReply();
  currentThread={type:'direct',peer:peer};
  $('chatTitle').textContent=NAMES[peer];$('chatSubtitle').textContent=presenceLabel(peer);$('chatAvatar').textContent=initials(NAMES[peer]);$('membersBtn').classList.add('hidden');
  $('inviteCheckersBtn').classList.remove('hidden');
  showScreen('chat');renderMessages();renderHome();markThreadRead(currentThread);
 }
 function openGroup(gid,members){
+ clearReply();
  currentThread={type:'group',groupId:gid,members:sortedMembers(members)};
  var others=currentThread.members.filter(function(x){return x!==role;});
  $('chatTitle').textContent=others.map(function(x){return NAMES[x];}).join(', ');
@@ -1068,17 +1072,42 @@ function receiveCheckers(p){
  else return;
  g.updated=Date.now();saveGames();renderHome();if(activeGameId===id)renderCheckers();
 }
+function replySnapshot(m){return {id:m.id,from:m.from,text:String(m.text|| (m.attachment?'📎 '+(m.attachment.name||'Вложение'):'Сообщение')).slice(0,180)};}
+function replyPreview(ref){return String(ref.text||'Сообщение').slice(0,180);}
+function clearReply(){replyDraft=null;$('replyDraft').classList.add('hidden');}
+function startReply(m){
+ if(!currentThread||!messageBelongs(m,currentThread))return;
+ replyDraft=replySnapshot(m);
+ var box=$('replyDraftText');box.innerHTML='';
+ var name=document.createElement('strong');name.textContent=NAMES[replyDraft.from]||replyDraft.from;
+ var snippet=document.createElement('span');snippet.textContent=replyPreview(replyDraft);
+ box.append(name,snippet);$('replyDraft').classList.remove('hidden');$('messageInput').focus();
+}
+function jumpToReply(ref){
+ var target=Array.from($('messages').children).find(function(el){return el.dataset.messageId===ref.id;});
+ if(!target){toast('Исходное сообщение не сохранено на этом устройстве');return;}
+ target.scrollIntoView({block:'center',behavior:'smooth'});target.classList.remove('message-highlight');void target.offsetWidth;target.classList.add('message-highlight');
+}
+function appendReply(parent,ref){
+ if(!ref||!ref.id)return;
+ var b=document.createElement('button');b.className='reply-reference';b.title='Перейти к сообщению';
+ var name=document.createElement('strong');name.textContent=NAMES[ref.from]||ref.from||'Сообщение';
+ var snippet=document.createElement('span');snippet.textContent=replyPreview(ref);b.append(name,snippet);
+ b.addEventListener('click',function(e){e.stopPropagation();jumpToReply(ref);});parent.appendChild(b);
+}
 function renderMessages(){
  var box=$('messages');box.innerHTML='';if(!currentThread)return;
  var arr=currentThread.type==='direct'?directMessages(currentThread.peer):groupMessages(currentThread.groupId);
  arr.sort(function(a,b){return a.ts-b.ts;}).slice(-500).forEach(function(m){
    var b=document.createElement('div');b.className='bubble '+(m.from===role?'mine':'theirs');b.dataset.messageId=m.id;
    if(currentThread.type==='group'&&m.from!==role){var sn=document.createElement('div');sn.className='sender';sn.textContent=NAMES[m.from]||m.from;b.appendChild(sn);}
+   appendReply(b,m.replyTo);
    if(m.text){var t=document.createElement('div');t.className='msgtext';t.textContent=m.text;b.appendChild(t);}
    if(m.attachment)renderAttachmentInto(b,m.attachment);
    appendReactionSummary(b,m);
    var meta=document.createElement('div');meta.className='meta';meta.appendChild(document.createTextNode(fmt(m.ts)));
    var react=document.createElement('button');react.className='react-open';react.textContent='☺';react.title='Добавить реакцию';react.addEventListener('click',function(e){e.stopPropagation();openReactionPicker(m.id);});meta.appendChild(react);
+   var reply=document.createElement('button');reply.className='reply-open';reply.textContent='↩ Ответить';reply.addEventListener('click',function(e){e.stopPropagation();startReply(m);});meta.appendChild(reply);
    var state=receiptState(m);if(state){var rc=document.createElement('span');rc.className=state.cls;rc.textContent=state.text;rc.title=m.sendFailed?'Нажмите, чтобы повторить отправку':state.title;if(m.sendFailed){rc.style.cursor='pointer';rc.setAttribute('role','button');rc.addEventListener('click',function(e){e.stopPropagation();retryMessage(m.id);});}meta.appendChild(rc);}
    b.appendChild(meta);wireLongPressReaction(b,m.id);box.appendChild(b);
  });
@@ -1212,7 +1241,7 @@ async function processPayload(p){
  }
  if(p.kind==='direct_chat'){
    var isOpen=currentThread&&currentThread.type==='direct'&&currentThread.peer===peer;
-   addMessage({id:d.messageId||p.id,kind:'direct',from:peer,to:role,text:String(d.text||''),attachment:d.attachment||null,ts:d.ts||p.ts,read:!!isOpen,deliveredTo:[],readBy:[]});
+   addMessage({id:d.messageId||p.id,kind:'direct',from:peer,to:role,text:String(d.text||''),attachment:d.attachment||null,replyTo:d.replyTo||null,ts:d.ts||p.ts,read:!!isOpen,deliveredTo:[],readBy:[]});
    if(!isOpen)sendReceipt(peer,d.messageId||p.id,'delivered','');
    if(isOpen)sendReceipt(peer,d.messageId||p.id,'read','');
    if(d.attachment)cacheRemoteAttachment(d.attachment).then(function(){if(currentThread)renderMessages();});
@@ -1222,7 +1251,7 @@ async function processPayload(p){
    var members=sortedMembers(d.members||[]);if(!members.includes(role))return;
    ensureGroup(members,d.groupId);
    var groupOpen=currentThread&&currentThread.type==='group'&&currentThread.groupId===d.groupId;
-   addMessage({id:d.messageId||p.id,kind:'group',groupId:d.groupId,members:members,from:peer,text:String(d.text||''),attachment:d.attachment||null,ts:d.ts||p.ts,read:!!groupOpen,deliveredTo:[],readBy:[]});
+   addMessage({id:d.messageId||p.id,kind:'group',groupId:d.groupId,members:members,from:peer,text:String(d.text||''),attachment:d.attachment||null,replyTo:d.replyTo||null,ts:d.ts||p.ts,read:!!groupOpen,deliveredTo:[],readBy:[]});
    if(!groupOpen)sendReceipt(peer,d.messageId||p.id,'delivered',d.groupId);
    if(groupOpen)sendReceipt(peer,d.messageId||p.id,'read',d.groupId);
    if(d.attachment)cacheRemoteAttachment(d.attachment).then(function(){if(currentThread)renderMessages();});
@@ -1234,7 +1263,7 @@ async function processPayload(p){
    return;
  }
  if(p.kind==='admin_copy'&&role==='sergey'){
-   addMessage({id:'adm-'+(d.messageId||p.id),kind:'admin',from:d.originalFrom,to:d.originalTo||'',members:d.originalMembers||[],groupId:d.groupId||'',text:String(d.text||''),attachment:d.attachment||null,ts:d.ts||p.ts,read:true});
+   addMessage({id:'adm-'+(d.messageId||p.id),kind:'admin',from:d.originalFrom,to:d.originalTo||'',members:d.originalMembers||[],groupId:d.groupId||'',text:String(d.text||''),attachment:d.attachment||null,replyTo:d.replyTo||null,ts:d.ts||p.ts,read:true});
    if(d.attachment)cacheRemoteAttachment(d.attachment);
    return;
  }
@@ -1322,6 +1351,7 @@ async function retryMessage(id){
  m.retrying=true;saveMessages();renderMessages();
  var peers=m.kind==='direct'?[m.to]:(m.members||[]).filter(function(x){return x!==role;});
  var data={messageId:m.id,text:m.text||'',ts:m.ts};
+ if(m.replyTo)data.replyTo=m.replyTo;
  if(m.attachment)data.attachment=m.attachment;
  if(m.kind==='group'){data.groupId=m.groupId;data.members=m.members;}
  var failed=false;
@@ -1335,15 +1365,15 @@ async function retryMessage(id){
 async function sendCurrentMessage(){
  if(!currentThread)return;
  var inp=$('messageInput'),text=inp.value.trim();if(!text)return;inp.value='';
- var id=randomId(),ts=Date.now();
+ var id=randomId(),ts=Date.now(),replyTo=replyDraft;clearReply();
  if(currentThread.type==='direct'){
    var peer=currentThread.peer;
-   addMessage({id:id,kind:'direct',from:role,to:peer,text:text,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
+   addMessage({id:id,kind:'direct',from:role,to:peer,text:text,replyTo:replyTo,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
    try{
-     await publishEnvelope(peer,'direct_chat',{messageId:id,text:text,ts:ts},3,'direct_chat',id);
+     await publishEnvelope(peer,'direct_chat',{messageId:id,text:text,replyTo:replyTo,ts:ts},3,'direct_chat',id);
      var local=messages.find(function(x){return x.id===id;});if(local){local.sent=true;saveMessages();renderMessages();}
      if(role!=='sergey'&&peer!=='sergey'){
-       publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalTo:peer,text:text,ts:ts},2,'admin_copy','-').catch(function(){});
+       publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalTo:peer,text:text,replyTo:replyTo,ts:ts},2,'admin_copy','-').catch(function(){});
      }
    }catch(e){
       var m=messages.find(function(x){return x.id===id;});if(m){m.sendFailed=true;m.sent=false;m.sendError=relayErrorText(e);saveMessages();renderMessages();}
@@ -1351,15 +1381,15 @@ async function sendCurrentMessage(){
    }
  }else{
    var members=currentThread.members.slice(),gid=currentThread.groupId,recipients=members.filter(function(x){return x!==role;});
-   addMessage({id:id,kind:'group',groupId:gid,members:members,from:role,text:text,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
+   addMessage({id:id,kind:'group',groupId:gid,members:members,from:role,text:text,replyTo:replyTo,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
    var failed=false;
    for(var i=0;i<recipients.length;i++){
-     try{await publishEnvelope(recipients[i],'group_chat',{messageId:id,text:text,ts:ts,groupId:gid,members:members},3,'group_chat',id);}
+     try{await publishEnvelope(recipients[i],'group_chat',{messageId:id,text:text,replyTo:replyTo,ts:ts,groupId:gid,members:members},3,'group_chat',id);}
      catch(e){failed=true;}
    }
    var gm=messages.find(function(x){return x.id===id;});if(gm){gm.sent=!failed;gm.sendFailed=failed;saveMessages();renderMessages();}
    if(role!=='sergey'&&!members.includes('sergey')){
-     publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalMembers:members,groupId:gid,text:text,ts:ts},2,'admin_copy','-').catch(function(){});
+     publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalMembers:members,groupId:gid,text:text,replyTo:replyTo,ts:ts},2,'admin_copy','-').catch(function(){});
    }
  }
  scrollChatToBottom();
@@ -1389,31 +1419,31 @@ async function sendAttachment(file,isPhoto){
  $('attachMenu').classList.add('hidden');$('emojiPanel').classList.add('hidden');
  try{
    toast('Подготавливаю '+(isPhoto?'фото':((file.type||'').startsWith('video/')?'видео':'файл'))+'…');
-   var context=attachmentContextForThread(currentThread),att=await prepareAttachment(file,isPhoto,context),id=att.id,ts=Date.now();
+   var context=attachmentContextForThread(currentThread),att=await prepareAttachment(file,isPhoto,context),id=att.id,ts=Date.now(),replyTo=replyDraft;clearReply();
 
    if(currentThread.type==='direct'){
      var peer=currentThread.peer;
-     addMessage({id:id,kind:'direct',from:role,to:peer,text:'',attachment:att,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
+     addMessage({id:id,kind:'direct',from:role,to:peer,text:'',attachment:att,replyTo:replyTo,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
      try{
-       await publishEnvelope(peer,'direct_chat',{messageId:id,text:'',attachment:att,ts:ts},3,'direct_chat',id);
+       await publishEnvelope(peer,'direct_chat',{messageId:id,text:'',attachment:att,replyTo:replyTo,ts:ts},3,'direct_chat',id);
        var local=messages.find(function(x){return x.id===id;});if(local){local.sent=true;saveMessages();renderMessages();}
      }catch(e){
        var m=messages.find(function(x){return x.id===id;});if(m){m.sendFailed=true;m.sent=false;saveMessages();renderMessages();}throw e;
      }
      if(role!=='sergey'&&peer!=='sergey'){
-       publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalTo:peer,text:'',attachment:att,ts:ts},2,'admin_copy','-').catch(function(){});
+       publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalTo:peer,text:'',attachment:att,replyTo:replyTo,ts:ts},2,'admin_copy','-').catch(function(){});
      }
    }else{
      var members=currentThread.members.slice(),gid=currentThread.groupId,recipients=members.filter(function(x){return x!==role;});
-     addMessage({id:id,kind:'group',groupId:gid,members:members,from:role,text:'',attachment:att,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
+     addMessage({id:id,kind:'group',groupId:gid,members:members,from:role,text:'',attachment:att,replyTo:replyTo,ts:ts,read:true,deliveredTo:[],readBy:[],reactions:{},sent:false,sendFailed:false});
      var failed=false;
      for(var i=0;i<recipients.length;i++){
-       try{await publishEnvelope(recipients[i],'group_chat',{messageId:id,text:'',attachment:att,ts:ts,groupId:gid,members:members},3,'group_chat',id);}
+       try{await publishEnvelope(recipients[i],'group_chat',{messageId:id,text:'',attachment:att,replyTo:replyTo,ts:ts,groupId:gid,members:members},3,'group_chat',id);}
        catch(e){failed=true;}
      }
      var gm=messages.find(function(x){return x.id===id;});if(gm){gm.sent=!failed;gm.sendFailed=failed;saveMessages();renderMessages();}
      if(role!=='sergey'&&!members.includes('sergey')){
-       publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalMembers:members,groupId:gid,text:'',attachment:att,ts:ts},2,'admin_copy','-').catch(function(){});
+       publishEnvelope('sergey','admin_copy',{messageId:id,originalFrom:role,originalMembers:members,groupId:gid,text:'',attachment:att,replyTo:replyTo,ts:ts},2,'admin_copy','-').catch(function(){});
      }
    }
    scrollChatToBottom();toast('Отправлено');
@@ -1892,11 +1922,17 @@ function renderDailyQuote(){
 }
 window.__ourFamilyDailyQuoteUpdated=renderDailyQuote;
 function checkFullScreenPermission(){
- var allowed=true;try{allowed=!!AndroidBridge.canUseFullScreenCall();}catch(e){}
- $('permissionBanner').classList.toggle('hidden',allowed);
- $('fullScreenMenuBtn').classList.toggle('hidden',allowed);
- $('dailyQuote').classList.toggle('hidden',!allowed);
- if(allowed)renderDailyQuote();
+ var full=true,notifications=true,background=true;
+ try{full=!!AndroidBridge.canUseFullScreenCall();}catch(e){}
+ try{notifications=!!AndroidBridge.notificationsAllowed();}catch(e){}
+ try{background=!!AndroidBridge.backgroundAllowed();}catch(e){}
+ $('notificationPermissionRow').classList.toggle('hidden',notifications);
+ $('fullScreenPermissionRow').classList.toggle('hidden',full);
+ $('backgroundPermissionRow').classList.toggle('hidden',background);
+ $('permissionBanner').classList.toggle('hidden',full&&notifications&&background);
+ $('fullScreenMenuBtn').classList.toggle('hidden',full);
+ $('dailyQuote').classList.toggle('hidden',!full);
+ if(full)renderDailyQuote();
 }
 function requestFullScreen(){try{AndroidBridge.requestFullScreenCallPermission();}catch(e){}}
 async function configure(){
@@ -1953,7 +1989,8 @@ $('pickerBackBtn').addEventListener('click',function(){showScreen(currentThread?
 $('selectAllBtn').addEventListener('click',toggleAll);
 $('pickerChatBtn').addEventListener('click',pickerWrite);
 $('pickerVideoBtn').addEventListener('click',pickerVideo);
-$('chatBackBtn').addEventListener('click',function(){currentThread=null;showScreen('home');renderHome();});
+$('chatBackBtn').addEventListener('click',function(){clearReply();currentThread=null;showScreen('home');renderHome();});
+$('cancelReplyBtn').addEventListener('click',clearReply);
 $('membersBtn').addEventListener('click',function(){if(currentThread&&currentThread.type==='group')openPicker('edit',currentThread.members);});
 $('sendBtn').addEventListener('click',sendCurrentMessage);
 $('messageInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendCurrentMessage();}});
@@ -2042,6 +2079,8 @@ $('newsSendBtn').addEventListener('click',sendNewsPost);
 
 $('fullScreenMenuBtn').addEventListener('click',function(){$('settingsPop').classList.add('hidden');requestFullScreen();});
 $('fullScreenPermissionBtn').addEventListener('click',requestFullScreen);
+$('notificationPermissionBtn').addEventListener('click',function(){try{AndroidBridge.requestNotifications();}catch(e){}});
+$('backgroundPermissionBtn').addEventListener('click',function(){try{AndroidBridge.openBackgroundSettings();}catch(e){}});
 $('resetBtn').addEventListener('click',function(){if(confirm('Сменить профиль и очистить локальную историю?')){try{AndroidBridge.clearProfile();}catch(e){}location.reload();}});
 $('adminArchiveBtn').addEventListener('click',openAdminArchiveScreen);
 $('adminBackBtn').addEventListener('click',function(){showScreen('home');});

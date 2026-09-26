@@ -70,7 +70,7 @@ public final class NativeRelayTransport {
             c.setDoOutput(true);c.setRequestMethod("POST");
             c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             c.setRequestProperty("Accept", "application/json");
-            c.setRequestProperty("User-Agent", "OurFamily/6.0.17 Android");
+            c.setRequestProperty("User-Agent", "OurFamily/6.0.18 Android");
             byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
             try (OutputStream out = c.getOutputStream()) { out.write(bytes);out.flush(); }
             int status = c.getResponseCode();
@@ -115,7 +115,7 @@ public final class NativeRelayTransport {
             c.setRequestMethod("POST");
             c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             c.setRequestProperty("Accept", "application/json");
-            c.setRequestProperty("User-Agent", "OurFamily/6.0.17 Android");
+            c.setRequestProperty("User-Agent", "OurFamily/6.0.18 Android");
 
             byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
             try (OutputStream out = c.getOutputStream()) {
