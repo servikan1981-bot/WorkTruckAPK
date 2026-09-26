@@ -10,6 +10,35 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Capture server exception for disposable topic
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 860c7981b2d45d79a28a2f18ab9f101f
+        run: |
+          timeout 24s npx --yes wrangler@4 tail our-family-relay --format json > /tmp/relay-tail.jsonl 2>/tmp/relay-tail-error &
+          tail_pid=$!
+          sleep 8
+          python3 - <<'PY'
+          import json,uuid,urllib.request,urllib.error
+          body=json.dumps({'topic':'of5-'+uuid.uuid4().hex,'message':'of5probe|'+uuid.uuid4().hex}).encode()
+          req=urllib.request.Request('https://our-family-relay.family-860c7981b2d4.workers.dev/',data=body,headers={'Content-Type':'application/json'})
+          try:urllib.request.urlopen(req,timeout=10).close()
+          except urllib.error.HTTPError as e:print('Probe HTTP',e.code)
+          PY
+          sleep 5
+          kill "$tail_pid" 2>/dev/null || true
+          python3 - <<'PY'
+          import json,pathlib
+          for line in pathlib.Path('/tmp/relay-tail.jsonl').read_text().splitlines():
+              try:entry=json.loads(line)
+              except ValueError:continue
+              for exception in entry.get('exceptions',[]):
+                  print('RELAY EXCEPTION:',str(exception.get('name','')),str(exception.get('message',''))[:350])
+          print('Tail setup:',pathlib.Path('/tmp/relay-tail-error').read_text()[-300:])
+          PY
       - name: Probe disposable inbox and presence
         run: |
           python3 - <<'PY'
