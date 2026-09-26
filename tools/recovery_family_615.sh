@@ -53,11 +53,11 @@ fi
 for attempt in $(seq 1 18); do
   adb shell uiautomator dump /sdcard/family-615.xml >/dev/null
   adb exec-out cat /sdcard/family-615.xml > /tmp/family-615.xml
-  if grep -q 'ЦИТАТА ДНЯ' /tmp/family-615.xml && grep -Eq 'Forismatic|FavQs' /tmp/family-615.xml; then break; fi
+  if grep -q 'ЦИТАТА ДНЯ' /tmp/family-615.xml && grep -Eq 'Forismatic|Викицитатник' /tmp/family-615.xml; then break; fi
   sleep 3
 done
 grep -q 'ЦИТАТА ДНЯ' /tmp/family-615.xml
-grep -Eq 'Forismatic|FavQs' /tmp/family-615.xml
+grep -Eq 'Forismatic|Викицитатник' /tmp/family-615.xml
 if grep -q 'Android требует отдельное разрешение' /tmp/family-615.xml; then
   echo 'Permission banner remained after enabling full-screen calls' >&2; exit 1
 fi
