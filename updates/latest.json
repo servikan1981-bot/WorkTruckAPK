@@ -1,15 +1,17 @@
 {
-  "versionCode": 6016,
-  "versionName": "6.0.16",
+  "versionCode": 6017,
+  "versionName": "6.0.17",
   "apkBase64Parts": [
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v616_00.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v616_01.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v616_02.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v616_03.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v616_04.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v616_05.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v616_06.b64"
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_06.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_07.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v617_08.b64"
   ],
-  "sha256": "316d8e9b4d47f9d3e2f56cef20ab473597f980bf66113f1a6bd96de232913806",
-  "notes": "Добавлены шашки: приглашение из личного чата, уведомление с принятием, обязательное взятие, дамки и сохранение партии."
+  "sha256": "78e3ed3f6c1d351f54ab06b3c87a28a8b69e1dc1a5f8896d966f9b6a418002de",
+  "notes": "Ускорено подключение видеозвонка; доска шашек исправлена, ходы перетаскиванием и быстрый отклик."
 }
