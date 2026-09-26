@@ -227,6 +227,14 @@ public class MainActivity extends Activity {
             int n;
             while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
             String html = new String(out.toByteArray(), StandardCharsets.UTF_8);
+            try (InputStream game = getAssets().open("checkers.js")) {
+                ByteArrayOutputStream rules = new ByteArrayOutputStream();
+                while ((n = game.read(buf)) > 0) rules.write(buf, 0, n);
+                String marker = "<script src=\"checkers.js\"></script>";
+                if (!html.contains(marker)) throw new IllegalStateException("checkers marker missing");
+                html = html.replace(marker, "<script>\n" +
+                        new String(rules.toByteArray(), StandardCharsets.UTF_8) + "\n</script>");
+            }
             webView.loadDataWithBaseURL("https://app.local/", html, "text/html", "UTF-8", null);
         } catch (Exception e) {
             webView.loadData("<h2>Не удалось запустить приложение</h2>", "text/html", "UTF-8");
