@@ -11,14 +11,24 @@ A, B = 'emulator-5554', 'emulator-5556'
 
 
 def labels(serial):
-    return [(n.get('text', '') + ' ' + n.get('content-desc', ''), n.get('bounds', ''), n.get('class', ''))
-            for n in helper.snap(serial).iter('node')]
+    result = []
+    for n in helper.snap(serial).iter('node'):
+        bounds = n.get('bounds', '')
+        coords = list(map(int, re.findall(r'\d+', bounds)))
+        if len(coords) != 4 or coords[2] <= coords[0] or coords[3] <= coords[1]:
+            continue
+        result.append((n.get('text', '') + ' ' + n.get('content-desc', ''), bounds, n.get('class', '')))
+    return result
 
 
 def wait_text(serial, needle, timeout=35):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if any(needle in label for label, _, _ in labels(serial)):
+        current = labels(serial)
+        if any('Разрешите системные входящие звонки' in label for label, _, _ in current):
+            tap_visible_button(serial, 'ПОЗЖЕ')
+            continue
+        if any(needle in label for label, _, _ in current):
             return
         time.sleep(1)
     raise AssertionError(f'{serial}: missing {needle}: {labels(serial)[-25:]}')
@@ -30,7 +40,7 @@ def first_hand_card(serial):
         if 'Button' not in cls or not re.search(r'[6-9JQKA]|10', label) or not bounds:
             continue
         x1, y1, x2, y2 = map(int, re.findall(r'\d+', bounds))
-        if y1 > 800 and y2 < 1900 and x2 - x1 < 150:
+        if y1 > 320 and y2 <= 640 and x2 - x1 < 100:
             candidates.append((y1, x1, (x1+x2)//2, (y1+y2)//2, label))
     assert candidates, f'no hand card in {labels(serial)[-35:]}'
     _, _, x, y, label = sorted(candidates, reverse=True)[-1]
