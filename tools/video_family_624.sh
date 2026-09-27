@@ -30,4 +30,8 @@ for serial in emulator-5554 emulator-5556; do
     adb -s "$serial" shell pm grant com.sergey.ourfamily "$permission" || true
   done
 done
-python3 tools/video_family_613.py
+if [ "${FAMILY_E2E_SUITE:-video}" = game ]; then
+  python3 tools/game_family_624.py
+else
+  python3 tools/video_family_613.py
+fi

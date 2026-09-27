@@ -91,3 +91,43 @@ jobs:
             /tmp/emulator-5556-crash.log
             /tmp/second-emulator.log
           if-no-files-found: ignore
+
+  messaging_games:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: OurFamily_6_0_24_unsigned
+          path: /tmp/family624
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Test chat and Durak on two Android emulators
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          FAMILY_E2E_SUITE: game
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: bash tools/video_family_624.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: family-game-624-evidence
+          path: |
+            /tmp/emulator-5554-game.png
+            /tmp/emulator-5556-game.png
+            /tmp/emulator-5554-game.log
+            /tmp/emulator-5556-game.log
+            /tmp/second-emulator.log
+          if-no-files-found: ignore
