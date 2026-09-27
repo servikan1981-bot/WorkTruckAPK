@@ -34,10 +34,15 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Apply 6.0.20 patch
+      - name: Apply 6.0.20 patch when needed
         run: |
-          python3 tools/patch_family_620.py
-          python3 tools/patch_family_620_fix.py
+          if grep -q "APP_VERSION='6.0.19'" duoapp/src/main/assets/index.html; then
+            python3 tools/patch_family_620.py
+            python3 tools/patch_family_620_fix.py
+          else
+            grep -q "APP_VERSION='6.0.20'" duoapp/src/main/assets/index.html
+            echo 'Source is already prepared as 6.0.20'
+          fi
 
       - name: Test game rules and JavaScript
         run: |
@@ -71,13 +76,16 @@ jobs:
 
       - name: Verify APK content
         run: |
-          APK=duoapp/build/outputs/apk/debug/duoapp-debug.apk
-          test -s "$APK"
-          unzip -t "$APK" >/dev/null
-          unzip -p "$APK" assets/index.html | grep -q "Наша семья · v6.0.20"
-          unzip -p "$APK" assets/index.html | grep -q 'id="durak"'
-          unzip -p "$APK" assets/durak.js | grep -q 'DurakRules'
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          D=duoapp/build/outputs/apk/debug/duoapp-debug.apk
+          R=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          test -s "$D"
+          test -s "$R"
+          unzip -t "$D" >/dev/null
+          unzip -t "$R" >/dev/null
+          unzip -p "$R" assets/index.html | grep -q "Наша семья · v6.0.20"
+          unzip -p "$R" assets/index.html | grep -q 'id="durak"'
+          unzip -p "$R" assets/durak.js | grep -q 'DurakRules'
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$D"
 
       - name: Commit prepared source
         run: |
@@ -93,4 +101,10 @@ jobs:
         with:
           name: OurFamily_6_0_20_games_debug
           path: duoapp/build/outputs/apk/debug/duoapp-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_20_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
           if-no-files-found: error
