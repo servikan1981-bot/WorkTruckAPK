@@ -34,10 +34,12 @@ jobs:
           from pathlib import Path
           h=Path('duoapp/src/main/assets/index.html')
           s=h.read_text()
-          d=Path('duoapp/src/main/assets/durak.js').read_text()
           marker='<script src="checkers.js"></script>'
           assert marker in s
-          s=s.replace(marker, marker+'\n<script>\n'+d+'\n</script>',1)
+          layers=[]
+          for name in ('durak.js','durak_ui_fix.js'):
+              layers.append('<script>\n'+Path('duoapp/src/main/assets/'+name).read_text()+'\n</script>')
+          s=s.replace(marker, marker+'\n'+'\n'.join(layers),1)
           s=s.replace('6.0.19','6.0.20')
           h.write_text(s)
           m=Path('duoapp/src/main/AndroidManifest.xml')
@@ -53,8 +55,10 @@ jobs:
           grep -q "APP_VERSION='6.0.20'" duoapp/src/main/assets/index.html
           grep -q "Шашки и Дурак" duoapp/src/main/assets/index.html
           grep -q "OF_DURAK" duoapp/src/main/assets/index.html
+          grep -q "syncGamesNav" duoapp/src/main/assets/index.html
           node --check duoapp/src/main/assets/checkers.js
           node --check duoapp/src/main/assets/durak.js
+          node --check duoapp/src/main/assets/durak_ui_fix.js
           node tools/test_checkers.cjs
 
       - name: Build release APK
@@ -66,7 +70,7 @@ jobs:
           test -s "$APK"
           unzip -t "$APK" >/dev/null
           unzip -p "$APK" assets/index.html | grep -q "Наша семья · v6.0.20"
-          unzip -p "$APK" assets/durak.js | grep -q "OF_DURAK"
+          unzip -p "$APK" assets/index.html | grep -q "syncGamesNav"
           sha256sum "$APK"
 
       - name: Upload 6.0.20 test APK
