@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+adb install -r /tmp/family621.apk
+adb shell am start -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
+sleep 3
+adb install -r /tmp/family622.apk
+adb shell am force-stop com.sergey.ourfamily
+adb shell am start -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
+sleep 5
+adb shell dumpsys package com.sergey.ourfamily | grep -q 'versionCode=6022'
+adb shell pidof com.sergey.ourfamily
+adb logcat -d -v brief > "/tmp/upgrade622-api${FAMILY_API_LEVEL}.log"
+if grep -E 'FATAL EXCEPTION|Fatal signal' "/tmp/upgrade622-api${FAMILY_API_LEVEL}.log" | grep -q 'com.sergey.ourfamily'; then exit 1; fi
+adb shell screencap -p /sdcard/upgrade622.png
+adb pull /sdcard/upgrade622.png "/tmp/upgrade622-api${FAMILY_API_LEVEL}.png"
