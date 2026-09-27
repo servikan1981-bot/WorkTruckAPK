@@ -87,6 +87,15 @@ jobs:
           unzip -p "$R" assets/durak.js | grep -q 'DurakRules'
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$D"
 
+      - name: Package signing utilities
+        run: |
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          mkdir -p /tmp/signing-tools/lib
+          cp "$BT/apksigner" /tmp/signing-tools/
+          cp "$BT/zipalign" /tmp/signing-tools/
+          cp "$BT/lib/apksigner.jar" /tmp/signing-tools/lib/
+          chmod +x /tmp/signing-tools/apksigner /tmp/signing-tools/zipalign
+
       - name: Commit prepared source
         run: |
           git config user.name 'servikan1981-bot'
@@ -107,4 +116,10 @@ jobs:
         with:
           name: OurFamily_6_0_20_unsigned
           path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-signing-tools-620
+          path: /tmp/signing-tools
           if-no-files-found: error
