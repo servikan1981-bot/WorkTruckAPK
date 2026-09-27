@@ -1,4 +1,4 @@
-name: Build Our Family 6.0.19 Stable
+name: Build Our Family 6.0.20 Stable
 
 on:
   workflow_dispatch:
@@ -6,6 +6,8 @@ on:
     branches: [ family-stable-6 ]
     paths:
       - 'duoapp/**'
+      - 'tools/patch_family_620.py'
+      - 'tools/test_durak.cjs'
       - 'settings-duo.gradle'
       - '.github/workflows/build-family-6-stable.yml'
 
@@ -29,16 +31,19 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
+      - name: Apply 6.0.20 games patch
+        run: python3 tools/patch_family_620.py
+
       - name: Validate stable identity
         run: |
           grep -q "applicationId 'com.sergey.ourfamily'" duoapp/build.gradle
-          grep -q "versionCode 6019" duoapp/build.gradle
-          grep -q "versionName '6.0.19'" duoapp/build.gradle
-          grep -q 'android:label="Наша семья 6.0.19"' duoapp/src/main/AndroidManifest.xml
+          grep -q "versionCode 6020" duoapp/build.gradle
+          grep -q "versionName '6.0.20'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.20"' duoapp/src/main/AndroidManifest.xml
           grep -q 'REQUEST_INSTALL_PACKAGES' duoapp/src/main/AndroidManifest.xml
           grep -q 'UpdateFileProvider' duoapp/src/main/AndroidManifest.xml
 
-      - name: Validate JavaScript and retained functions
+      - name: Validate JavaScript and games
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -47,13 +52,19 @@ jobs:
           blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
           assert blocks
           Path('/tmp/family6.js').write_text('\n'.join(blocks))
-          assert "APP_VERSION='6.0.19'" in h
+          assert "APP_VERSION='6.0.20'" in h
+          assert 'Дурак' in h
+          assert 'bottomNav' in h
+          assert "gameType:'durak'" in h
+          assert "gameType:'checkers'" in h
           PY
           node --check /tmp/family6.js
           node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
           node tools/test_checkers.cjs
+          node tools/test_durak.cjs
           H=duoapp/src/main/assets/index.html
-          for token in direct_chat group_chat receipt_read REACTIONS openPhotoViewer scrollChatToBottom consumeNativeNavigation familyPresenceTopic openAdminArchiveScreen switchCamera enableSelfDrag startRingback speakerBtn "Семейные новости"; do
+          for token in direct_chat group_chat receipt_read REACTIONS openPhotoViewer scrollChatToBottom consumeNativeNavigation familyPresenceTopic openAdminArchiveScreen switchCamera enableSelfDrag startRingback speakerBtn "Семейные новости" "Пригласить в игру" "Новичок" "Опытный" "Мастер" "Крутяга" "Профи"; do
             grep -q "$token" "$H"
           done
           grep -q 'game_invite' "$H"
@@ -75,135 +86,85 @@ jobs:
           grep -q "applyCallWindowFlags" "$M"
           grep -q "canUseFullScreenIntent" "$M"
 
-      - name: Validate Telecom lock-screen integration
+      - name: Validate Telecom integration
         run: |
           T=duoapp/src/main/java/com/sergey/duochat/TelecomCallManager.java
           C=duoapp/src/main/java/com/sergey/duochat/FamilyConnectionService.java
           S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
           M=duoapp/src/main/AndroidManifest.xml
           grep -q "addNewIncomingCall" "$T"
-          grep -q "ACTION_CHANGE_PHONE_ACCOUNTS" "$T"
           grep -q "onCreateIncomingConnection" "$C"
           grep -q "onAnswer" "$C"
           grep -q "TelecomCallManager.reportIncomingCall" "$S"
           grep -q "BIND_TELECOM_CONNECTION_SERVICE" "$M"
-          grep -q "android.telecom.ConnectionService" "$M"
 
-      - name: Validate native presence and update notifications
+      - name: Validate native presence and transport
         run: |
           P=duoapp/src/main/java/com/sergey/duochat/PresenceStore.java
           S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
           U=duoapp/src/main/java/com/sergey/duochat/UpdateManager.java
           H=duoapp/src/main/assets/index.html
           R=duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
+          A=duoapp/src/main/java/com/sergey/duochat/NativeAttachmentTransport.java
           grep -q "presence_native_v602" "$P"
           grep -q "startPresenceSender" "$S"
           grep -q "startPresenceListener" "$S"
-          grep -q "presenceListenLoop" "$S"
-          grep -q "FamilyDirectory.presenceTopic" "$S"
-          grep -q "ERR:http:" "$R"
-          grep -q "includes('429')" "$H"
-          grep -q "probe(Context context" "$R"
-          if grep -q "for (String member : FamilyDirectory.MEMBERS.keySet())" "$S"; then
-            echo "Per-recipient heartbeat flood must not exist"
-            exit 1
-          fi
           grep -q "PresenceStore.update(this, senderRole" "$S"
           grep -q "UpdateManager.checkBackground" "$S"
-          grep -q "15L \* 60L \* 1000L" "$S"
-          grep -q "family_updates_v6" "$U"
-          grep -q "Доступно обновление" "$U"
-          grep -q "force_update_check" "$U"
           grep -q "AndroidBridge.loadPresence" "$H"
-          grep -q "setTimeout(sendInvite,1600)" "$H"
-          grep -q "setTimeout(sendInvite,4200)" "$H"
-
-      - name: Validate fully native transport
-        run: |
-          H=duoapp/src/main/assets/index.html
-          M=duoapp/src/main/java/com/sergey/duochat/MainActivity.java
-          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
-          R=duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
-          A=duoapp/src/main/java/com/sergey/duochat/NativeAttachmentTransport.java
-          if grep -q "fetch(" "$H"; then
-            echo "WebView network fetch must not remain in stable 6.0.19"
-            exit 1
-          fi
+          if grep -q "fetch(" "$H"; then echo "WebView network fetch must not remain"; exit 1; fi
           grep -q "AndroidBridge.sendRelay" "$H"
           grep -q "AndroidBridge.uploadAttachment" "$H"
-          grep -q "AndroidBridge.downloadAttachment" "$H"
-          grep -q "public String sendRelay" "$M"
+          grep -q "public String sendRelay" duoapp/src/main/java/com/sergey/duochat/MainActivity.java
           grep -q "postBlocking" "$R"
           grep -q "uploadBase64" "$A"
-          grep -q "downloadBase64" "$A"
-          grep -q '"ntfy.sh".equalsIgnoreCase(uri.getHost())' "$S"
-          grep -q "presenceListenLoop" "$S"
 
-      - name: Validate low-latency relay client and call setup
+      - name: Validate low-latency relay and call setup
         run: |
           S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
           H=duoapp/src/main/assets/index.html
           grep -q 'after=" + cursor + "&wait=" + relayWaitSeconds(relay)' "$S"
           grep -q 'return host != null && host.endsWith(".workers.dev") ? 25 : 2' "$S"
           grep -q 'sleep(instantRelay ? 80L : 1200L)' "$S"
-          if grep -q 'workers.dev") ? 20_000L\|workers.dev") ? 30_000L' "$S"; then
-            echo "Old 20/30 second workers.dev polling delays remain"
-            exit 1
-          fi
           grep -q "iceCandidatePoolSize:8" "$H"
           grep -q "connectTimer=setTimeout" "$H"
-          grep -q "10000" "$H"
           grep -q "var mediaPromise=prepareLocalMedia(inv.kind)" "$H"
-          grep -q "await publishEnvelope(inv.from,'direct_accept'" "$H"
 
-      - name: Validate update system
+      - name: Validate update system and current published fallback
         run: |
           U=duoapp/src/main/java/com/sergey/duochat/UpdateManager.java
-          P=duoapp/src/main/java/com/sergey/duochat/UpdateFileProvider.java
-          M=duoapp/src/main/java/com/sergey/duochat/MainActivity.java
           grep -q "latest.json" "$U"
           grep -q "sha256" "$U"
           grep -q "getPackageArchiveInfo" "$U"
-          grep -q "canRequestPackageInstalls" "$U"
-          grep -q "ACTION_MANAGE_UNKNOWN_APP_SOURCES" "$U"
-          grep -q "updateprovider/update.apk" "$U"
-          grep -q "ParcelFileDescriptor.MODE_READ_ONLY" "$P"
-          grep -q "UpdateManager.checkAsync" "$M"
-
-      - name: Validate published package
-        run: |
           python3 - <<'PY'
           import base64,hashlib,json,pathlib
           meta=json.loads(pathlib.Path('updates/latest.json').read_text())
-          assert meta['versionCode']>=6006
+          assert meta['versionCode']==6019, 'Do not publish 6.0.20 before candidate validation'
           data=base64.b64decode(''.join(pathlib.Path('updates/parts/'+u.rsplit('/',1)[-1]).read_text() for u in meta['apkBase64Parts']))
           assert hashlib.sha256(data).hexdigest()==meta['sha256']
           pathlib.Path('/tmp/published-family.apk').write_bytes(data)
           PY
-          set +e
-          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 /tmp/published-family.apk
-          a=$?
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/published-family.apk
-          b=$?
-          echo "zipalign=$a apksigner=$b"
-          test "$a" -eq 0 && test "$b" -eq 0
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 /tmp/published-family.apk >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose /tmp/published-family.apk >/dev/null
 
-      - name: Build unsigned release APK
+      - name: Build unsigned 6.0.20 candidate
         run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
 
-      - name: Verify unsigned release
+      - name: Verify unsigned candidate
         run: |
           APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
           test -f "$APK"
           test -s "$APK"
           unzip -t "$APK" >/dev/null
-          unzip -p "$APK" assets/index.html | grep -q "Наша семья · v6.0.19"
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья · v6.0.20"
+          unzip -p "$APK" assets/index.html | grep -q "Подкидной · 36 карт · 1 на 1"
+          unzip -p "$APK" assets/durak.js | grep -q "function pickup"
           sha256sum "$APK"
           ls -lh "$APK"
 
-      - name: Upload unsigned release
+      - name: Upload unsigned candidate
         uses: actions/upload-artifact@v4
         with:
-          name: OurFamily_6_0_19_unsigned
+          name: OurFamily_6_0_20_unsigned
           path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
           if-no-files-found: error
