@@ -33,5 +33,5 @@ done
 if [ "${FAMILY_E2E_SUITE:-video}" = game ]; then
   python3 tools/game_family_624.py
 else
-  python3 tools/video_family_613.py
+  python3 tools/video_family_624.py
 fi
