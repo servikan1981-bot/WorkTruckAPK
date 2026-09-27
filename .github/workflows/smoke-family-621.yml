@@ -29,18 +29,20 @@ jobs:
           name: OurFamily_6_0_21_unsigned
           path: /tmp/family621unsigned
           github-token: ${{ github.token }}
-          run-id: 36314038125
+          run-id: 36314600547
 
       - name: Reconstruct Stable-signed 6.0.21 and current 6.0.20
         run: |
           set -euo pipefail
           U=$(find /tmp/family621unsigned -type f -name '*.apk' | head -1)
-          echo 'feb3182234cb7a07229618e31a118bee4a602ba4b747eed4ae91a05136fafbe2  '"$U" | sha256sum -c -
+          echo '084a61b09cc5acbb866a1ec805048244e7e1b0f791eecc3d6813ece9e34920b4  '"$U" | sha256sum -c -
           base64 -d updates/candidates/sign621.patch.b64 > /tmp/sign621.patch.zst
           zstd -q -d --patch-from="$U" /tmp/sign621.patch.zst -o /tmp/OurFamily_6_0_21_Stable.apk
-          echo '9916fcdf2eee3a28cc749706c324ac4873141dbb0e492223b76776972369cc2f  /tmp/OurFamily_6_0_21_Stable.apk' | sha256sum -c -
+          echo 'cbbec4b9080571a15912f2ebe60b8d253a021587952669fea5ff973299691ceb  /tmp/OurFamily_6_0_21_Stable.apk' | sha256sum -c -
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_21_Stable.apk | tee /tmp/certs.txt
           grep -q '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/certs.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_21_Stable.apk | grep -q "versionCode='6021'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_21_Stable.apk | grep -q "versionName='6.0.21'"
           python3 - <<'PY'
           import base64,hashlib,json,pathlib
           meta=json.loads(pathlib.Path('updates/latest.json').read_text())
