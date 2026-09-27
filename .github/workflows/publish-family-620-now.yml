@@ -76,6 +76,8 @@ jobs:
           git add updates/latest.json updates/candidates/620.json updates/parts/v620_*.b64
           git add -u updates/parts
           git commit -m 'Publish OurFamily 6.0.20 stable to all phones'
+          git fetch origin family-stable-6
+          git rebase origin/family-stable-6
           git push origin HEAD:family-stable-6
 
       - name: Upload released APK
