@@ -94,6 +94,7 @@ jobs:
           cp "$BT/apksigner" /tmp/signing-tools/
           cp "$BT/zipalign" /tmp/signing-tools/
           cp "$BT/lib/apksigner.jar" /tmp/signing-tools/lib/
+          if [ -d "$BT/lib64" ]; then cp -a "$BT/lib64" /tmp/signing-tools/; fi
           chmod +x /tmp/signing-tools/apksigner /tmp/signing-tools/zipalign
 
       - name: Commit prepared source
