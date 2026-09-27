@@ -6,6 +6,7 @@ on:
     branches: [ family-620-games ]
     paths:
       - 'tools/patch_family_620.py'
+      - 'tools/patch_family_620_fix.py'
       - 'tools/test_durak.cjs'
       - 'duoapp/src/main/assets/durak.js'
       - '.github/workflows/prepare-family-620.yml'
@@ -34,7 +35,9 @@ jobs:
           gradle-version: '8.10.2'
 
       - name: Apply 6.0.20 patch
-        run: python3 tools/patch_family_620.py
+        run: |
+          python3 tools/patch_family_620.py
+          python3 tools/patch_family_620_fix.py
 
       - name: Test game rules and JavaScript
         run: |
@@ -51,6 +54,7 @@ jobs:
           required=['APP_VERSION=\'6.0.20\'','id="games"','id="durak"','DurakRules','Новичок','Опытный','Мастер','Крутяга','Профи','Пригласить в игру','navGames']
           for token in required: assert token in h, token
           assert "fetch(" not in h
+          assert "acceptGame(pendingGameAcceptId)" in h
           PY
           node --check /tmp/family620.js
 
