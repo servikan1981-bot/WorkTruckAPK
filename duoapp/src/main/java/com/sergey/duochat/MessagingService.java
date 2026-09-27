@@ -394,7 +394,8 @@ public class MessagingService extends Service {
                         group ? (audio ? "group_audio" : "group_video") : (audio ? "audio" : "video"),
                         id);
             } else if (("game_invite".equals(kind) || "game_accept".equals(kind) ||
-                    "game_move".equals(kind)) && "0".equals(chunkIndex) &&
+                    "game_move".equals(kind) || "durak_invite".equals(kind) ||
+                    "durak_accept".equals(kind) || "durak_move".equals(kind)) && "0".equals(chunkIndex) &&
                     age <= 86_400_000L && !callId.isEmpty()) {
                 notifyCheckers(senderRole, callId, kind, id);
             } else if ("news_post".equals(kind)) {
@@ -453,18 +454,21 @@ public class MessagingService extends Service {
         open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         open.putExtra("open_message_id", gameId);
         open.putExtra("open_sender_role", senderRole);
-        open.putExtra("open_message_kind", "checkers");
+        boolean durak = kind.startsWith("durak_");
+        open.putExtra("open_message_kind", durak ? "durak" : "checkers");
         PendingIntent view = PendingIntent.getActivity(this, eventId.hashCode(), open,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Notification.Builder b = Build.VERSION.SDK_INT >= 26
                 ? new Notification.Builder(this, CH_MESSAGES) : new Notification.Builder(this);
         b.setSmallIcon(R.drawable.ic_launcher)
                 .setContentTitle(FamilyDirectory.name(senderRole))
-                .setContentText("game_invite".equals(kind) ? "Приглашает играть в шашки" :
-                        "game_accept".equals(kind) ? "Принял(а) приглашение в шашки" : "Ваш ход в шашках")
+                .setContentText(durak ? ("durak_invite".equals(kind) ? "Приглашает играть в дурака" :
+                        "durak_accept".equals(kind) ? "Принял(а) приглашение в дурака" : "Ваш ход в дураке") :
+                        ("game_invite".equals(kind) ? "Приглашает играть в шашки" :
+                        "game_accept".equals(kind) ? "Принял(а) приглашение в шашки" : "Ваш ход в шашках"))
                 .setContentIntent(view).setAutoCancel(true)
                 .setCategory(Notification.CATEGORY_MESSAGE).setPriority(Notification.PRIORITY_HIGH);
-        if ("game_invite".equals(kind)) {
+        if ("game_invite".equals(kind) || "durak_invite".equals(kind)) {
             Intent accept = new Intent(open);
             accept.putExtra("open_game_accept", true);
             PendingIntent action = PendingIntent.getActivity(this, eventId.hashCode() + 1, accept,
@@ -590,7 +594,7 @@ public class MessagingService extends Service {
                 : new Notification.Builder(this);
 
         Notification n = b.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("Наша семья 6.0.19")
+                .setContentTitle("Наша семья 6.0.20")
                 .setContentText("Фоновая связь и статус в сети включены")
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MIN)
