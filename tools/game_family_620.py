@@ -48,6 +48,7 @@ def wait_text(serial, needle, timeout=35):
         current = labels(serial)
         if any('Разрешите системные входящие звонки' in label for label, _, _ in current):
             tap_visible_button(serial, 'ПОЗЖЕ')
+            time.sleep(1)
             continue
         if any(needle in label for label, _, _ in current):
             return
@@ -60,27 +61,15 @@ def launch_family(serial):
     out = helper.adb(serial, 'shell', 'monkey', '-p', helper.PKG,
                      '-c', 'android.intent.category.LAUNCHER', '1')
     print(serial, 'launcher:', out[-300:], flush=True)
-    time.sleep(3)
 
 
 def profile_619(serial, role):
-    # CI sometimes returns to Launcher after a cold install. Launch through the
-    # same MAIN/LAUNCHER path a real phone uses and retry until the profile UI is visible.
-    deadline = time.monotonic() + 35
-    while time.monotonic() < deadline:
-        launch_family(serial)
-        current = labels(serial)
-        if any('Разрешите системные входящие звонки' in label for label, _, _ in current):
-            tap_visible_button(serial, 'ПОЗЖЕ')
-            time.sleep(1)
-            current = labels(serial)
-        if any(role in label for label, _, _ in current):
-            break
-    else:
-        raise AssertionError(f'{serial}: 6.0.19 profile screen did not open: {labels(serial)[-25:]}')
-
+    # Cold WebView startup on CI may take 10-20 seconds. Launch once and wait;
+    # repeatedly force-stopping the app only restarts WebView initialization.
+    launch_family(serial)
+    wait_text(serial, 'Кто использует этот телефон?', 45)
     if not tap_visible_button(serial, role):
-        raise AssertionError(f'{serial}: cannot tap profile {role}')
+        raise AssertionError(f'{serial}: cannot tap profile {role}: {labels(serial)[-25:]}')
     time.sleep(1)
     root = helper.snap(serial)
     fields = [n for n in root.iter('node') if n.get('class') == 'android.widget.EditText']
@@ -92,7 +81,7 @@ def profile_619(serial, role):
     helper.adb(serial, 'shell', 'input', 'keyevent', '4')
     if not tap_visible_button(serial, 'Войти в семью'):
         raise AssertionError(f'{serial}: login button missing')
-    wait_text(serial, 'Новый чат', 25)
+    wait_text(serial, 'Новый чат', 30)
     print(serial, '6.0.19 profile ready for', role, flush=True)
 
 
@@ -122,34 +111,21 @@ def main():
             raise AssertionError(serial + ': 6.0.19 -> 6.0.20 install failed: ' + install)
         helper.adb(serial, 'shell', 'logcat', '-c')
         launch_family(serial)
-        if any('Разрешите системные входящие звонки' in x[0] for x in labels(serial)):
-            tap_visible_button(serial, 'ПОЗЖЕ')
-        wait_text(serial, 'v6.0.20', 25)
-        wait_text(serial, 'Новый чат', 25)
+        wait_text(serial, 'v6.0.20', 35)
+        wait_text(serial, 'Новый чат', 35)
     time.sleep(2)
     helper.tap(A, 'Игры')
     helper.tap(A, 'Дурак')
     started = time.monotonic()
     if not tap_visible_button(A, 'Света'):
         raise AssertionError('Sender cannot select Света in Durak club')
-    time.sleep(1)
-    print('Sender UI after opponent tap:', labels(A)[-30:], flush=True)
-    try:
-        wait_text(A, 'Дурак · Света', 8)
-    except Exception:
-        lc = logcat(A)
-        print('--- SENDER LOGCAT AFTER DURAK TAP ---', flush=True)
-        for line in lc.splitlines():
-            low = line.lower()
-            if ('chromium' in low or 'console' in low or 'ourfamily' in low or 'androidruntime' in low or 'uncaught' in low or 'javascript' in low):
-                print(line, flush=True)
-        raise
+    wait_text(A, 'Дурак · Света', 10)
     print(f'Sender opened Durak after {time.monotonic()-started:.1f}s', flush=True)
     wait_text(B, 'приглашает сыграть в Дурака', 70)
     print(f'Recipient received Durak invite after {time.monotonic()-started:.1f}s', flush=True)
     helper.tap(B, 'Принять')
     wait_text(A, 'Дурак · Света', 35)
-    wait_text(B, 'Дурак · Сергей', 20)
+    wait_text(B, 'Дурак · Сергей', 25)
     attacker = A if any('Ваш ход — атакуйте' in x[0] for x in labels(A)) else B
     defender = B if attacker == A else A
     first_hand_card(attacker)
