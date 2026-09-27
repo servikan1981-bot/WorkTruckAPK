@@ -1,0 +1,78 @@
+name: Smoke OurFamily 6.0.21 upgrade and urgent message
+
+on:
+  push:
+    branches: [ family-621-work ]
+    paths:
+      - 'tools/smoke_family_621.py'
+      - '.github/workflows/smoke-family-621.yml'
+      - 'updates/candidates/sign621.patch.b64'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Download exact unsigned 6.0.21 candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: OurFamily_6_0_21_unsigned
+          path: /tmp/family621unsigned
+          github-token: ${{ github.token }}
+          run-id: 36314038125
+
+      - name: Reconstruct Stable-signed 6.0.21 and current 6.0.20
+        run: |
+          set -euo pipefail
+          U=$(find /tmp/family621unsigned -type f -name '*.apk' | head -1)
+          echo 'feb3182234cb7a07229618e31a118bee4a602ba4b747eed4ae91a05136fafbe2  '"$U" | sha256sum -c -
+          base64 -d updates/candidates/sign621.patch.b64 > /tmp/sign621.patch.zst
+          zstd -q -d --patch-from="$U" /tmp/sign621.patch.zst -o /tmp/OurFamily_6_0_21_Stable.apk
+          echo '9916fcdf2eee3a28cc749706c324ac4873141dbb0e492223b76776972369cc2f  /tmp/OurFamily_6_0_21_Stable.apk' | sha256sum -c -
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_21_Stable.apk | tee /tmp/certs.txt
+          grep -q '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/certs.txt
+          python3 - <<'PY'
+          import base64,hashlib,json,pathlib
+          meta=json.loads(pathlib.Path('updates/latest.json').read_text())
+          assert meta['versionCode']==6020, meta
+          data=base64.b64decode(''.join((pathlib.Path('updates/parts')/u.rsplit('/',1)[-1]).read_text().strip() for u in meta['apkBase64Parts']))
+          assert hashlib.sha256(data).hexdigest()==meta['sha256']
+          pathlib.Path('/tmp/OurFamily_6_0_20_Stable.apk').write_bytes(data)
+          PY
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_20_Stable.apk | tee /tmp/certs620.txt
+          grep -q '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/certs620.txt
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Test update and urgent delivery on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-front emulated -camera-back emulated
+          script: APK620=/tmp/OurFamily_6_0_20_Stable.apk APK621=/tmp/OurFamily_6_0_21_Stable.apk python3 tools/smoke_family_621.py
+
+      - name: Upload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: family-621-smoke-evidence
+          path: |
+            /tmp/certs.txt
+            /tmp/certs620.txt
+          if-no-files-found: ignore
