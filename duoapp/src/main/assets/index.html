@@ -1084,7 +1084,7 @@ async function sendCheckersMove(g,from,to){
 }
 async function resignCheckers(){
  var g=games[activeGameId];if(!g||g.status!=='active'||g.state.winner||!confirm('Сдаться в этой партии?'))return;
- try{await publishEnvelope(gamePeer(g),'game_resign',{gameId:g.id,seq:g.state.seq,gameType:'checkers'},4,'game_resign',g.id);g.state.winner=gameSide(g)==='b'?'w':'b';g.status='ended';g.updated=Date.now();saveGames();renderCheckers();renderHome();}
+ try{await publishEnvelope(gamePeer(g),'game_resign',{gameId:g.id,seq:g.state.seq,gameType:'checkers'},4,'game_resign',g.id);g.state.winner=gameSide(g)==='b'?'w':'b';g.status='ended';g.updated=Date.now();saveGames();awardGameOnce(g.id,'surrender');renderCheckers();renderHome();}
  catch(e){toast(relayErrorText(e&&e.message||e));}
 }
 function receiveCheckers(p){
@@ -2015,7 +2015,7 @@ $('startBtn').addEventListener('click',async function(){
 function gameScoreKey(){return 'of620_game_score_'+ownTag;}
 function gameScore(){try{return JSON.parse(localStorage.getItem(gameScoreKey())||'{"points":0,"awarded":{}}');}catch(e){return {points:0,awarded:{}};}}
 function gameRank(points){return points>=600?'Профи':points>=300?'Крутяга':points>=150?'Мастер':points>=50?'Опытный':'Новичок';}
-function awardGameOnce(id,result){var s=gameScore();if(s.awarded[id])return;s.awarded[id]=result;s.points+=(result==='win'?10:result==='draw'?5:3);try{localStorage.setItem(gameScoreKey(),JSON.stringify(s));}catch(e){}renderGameProfile();}
+function awardGameOnce(id,result){var s=gameScore();if(s.awarded[id])return;s.awarded[id]=result;s.points+=(result==='win'?10:result==='draw'?5:result==='surrender'?0:3);try{localStorage.setItem(gameScoreKey(),JSON.stringify(s));}catch(e){}renderGameProfile();}
 function renderGameProfile(){var s=gameScore();if($('gamePoints'))$('gamePoints').textContent=String(s.points||0);if($('gameRank'))$('gameRank').textContent=gameRank(s.points||0);}
 function saveDurakGames(){try{localStorage.setItem('of620_durak_'+ownTag,JSON.stringify(Object.values(durakGames).slice(-30)));}catch(e){toast('Не удалось сохранить партию');}}
 function loadDurakGames(){durakGames={};try{var a=JSON.parse(localStorage.getItem('of620_durak_'+ownTag)||'[]');if(Array.isArray(a))a.forEach(function(g){if(g&&/^[a-f0-9]{32}$/.test(g.id)&&g.state&&g.players&&g.players.includes(role))durakGames[g.id]=g;});}catch(e){}var waiting=Object.values(durakGames).filter(function(g){return g.status==='invited'&&g.invitee===role;}).sort(function(a,b){return b.updated-a.updated;})[0];pendingDurakAcceptId=waiting?waiting.id:'';if(waiting)showDurakRequest();}
@@ -2055,7 +2055,7 @@ function renderDurak(){
  $('durakDeckInfo').textContent='Колода: '+s.deck.length;$('durakTrumpInfo').textContent='Козырь: '+suitGlyph(s.trump)+' '+rankGlyph(DurakRules.rank(s.trumpCard));$('durakOpponent').textContent=NAMES[peer]+' · '+s.hands[1-side].length+' карт';
  var backs='';for(var i=0;i<s.hands[1-side].length;i++)backs+='<span class="durak-back"></span>';$('durakOpponentCards').innerHTML=backs;
  var status=g.status==='invited'?(role===g.inviter?'Ждём ответа':'Приглашение'):g.status==='declined'?'Приглашение отклонено':s.winner!==null?(s.winner==='draw'?'Ничья':Number(s.winner)===side?'Вы победили!':'Победил '+NAMES[peer]):(meAttack?'Ваш ход — отбивайтесь картой того же ранга на столе':'Ход '+NAMES[peer]);
- if(meDefend&&s.table.some(function(x){return !x.d;}))status='Ваш ход — отбивайтесь';if(meAttack)status='Ваш ход — атакуйте';$('durakStatus').textContent=status;$('durakTopStatus').textContent=gameRank(gameScore().points||0)+' · '+(gameScore().points||0)+' очков';
+ if(activeDurakId===g.id&&g.status==='active'&&s.winner===null){if(meDefend&&s.table.some(function(x){return !x.d;}))status='Ваш ход — отбивайтесь';else if(meAttack)status='Ваш ход — атакуйте';}$('durakStatus').textContent=status;$('durakTopStatus').textContent=gameRank(gameScore().points||0)+' · '+(gameScore().points||0)+' очков';
  var tb='';s.table.forEach(function(pair,idx){tb+='<div class="durak-pair '+(g.target===idx?'target':'')+'" data-pair="'+idx+'">'+cardHtml(pair.a,'attack')+(pair.d?cardHtml(pair.d,'defense'):'')+'</div>';});$('durakTable').innerHTML=tb;
  Array.from($('durakTable').querySelectorAll('.durak-pair')).forEach(function(el){el.onclick=function(){g.target=Number(el.dataset.pair);renderDurak();};});
  $('durakHand').innerHTML=s.hands[side].map(function(c){return cardHtml(c,'hand-card');}).join('');Array.from($('durakHand').querySelectorAll('.playing-card')).forEach(function(el){el.onclick=function(){durakPlayCard(el.dataset.card);};});
@@ -2065,7 +2065,7 @@ async function sendDurakState(g,next){if(!next||durakSending)return;durakSending
 function durakPlayCard(c){var g=durakGames[activeDurakId];if(!g||g.status!=='active'||g.state.winner!==null)return;var side=durakSide(g),s=g.state,next=null;if(s.attacker===side)next=DurakRules.attack(s,c);else if(s.defender===side){var idx=Number.isInteger(g.target)?g.target:-1;if(idx<0||!DurakRules.legalDefense(s,idx,c)){idx=s.table.findIndex(function(p,i){return !p.d&&DurakRules.legalDefense(s,i,c);});}if(idx>=0)next=DurakRules.defend(s,idx,c);}if(next)sendDurakState(g,next);else toast('Этой картой сейчас ходить нельзя');}
 function durakTake(){var g=durakGames[activeDurakId];if(!g||g.state.defender!==durakSide(g))return;sendDurakState(g,DurakRules.pickup(g.state));}
 function durakBito(){var g=durakGames[activeDurakId];if(!g||g.state.attacker!==durakSide(g))return;sendDurakState(g,DurakRules.done(g.state));}
-async function resignDurak(){var g=durakGames[activeDurakId];if(!g||g.status!=='active'||!confirm('Сдаться в этой партии?'))return;var side=durakSide(g);try{await publishEnvelope(durakPeer(g),'game_resign',{gameType:'durak',gameId:g.id,seq:g.state.seq},4,'game_resign',g.id);}catch(e){}g.state.winner=1-side;g.status='ended';g.updated=Date.now();saveDurakGames();awardGameOnce(g.id,'loss');renderDurak();}
+async function resignDurak(){var g=durakGames[activeDurakId];if(!g||g.status!=='active'||!confirm('Сдаться в этой партии?'))return;var side=durakSide(g);try{await publishEnvelope(durakPeer(g),'game_resign',{gameType:'durak',gameId:g.id,seq:g.state.seq},4,'game_resign',g.id);}catch(e){toast(relayErrorText(e&&e.message||e));return;}g.state.winner=1-side;g.status='ended';g.updated=Date.now();saveDurakGames();awardGameOnce(g.id,'surrender');renderDurak();}
 renderGameProfile();
 $('navFamily').addEventListener('click',function(){showScreen('home');renderHome();});$('navGames').addEventListener('click',openGamesHub);$('navNews').addEventListener('click',openNews);$('navMore').addEventListener('click',function(){showScreen('home');renderHome();$('settingsPop').classList.remove('hidden');});
 $('gamesBackBtn').addEventListener('click',function(){showScreen('home');renderHome();});$('hubCheckersBtn').addEventListener('click',function(){openOpponentChoice('checkers');});$('hubDurakBtn').addEventListener('click',function(){openOpponentChoice('durak');});
