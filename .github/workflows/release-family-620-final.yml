@@ -5,6 +5,7 @@ on:
     branches: [ family-stable-6 ]
     paths:
       - '.github/workflows/release-family-620-final.yml'
+      - 'tools/game_family_620.py'
   workflow_dispatch:
 
 permissions:
@@ -115,6 +116,8 @@ jobs:
             /tmp/emulator-5556-game.png
             /tmp/emulator-5554-game.xml
             /tmp/emulator-5556-game.xml
+            /tmp/emulator-5554-logcat.txt
+            /tmp/emulator-5556-logcat.txt
             /tmp/620-certs.txt
             /tmp/620-badging.txt
           if-no-files-found: ignore
