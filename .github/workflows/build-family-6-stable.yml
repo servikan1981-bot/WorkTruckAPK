@@ -31,9 +31,6 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Apply 6.0.20 games patch
-        run: python3 tools/patch_family_620.py
-
       - name: Validate stable identity
         run: |
           grep -q "applicationId 'com.sergey.ourfamily'" duoapp/build.gradle
