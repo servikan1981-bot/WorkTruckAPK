@@ -38,6 +38,18 @@ def first_hand_card(serial):
     print('Tapped card', serial, label, flush=True)
 
 
+def tap_visible_button(serial, needle):
+    for label, bounds, cls in labels(serial):
+        if needle not in label or 'Button' not in cls:
+            continue
+        x1, y1, x2, y2 = map(int, re.findall(r'\d+', bounds))
+        if x2 <= x1 or y2 <= y1:
+            continue
+        helper.adb(serial, 'shell', 'input', 'tap', str((x1+x2)//2), str((y1+y2)//2))
+        return
+    raise AssertionError(f'{serial}: no visible button {needle}')
+
+
 def main():
     helper.profile(A, 'Сергей')
     helper.profile(B, 'Света')
@@ -51,7 +63,7 @@ def main():
         wait_text(serial, 'Новый чат', 20)
     helper.tap(A, 'Игры')
     helper.tap(A, 'Дурак')
-    helper.tap(A, 'Света')
+    tap_visible_button(A, 'Света')
     wait_text(B, 'приглашает сыграть в Дурака', 40)
     helper.tap(B, 'Принять')
     wait_text(A, 'Дурак · Света', 25)
