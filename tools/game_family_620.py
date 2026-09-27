@@ -114,6 +114,28 @@ def first_hand_card(serial):
     print('Tapped card', serial, label, flush=True)
 
 
+def pickup_durak(serial):
+    # WebView accessibility occasionally omits the action row even though it
+    # is visibly rendered (confirmed by screencap). Prefer semantic lookup;
+    # fall back to the fixed emulator-relative position of the yellow pickup button.
+    for _ in range(4):
+        try:
+            if tap_visible_button(serial, 'Взять'):
+                print('Tapped Durak pickup semantically on', serial, flush=True)
+                return
+        except Exception:
+            pass
+        time.sleep(.6)
+    size = helper.adb(serial, 'shell', 'wm', 'size')
+    match = re.search(r'(\d+)x(\d+)', size)
+    if not match:
+        raise AssertionError(serial + ': cannot determine screen size for Durak pickup')
+    width, height = map(int, match.groups())
+    x, y = round(width * 0.34), round(height * 0.91)
+    helper.adb(serial, 'shell', 'input', 'tap', str(x), str(y))
+    print('Tapped visible Durak pickup by screen-relative fallback on', serial, x, y, flush=True)
+
+
 def main():
     print('Creating real 6.0.19 profiles; 6.0.20 must migrate to', HOME_RELAY, flush=True)
     profile_619(A, 'Сергей')
@@ -145,7 +167,7 @@ def main():
     defender = B if attacker == A else A
     first_hand_card(attacker)
     wait_text(defender, 'Ваш ход — отбивайтесь', 70)
-    helper.tap(defender, 'Взять')
+    pickup_durak(defender)
     wait_text(attacker, 'Ваш ход — атакуйте', 70)
     print('PASS upgrade 6.0.19 -> 6.0.20, home relay migration, invite, accept, attack and pickup on two phones', flush=True)
 
