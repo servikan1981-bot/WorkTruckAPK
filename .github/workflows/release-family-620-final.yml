@@ -26,20 +26,20 @@ jobs:
       - uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools platforms;android-35 platforms;android-33 build-tools;35.0.0 emulator system-images;android-33;google_apis;x86_64'
-      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Download exact validated fixed 6.0.20 unsigned APK
+        uses: actions/download-artifact@v4
         with:
-          gradle-version: '8.10.2'
+          name: OurFamily_6_0_20_unsigned
+          path: /tmp/family620unsigned
+          github-token: ${{ github.token }}
+          run-id: 36304374072
 
-      - name: Build exact fixed 6.0.20 unsigned APK
+      - name: Verify exact unsigned base and restore Stable-signed 6.0.20
         run: |
-          python3 tools/fix_family_620_network.py
-          gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
-          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          APK=$(find /tmp/family620unsigned -type f -name '*.apk' | head -1)
+          test -n "$APK"
           echo 'b732a4d447d5d1be4de1f1c0110ee69c34fa3d244353e4ac9b172e8f33cd539a  '"$APK" | sha256sum -c -
-
-      - name: Restore and verify Stable-signed 6.0.20
-        run: |
-          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
           base64 -d updates/candidates/sign620.patch.b64 > /tmp/sign620.patch.zst
           zstd -q -d --patch-from="$APK" /tmp/sign620.patch.zst -o /tmp/OurFamily_6_0_20_Stable.apk
           echo '4e9eaa7a7ade703b225b400d0986e878a6b5ce7b7e48d7dc04548a409ec6a099  /tmp/OurFamily_6_0_20_Stable.apk' | sha256sum -c -
@@ -47,6 +47,9 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_20_Stable.apk | tee /tmp/620-certs.txt
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_20_Stable.apk | tee /tmp/620-badging.txt
           grep -q "package: name='com.sergey.ourfamily' versionCode='6020' versionName='6.0.20'" /tmp/620-badging.txt
+          unzip -p /tmp/OurFamily_6_0_20_Stable.apk assets/index.html | grep -q "Наша семья · v6.0.20"
+          unzip -p /tmp/OurFamily_6_0_20_Stable.apk assets/index.html | grep -q "Подкидной · 36 карт · 1 на 1"
+          unzip -p /tmp/OurFamily_6_0_20_Stable.apk classes.dex | strings | grep -q 'family.familysergey.netcraze.pro'
 
       - name: Prepare candidate update files
         run: |
@@ -54,7 +57,7 @@ jobs:
           rm -f updates/parts/v620_*.b64
           split -b 16000 -d -a 2 --additional-suffix=.b64 /tmp/family620.b64 updates/parts/v620_
           python3 - <<'PY'
-          import json, pathlib
+          import json, pathlib, base64, hashlib
           parts=sorted(pathlib.Path('updates/parts').glob('v620_*.b64'))
           meta={
             'versionCode':6020,
@@ -65,7 +68,6 @@ jobs:
           }
           pathlib.Path('updates/candidates/620.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2)+'\n')
           raw=''.join(p.read_text().strip() for p in parts)
-          import base64,hashlib
           data=base64.b64decode(raw)
           assert hashlib.sha256(data).hexdigest()==meta['sha256']
           print('Candidate parts:',len(parts),'bytes:',len(data))
@@ -93,7 +95,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add updates/latest.json updates/candidates/620.json updates/parts/v620_*.b64
           git add -u updates/parts
-          git commit -m 'Publish OurFamily 6.0.20 stable' || true
+          git commit -m 'Publish OurFamily 6.0.20 stable'
           git push origin HEAD:family-stable-6
 
       - name: Upload final Stable APK
