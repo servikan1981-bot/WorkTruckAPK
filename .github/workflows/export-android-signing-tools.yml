@@ -15,7 +15,7 @@ jobs:
       - uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
-      - name: Package signing tools
+      - name: Package signing tools for Stable 6
         run: |
           BT="$ANDROID_HOME/build-tools/35.0.0"
           mkdir -p signing-tools/lib
