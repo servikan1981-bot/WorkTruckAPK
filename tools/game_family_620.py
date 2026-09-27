@@ -1,4 +1,5 @@
 """Upgrade two phones from published 6.0.19, accept a Durak invitation, and synchronize a round."""
+# Final release trigger after stabilizing 6.0.19 cold start on CI emulators.
 import re
 import subprocess
 import time
@@ -82,7 +83,6 @@ def main():
             helper.tap(serial, 'ПОЗЖЕ')
         wait_text(serial, 'v6.0.20', 20)
         wait_text(serial, 'Новый чат', 20)
-    # Let configure()/WebView crypto initialization finish before the game tap.
     time.sleep(2)
     helper.tap(A, 'Игры')
     helper.tap(A, 'Дурак')
