@@ -2,8 +2,10 @@ from pathlib import Path
 
 html_path = Path('duoapp/src/main/assets/index.html')
 java_path = Path('duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java')
+main_path = Path('duoapp/src/main/java/com/sergey/duochat/MainActivity.java')
 html = html_path.read_text(encoding='utf-8')
 java = java_path.read_text(encoding='utf-8')
+main = main_path.read_text(encoding='utf-8')
 
 replacements = {
 """async function inviteDurak(peer){
@@ -47,6 +49,35 @@ if java.count(java_old2) != 1:
 java = java.replace(java_old2, java_new2)
 java = java.replace('t.join(42000L);', 't.join(65000L);')
 
+# loadDataWithBaseURL cannot fetch relative APK assets from https://app.local/.
+# Checkers already worked because MainActivity inlined checkers.js. Inline durak.js
+# the same way so DurakRules exists before the main application script runs.
+main_old = '''            try (InputStream game = getAssets().open("checkers.js")) {
+                ByteArrayOutputStream rules = new ByteArrayOutputStream();
+                while ((n = game.read(buf)) > 0) rules.write(buf, 0, n);
+                String marker = "<script src=\\\"checkers.js\\\"></script>";
+                if (!html.contains(marker)) throw new IllegalStateException("checkers marker missing");
+                html = html.replace(marker, "<script>\\n" +
+                        new String(rules.toByteArray(), StandardCharsets.UTF_8) + "\\n</script>");
+            }
+'''
+main_new = '''            String[] gameRuleAssets = {"checkers.js", "durak.js"};
+            for (String assetName : gameRuleAssets) {
+                try (InputStream game = getAssets().open(assetName)) {
+                    ByteArrayOutputStream rules = new ByteArrayOutputStream();
+                    while ((n = game.read(buf)) > 0) rules.write(buf, 0, n);
+                    String marker = "<script src=\\\"" + assetName + "\\\"></script>";
+                    if (!html.contains(marker)) throw new IllegalStateException(assetName + " marker missing");
+                    html = html.replace(marker, "<script>\\n" +
+                            new String(rules.toByteArray(), StandardCharsets.UTF_8) + "\\n</script>");
+                }
+            }
+'''
+if main.count(main_old) != 1:
+    raise SystemExit('MainActivity game rules inline block not found exactly once')
+main = main.replace(main_old, main_new)
+
 html_path.write_text(html, encoding='utf-8')
 java_path.write_text(java, encoding='utf-8')
-print('Applied 6.0.20 home-relay/nonblocking Durak fix')
+main_path.write_text(main, encoding='utf-8')
+print('Applied 6.0.20 home-relay/nonblocking Durak fix and inlined DurakRules')
