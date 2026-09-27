@@ -202,6 +202,25 @@ def main():
     print(f'PASS live urgent overlay on Sveta in {time.monotonic()-started_urgent:.1f}s', flush=True)
     if not tap_visible_button(B, 'Закрыть'):
         raise AssertionError('Urgent overlay close button missing')
+    helper.adb(B,'shell','am','force-stop',helper.PKG)
+    helper.tap(A, 'Срочное сообщение всем')
+    wait_text(A, 'Отправить всем', 15)
+    for label,bounds,cls in labels(A):
+        if cls=='android.widget.EditText':
+            x1,y1,x2,y2=map(int,re.findall(r'\d+',bounds))
+            helper.adb(A,'shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
+            helper.adb(A,'shell','input','text','URGENT623LATER')
+            helper.adb(A,'shell','input','keyevent','4')
+            break
+    else:
+        raise AssertionError('Second urgent input missing')
+    helper.tap(A, 'Отправить всем')
+    time.sleep(7)
+    launch_623(B)
+    wait_text(B, 'URGENT623LATER', 70)
+    print('PASS urgent overlay after recipient reopens the app', flush=True)
+    if not tap_visible_button(B, 'Закрыть'):
+        raise AssertionError('Second urgent overlay close button missing')
     helper.tap(A, 'Игры')
     helper.tap(A, 'Дурак')
     started = time.monotonic()
