@@ -1,0 +1,24 @@
+name: Export Android Tools 6.0.20
+on:
+  push:
+    branches: [ family-6.0.20-games ]
+    paths: [ '.github/workflows/export-tools-620.yml' ]
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Package tools
+        run: |
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          mkdir -p out/lib out/lib64
+          cp "$BT/apksigner" "$BT/zipalign" out/
+          cp "$BT/lib/apksigner.jar" out/lib/
+          if [ -d "$BT/lib64" ]; then cp -a "$BT/lib64/." out/lib64/; fi
+          chmod +x out/apksigner out/zipalign
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-tools-620
+          path: out
