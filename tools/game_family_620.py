@@ -8,6 +8,7 @@ import video_family_613 as helper
 helper.CODE = 'Family620-' + str(int(time.time()))
 A, B = 'emulator-5554', 'emulator-5556'
 HOME_RELAY = 'family.familysergey.netcraze.pro'
+MAIN_COMPONENT = helper.PKG + '/com.sergey.duochat.MainActivity'
 
 
 def snap_retry(serial, attempts=6):
@@ -80,6 +81,42 @@ def launch_family(serial):
     print(serial, 'launcher:', out[-300:], flush=True)
 
 
+def launch_620(serial, timeout=55):
+    """Start the upgraded app explicitly and retry if Android drops back to Launcher."""
+    deadline = time.monotonic() + timeout
+    attempt = 0
+    last = []
+    while time.monotonic() < deadline:
+        attempt += 1
+        helper.adb(serial, 'shell', 'am', 'force-stop', helper.PKG)
+        out = helper.adb(serial, 'shell', 'am', 'start', '-W', '-n', MAIN_COMPONENT)
+        print(serial, '6.0.20 explicit launch attempt', attempt, ':', out[-500:], flush=True)
+        check_until = min(deadline, time.monotonic() + 14)
+        while time.monotonic() < check_until:
+            try:
+                current = labels(serial)
+                last = current
+            except Exception:
+                time.sleep(1)
+                continue
+            if any('Разрешите системные входящие звонки' in label for label, _, _ in current):
+                tap_visible_button(serial, 'ПОЗЖЕ')
+                time.sleep(1)
+                continue
+            if any('v6.0.20' in label for label, _, _ in current):
+                print(serial, '6.0.20 is foreground after attempt', attempt, flush=True)
+                return
+            # If launcher is visible, retry the explicit component instead of waiting 35 s.
+            if any('Наша семья 6.0.20' in label and 'notification' in label for label, _, _ in current):
+                print(serial, 'returned to Android Launcher; relaunching 6.0.20', flush=True)
+                break
+            time.sleep(1)
+        time.sleep(1)
+    print('--- LOGCAT AFTER FAILED 6.0.20 LAUNCH', serial, '---', flush=True)
+    print(logcat(serial), flush=True)
+    raise AssertionError(f'{serial}: 6.0.20 did not stay foreground: {last[-25:]}')
+
+
 def profile_619(serial, role):
     launch_family(serial)
     wait_text(serial, 'Кто использует этот телефон?', 45)
@@ -115,9 +152,6 @@ def first_hand_card(serial):
 
 
 def pickup_durak(serial):
-    # WebView accessibility occasionally omits the action row even though it
-    # is visibly rendered (confirmed by screencap). Prefer semantic lookup;
-    # fall back to the fixed emulator-relative position of the yellow pickup button.
     for _ in range(4):
         try:
             if tap_visible_button(serial, 'Взять'):
@@ -147,8 +181,7 @@ def main():
         if 'Success' not in install:
             raise AssertionError(serial + ': 6.0.19 -> 6.0.20 install failed: ' + install)
         helper.adb(serial, 'shell', 'logcat', '-c')
-        launch_family(serial)
-        wait_text(serial, 'v6.0.20', 35)
+        launch_620(serial)
         wait_text(serial, 'Новый чат', 35)
     time.sleep(2)
     helper.tap(A, 'Игры')
