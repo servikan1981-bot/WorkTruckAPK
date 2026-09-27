@@ -1,0 +1,60 @@
+name: Inspect staged Family 6.0.20
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-620-games ]
+    paths:
+      - '.github/workflows/inspect-family-620-staged.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+      - name: Reconstruct staged APK
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, pathlib
+          parts=[]
+          for i in range(5):
+              p=pathlib.Path(f'updates/parts/v620_{i:02d}.b64')
+              assert p.exists(), p
+              parts.append(p.read_text().strip())
+          raw=''.join(parts)
+          data=base64.b64decode(raw, validate=True)
+          out=pathlib.Path('/tmp/OurFamily_6_0_20_staged.apk')
+          out.write_bytes(data)
+          print('SIZE', len(data))
+          print('SHA256', hashlib.sha256(data).hexdigest())
+          PY
+          unzip -t /tmp/OurFamily_6_0_20_staged.apk >/dev/null
+      - name: Verify signature and identity
+        run: |
+          A="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$A" verify --verbose --print-certs /tmp/OurFamily_6_0_20_staged.apk | tee /tmp/certs.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/certs.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_20_staged.apk | tee /tmp/badging.txt
+          grep -q "package: name='com.sergey.ourfamily'" /tmp/badging.txt
+          grep -q "versionCode='6020'" /tmp/badging.txt
+          grep -q "versionName='6.0.20'" /tmp/badging.txt
+      - name: Inspect game content
+        run: |
+          unzip -p /tmp/OurFamily_6_0_20_staged.apk assets/index.html > /tmp/index.html
+          echo '--- feature markers ---'
+          for token in 'Дурак' 'Шашки' 'Игры' 'Новичок' 'Опытный' 'Мастер' 'Крутяга' 'Профи' 'bottomNav' 'gameType' 'Пригласить в игру' 'Семейные новости'; do
+            if grep -q "$token" /tmp/index.html; then echo "YES $token"; else echo "NO  $token"; fi
+          done
+          unzip -l /tmp/OurFamily_6_0_20_staged.apk | grep -E 'assets/(checkers|durak)\.js' || true
+      - name: Upload inspected APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_20_staged_signed
+          path: /tmp/OurFamily_6_0_20_staged.apk
+          if-no-files-found: error
