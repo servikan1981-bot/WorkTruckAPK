@@ -460,8 +460,8 @@ public class MessagingService extends Service {
                 ? new Notification.Builder(this, CH_MESSAGES) : new Notification.Builder(this);
         b.setSmallIcon(R.drawable.ic_launcher)
                 .setContentTitle(FamilyDirectory.name(senderRole))
-                .setContentText("game_invite".equals(kind) ? "Приглашает играть в шашки" :
-                        "game_accept".equals(kind) ? "Принял(а) приглашение в шашки" : "Ваш ход в шашках")
+                .setContentText("game_invite".equals(kind) ? "Приглашает в игру" :
+                        "game_accept".equals(kind) ? "Принял(а) приглашение в игру" : "Ваш ход в игре")
                 .setContentIntent(view).setAutoCancel(true)
                 .setCategory(Notification.CATEGORY_MESSAGE).setPriority(Notification.PRIORITY_HIGH);
         if ("game_invite".equals(kind)) {
