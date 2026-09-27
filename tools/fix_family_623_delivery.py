@@ -50,8 +50,8 @@ h = one(h, "if(dg){if(accept&&dg.status==='invited'&&dg.invitee===role)acceptDur
         "if(dg){if(dg.status==='invited'&&dg.invitee===role){if(accept)acceptDurak(dg.id);else{showScreen('home');showDurakRequest();}}else openDurak(dg.id);return true;}",
         'Durak notification navigation')
 
-h = one(h, "var status=g.status==='invited'?(role===g.inviter?'Ждём ответа':'Приглашение'):",
-        "var status=g.status==='invited'?(role===g.inviter?(AndroidBridge.pendingCritical(g.id)>0?'Отправляем приглашение…':'Ждём ответа'):'Приглашение'):",
+h = one(h, "var status=g.status==='invited'?(role===g.inviter?'Ждём ответа':'Приглашение'):g.status==='declined'?",
+        "var status=g.status==='invited'?(role===g.inviter?(AndroidBridge.pendingCritical(g.id)>0?'Отправляем приглашение…':'Ждём ответа'):'Приглашение'):g.status==='declined'?",
         'Durak pending status')
 h = one(h, "$('durakResignBtn').classList.toggle('hidden',!active);",
         "$('durakResignBtn').classList.toggle('hidden',!active);$('durakRetryInviteBtn').classList.toggle('hidden',g.status!=='invited'||g.inviter!==role);",
