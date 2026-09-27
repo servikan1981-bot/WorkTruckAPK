@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.19</title>
+<title>Наша семья 6.0.20</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -79,6 +79,15 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 .reply-reference{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--blue);border-radius:5px;background:rgba(47,111,237,.09);color:var(--ink);padding:5px 8px;margin-bottom:7px;font:inherit;font-size:12px;overflow:hidden}.reply-reference strong,.reply-reference span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.reply-reference strong{color:var(--blue)}.reply-open{border:0;background:transparent;color:var(--muted);padding:0 5px;font-size:12px;font-weight:800}.reply-draft{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--card);border-top:1px solid var(--line)}.reply-draft .reply-reference{margin:0;flex:1;min-width:0}.reply-draft>button{border:0;background:transparent;color:var(--ink);font-size:24px}
 .photo-viewer{position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:220;display:flex;align-items:center;justify-content:center;touch-action:pinch-zoom}.photo-viewer img{max-width:100vw;max-height:100vh;object-fit:contain}.photo-close{position:absolute;right:14px;top:max(14px,env(safe-area-inset-top));width:44px;height:44px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:25px;z-index:2}.attachment-img{cursor:zoom-in}
 @media(max-width:420px){.emoji-panel{grid-template-columns:repeat(7,1fr)}.news-composer{grid-template-columns:auto auto 1fr auto}}
+
+.games-hub-body{padding:16px 14px 92px;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.game-profile{background:linear-gradient(135deg,#162b47,#214c74);color:#fff;border-radius:18px;padding:16px;box-shadow:0 10px 24px #0c213733}
+.game-profile strong{font-size:20px}.game-profile .muted{color:#dcecff}.game-points{font-size:28px;font-weight:800;margin-top:8px}
+.game-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.game-card{border:0;border-radius:18px;padding:18px 12px;min-height:148px;text-align:left;box-shadow:0 8px 20px #0002;background:#fff;color:#16304b}.game-card .emoji{font-size:42px;display:block}.game-card strong{font-size:19px;display:block;margin:8px 0 4px}.game-card.durak-card{background:linear-gradient(150deg,#11613a,#0d7b48);color:white}
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:35;display:grid;grid-template-columns:repeat(4,1fr);background:rgba(255,255,255,.97);border-top:1px solid #dbe3ec;padding:6px 6px max(7px,env(safe-area-inset-bottom));box-shadow:0 -4px 16px #0001}.bottom-nav button{border:0;background:transparent;color:#536476;font-size:11px;font-weight:700;padding:5px 2px}.bottom-nav button span{display:block;font-size:23px;line-height:24px}.bottom-nav button.active{color:#0d6eaa}
+.game-choice,.opponent-choice{position:fixed;inset:0;z-index:90;background:#07111fcc;display:flex;align-items:flex-end;justify-content:center;padding:18px}.game-choice-card{width:min(520px,100%);background:#fff;border-radius:22px;padding:18px;box-shadow:0 18px 44px #0007}.game-choice-title{font-size:20px;font-weight:800;margin-bottom:12px}.game-choice-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.game-choice-actions button,.opponent-list button{border:0;border-radius:14px;padding:15px;font-size:16px;font-weight:750;background:#edf3f8;color:#17314b}.game-choice-actions .durak-pick{background:#147447;color:#fff}.opponent-list{display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow:auto}.opponent-list button{text-align:left}
+.durak-body{flex:1;min-height:0;display:flex;flex-direction:column;background:radial-gradient(circle at 50% 42%,#218753 0,#126d40 44%,#0a4e2e 100%);color:#fff;padding:10px 8px 12px;overflow:hidden}.durak-info{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:13px;margin:2px 4px 8px}.durak-opponent{text-align:center;font-weight:800;margin:2px 0 6px}.durak-opponent-cards{display:flex;justify-content:center;height:54px}.durak-back{width:34px;height:48px;border-radius:6px;background:repeating-linear-gradient(45deg,#173e8c,#173e8c 4px,#fff 4px,#fff 6px);border:2px solid #fff;margin-left:-20px;box-shadow:0 2px 5px #0005}.durak-table{flex:1;min-height:150px;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:12px;padding:8px}.durak-pair{position:relative;width:74px;height:112px;border-radius:10px}.durak-pair.target{outline:3px solid #ffd43b;outline-offset:4px}.playing-card{width:66px;height:96px;border:1px solid #ccd3da;border-radius:9px;background:#fff;color:#111;box-shadow:0 5px 10px #0004;display:flex;flex-direction:column;justify-content:space-between;padding:6px;font-weight:800;font-size:18px;user-select:none}.playing-card.red{color:#c92731}.playing-card .suit{font-size:24px;align-self:center}.durak-pair .defense{position:absolute;left:20px;top:15px;transform:rotate(9deg)}.durak-hand{display:flex;overflow-x:auto;overflow-y:hidden;justify-content:center;padding:8px 4px 2px;min-height:112px}.durak-hand .playing-card{flex:0 0 62px;margin-left:-18px;transition:transform .12s}.durak-hand .playing-card:first-child{margin-left:0}.durak-hand .playing-card:active{transform:translateY(-8px)}.durak-controls{display:flex;justify-content:center;gap:8px;margin-top:6px}.durak-controls button{border:0;border-radius:13px;padding:11px 16px;font-weight:800}.durak-controls .take{background:#ffdf75;color:#543d00}.durak-controls .bito{background:#e8fff1;color:#075c35}.durak-controls .resign{background:#8d2631;color:#fff}.durak-status{text-align:center;font-weight:800;min-height:22px}.hidden.bottom-nav{display:none!important}
+
 </style>
 </head>
 <body>
@@ -94,7 +103,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
     <button id="generateBtn" class="role wide" style="margin-top:9px">Сгенерировать безопасный код</button>
     <details style="margin-top:13px">
       <summary style="font-weight:800">Свой сервер (необязательно)</summary>
-      <div class="label">Сервер сообщений</div><input id="relayBase" class="code" value="https://our-family-relay.family-860c7981b2d4.workers.dev">
+      <div class="label">Сервер сообщений</div><input id="relayBase" class="code" value="https://family.familysergey.netcraze.pro">
       <div class="label">TURN URL</div><input id="turnUrl" class="code" placeholder="turns:turn.example.com:5349">
       <div class="label">TURN логин</div><input id="turnUser" class="code">
       <div class="label">TURN пароль</div><input id="turnPass" class="code" type="password">
@@ -107,7 +116,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v6.0.19</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.20</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
     <button id="menuBtn" class="iconbtn">⋮</button>
   </div>
   <div class="body">
@@ -151,7 +160,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
     <button id="audioBtn" class="iconbtn">📞</button>
     <button id="videoBtn" class="iconbtn">🎥</button>
   </div>
-  <button id="inviteCheckersBtn" class="game-invite hidden">♟ Пригласить в шашки</button>
+  <button id="inviteCheckersBtn" class="game-invite hidden">🎮 Пригласить в игру</button>
   <div id="messages"></div>
   <div id="replyDraft" class="reply-draft hidden"><div id="replyDraftText" class="reply-reference"></div><button id="cancelReplyBtn" aria-label="Отменить ответ">×</button></div>
   <div class="composer">
@@ -170,6 +179,26 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   </div>
   <div id="emojiPanel" class="emoji-panel hidden"></div>
 </section>
+
+
+<section id="gamesHub" class="screen hidden">
+  <div class="topbar"><button id="gamesBackBtn" class="iconbtn">‹</button><div class="who"><div class="name">Игры</div><div class="status">Семейный игровой клуб</div></div></div>
+  <div class="games-hub-body">
+    <div class="game-profile"><strong id="gameRank">Новичок</strong><div class="game-points"><span id="gamePoints">0</span> очков</div><div class="muted">Побеждайте и повышайте статус: Новичок → Опытный → Мастер → Крутяга → Профи</div></div>
+    <div class="game-grid"><button id="hubCheckersBtn" class="game-card"><span class="emoji">♟</span><strong>Шашки</strong><span>Выберите соперника и начните партию</span></button><button id="hubDurakBtn" class="game-card durak-card"><span class="emoji">🃏</span><strong>Дурак</strong><span>Подкидной · 36 карт · 1 на 1</span></button></div>
+    <div class="section-title">Текущие партии</div><div id="gameSessions"></div>
+  </div>
+</section>
+
+<section id="durak" class="screen hidden">
+  <div class="topbar"><button id="durakBackBtn" class="iconbtn">‹</button><div class="who"><div id="durakTitle" class="name">Дурак</div><div id="durakTopStatus" class="status"></div></div></div>
+  <div class="durak-body"><div class="durak-info"><span id="durakDeckInfo"></span><span id="durakTrumpInfo"></span></div><div id="durakOpponent" class="durak-opponent"></div><div id="durakOpponentCards" class="durak-opponent-cards"></div><div id="durakStatus" class="durak-status"></div><div id="durakTable" class="durak-table"></div><div id="durakHand" class="durak-hand"></div><div class="durak-controls"><button id="durakTakeBtn" class="take">Взять</button><button id="durakBitoBtn" class="bito">Бито</button><button id="durakResignBtn" class="resign">Сдаться</button></div></div>
+</section>
+
+<div id="gameChoice" class="game-choice hidden"><div class="game-choice-card"><div class="game-choice-title">Во что сыграть?</div><div class="game-choice-actions"><button id="pickCheckersBtn">♟ Шашки</button><button id="pickDurakBtn" class="durak-pick">🃏 Дурак</button></div><button id="gameChoiceCancel" class="secondary" style="width:100%;margin-top:10px">Отмена</button></div></div>
+<div id="opponentChoice" class="opponent-choice hidden"><div class="game-choice-card"><div class="game-choice-title">С кем играть?</div><div id="opponentList" class="opponent-list"></div><button id="opponentCancel" class="secondary" style="width:100%;margin-top:10px">Отмена</button></div></div>
+
+<nav id="bottomNav" class="bottom-nav"><button id="navFamily" class="active"><span>👨‍👩‍👧‍👦</span>Семья</button><button id="navGames"><span>🎮</span>Игры</button><button id="navNews"><span>📰</span>Новости</button><button id="navMore"><span>☰</span>Ещё</button></nav>
 
 <section id="checkers" class="screen hidden">
   <div class="topbar"><button id="checkersBackBtn" class="iconbtn">‹</button><div class="who"><div id="checkersTitle" class="name">Шашки</div><div id="checkersStatus" class="status"></div></div></div>
@@ -297,6 +326,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <div id="toast" class="toast"></div>
 
 <script src="checkers.js"></script>
+<script src="durak.js"></script>
 <script>
 (function(){
 'use strict';
@@ -307,7 +337,7 @@ var MEMBERS=[
 ];
 var NAMES={};MEMBERS.forEach(function(m){NAMES[m.id]=m.name;});
 
-var role='',code='',relayBase='https://our-family-relay.family-860c7981b2d4.workers.dev',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='',presenceTopic='';
+var role='',code='',relayBase='https://family.familysergey.netcraze.pro',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='',presenceTopic='';
 var roleTags={},cryptoKeys={},packetChunks={},processedPayloads=new Set(),rawInFlight=new Set();
 var messages=[],currentThread=null,pickerMode='new',pickerSelected=new Set(),pollBusy=false,pollTimer=null;
 var pendingInvite=null,pendingNativeAccept=null,pendingGroupJoins={},pendingEarlyOffers={},pendingEarlyCandidates={},incomingWarmCallId='';
@@ -315,8 +345,9 @@ var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteS
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.19',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
+var APP_VERSION='6.0.20',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
 var games={},activeGameId='',pendingGameAcceptId='',gameSending=false,checkersDrag=null,suppressCheckersClick=0;
+var durakGames={},activeDurakId='',pendingDurakAcceptId='',durakSending=false,gamePickKind='',gamePickPeer='';
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'ocean',videoLayout:'pip'},attachmentKeys={},attachmentDbPromise=null;
 var newsDraftFile=null,newsDraftIsPhoto=false;
@@ -713,7 +744,9 @@ function hideTransientPanels(){
  return changed;
 }
 function showScreen(id){
- ['setup','home','picker','chat','news','adminArchive','adminChat','checkers'].forEach(function(x){$(x).classList.toggle('hidden',x!==id);});
+ ['setup','home','picker','chat','news','adminArchive','adminChat','checkers','gamesHub','durak'].forEach(function(x){$(x).classList.toggle('hidden',x!==id);});
+ var bn=$('bottomNav');if(bn)bn.classList.toggle('hidden',!['home','gamesHub','news'].includes(id));
+ if(bn){['navFamily','navGames','navNews'].forEach(function(n){$(n).classList.remove('active');});if(id==='home')$('navFamily').classList.add('active');if(id==='gamesHub')$('navGames').classList.add('active');if(id==='news')$('navNews').classList.add('active');}
  hideTransientPanels();
 }
 function renderHome(){
@@ -881,9 +914,10 @@ function scrollToMessage(messageId){
 }
 function tryOpenPendingMessage(){
  if(!pendingMessageNavigation||!pendingMessageNavigation.messageId)return false;
- if(pendingMessageNavigation.kind==='checkers'){
-  var game=games[pendingMessageNavigation.messageId];if(!game)return false;
+ if(pendingMessageNavigation.kind==='checkers'||pendingMessageNavigation.kind==='durak'){
+  var game=games[pendingMessageNavigation.messageId],dg=durakGames[pendingMessageNavigation.messageId];if(!game&&!dg)return false;
   var accept=pendingMessageNavigation.accept;pendingMessageNavigation=null;
+  if(dg){if(accept&&dg.status==='invited'&&dg.invitee===role)acceptDurak(dg.id);else openDurak(dg.id);return true;}
   if(accept&&game.status==='invited'&&game.invitee===role)acceptCheckers(game.id);
   else if(game.status==='invited'&&game.invitee===role)showCheckersRequest();
   else openCheckers(game.id);
@@ -952,7 +986,7 @@ function openCheckers(id){
 }
 function renderCheckers(){
  var g=games[activeGameId];if(!g)return;
- var s=g.state,own=gameSide(g),status=g.status==='invited'?(role===g.inviter?'Ждём ответа':'Приглашение'):
+ var s=g.state,own=gameSide(g);if(s.winner)awardGameOnce(g.id,s.winner===own?'win':'loss');var status=g.status==='invited'?(role===g.inviter?'Ждём ответа':'Приглашение'):
   g.status==='declined'?'Приглашение отклонено':g.status==='ended'?(s.winner===own?'Вы победили':'Партия завершена'):
   s.winner?(s.winner===own?'Вы победили':'Победил '+NAMES[gamePeer(g)]):s.turn===own?'Ваш ход':'Ход '+NAMES[gamePeer(g)];
  $('checkersStatus').textContent=status;
@@ -1026,12 +1060,12 @@ async function inviteCheckers(){
  var old=Object.values(games).find(function(g){return g.status==='active'&&gamePeer(g)===peer&&!g.state.winner;});
  if(old){openCheckers(old.id);return;}
  var id=randomId(),g={id:id,players:[role,peer],inviter:role,invitee:peer,status:'invited',updated:Date.now(),state:{board:CheckersRules.initial(),turn:'b',forced:null,winner:null,seq:0,last:null}};
- try{await publishEnvelope(peer,'game_invite',{gameId:id},4,'game_invite',id);games[id]=g;saveGames();openCheckers(id);}
+ try{await publishEnvelope(peer,'game_invite',{gameId:id,gameType:'checkers'},4,'game_invite',id);games[id]=g;saveGames();openCheckers(id);}
  catch(e){toast(relayErrorText(e&&e.message||e));}
 }
 async function acceptCheckers(id){
  var g=games[id];if(!g||g.invitee!==role||g.status!=='invited')return;
- try{await publishEnvelope(g.inviter,'game_accept',{gameId:id},4,'game_accept',id);g.status='active';g.updated=Date.now();saveGames();showCheckersRequest();openCheckers(id);}
+ try{await publishEnvelope(g.inviter,'game_accept',{gameId:id,gameType:'checkers'},4,'game_accept',id);g.status='active';g.updated=Date.now();saveGames();showCheckersRequest();openCheckers(id);}
  catch(e){toast(relayErrorText(e&&e.message||e));}
 }
 async function declineCheckers(id){
@@ -1050,7 +1084,7 @@ async function sendCheckersMove(g,from,to){
 }
 async function resignCheckers(){
  var g=games[activeGameId];if(!g||g.status!=='active'||g.state.winner||!confirm('Сдаться в этой партии?'))return;
- try{await publishEnvelope(gamePeer(g),'game_resign',{gameId:g.id,seq:g.state.seq},4,'game_resign',g.id);g.state.winner=gameSide(g)==='b'?'w':'b';g.status='ended';g.updated=Date.now();saveGames();renderCheckers();renderHome();}
+ try{await publishEnvelope(gamePeer(g),'game_resign',{gameId:g.id,seq:g.state.seq,gameType:'checkers'},4,'game_resign',g.id);g.state.winner=gameSide(g)==='b'?'w':'b';g.status='ended';g.updated=Date.now();saveGames();renderCheckers();renderHome();}
  catch(e){toast(relayErrorText(e&&e.message||e));}
 }
 function receiveCheckers(p){
@@ -1231,7 +1265,7 @@ async function processPayload(p){
  if(!p||p.v!==5||p.to!==role||p.from===role)return;
  var d=p.data||{},peer=p.from;
 
- if(['game_invite','game_accept','game_decline','game_move','game_resign'].includes(p.kind)){receiveCheckers(p);return;}
+ if(['game_invite','game_accept','game_decline','game_move','game_resign'].includes(p.kind)){if((d.gameType||'checkers')==='durak')receiveDurak(p);else receiveCheckers(p);return;}
 
  if(p.kind==='receipt_delivered'||p.kind==='receipt_read'){
    applyReceipt(d.messageId,peer,p.kind==='receipt_read'?'read':'delivered');return;
@@ -1943,7 +1977,7 @@ function checkFullScreenPermission(){
 function requestFullScreen(){try{AndroidBridge.requestFullScreenCallPermission();}catch(e){}}
 async function configure(){
  ownTag=await roleTag(role);ownTopic=await inboxTopic(role);
- loadGames();renderHome();
+ loadGames();loadDurakGames();renderHome();
  try{AndroidBridge.configure(ownTopic,role,relayBase,ownTag);}catch(e){}
  startPolling();startPresence();consumeNativeAction();consumeNativeNavigation();checkFullScreenPermission();try{AndroidBridge.refreshDailyQuote();}catch(e){}
 }
@@ -1959,7 +1993,7 @@ async function enter(){
 function loadProfile(){
  try{
    var raw=AndroidBridge.loadProfile();if(!raw)return false;var p=JSON.parse(raw);
-   role=p.role||'';code=p.code||'';relayBase=p.relay||'https://our-family-relay.family-860c7981b2d4.workers.dev';turnUrl=p.turnUrl||'';turnUser=p.turnUser||'';turnPass=p.turnPass||'';
+   role=p.role||'';code=p.code||'';relayBase=p.relay||'https://family.familysergey.netcraze.pro';turnUrl=p.turnUrl||'';turnUser=p.turnUser||'';turnPass=p.turnPass||'';
    return !!(NAMES[role]&&code.length>=14);
  }catch(e){return false;}
 }
@@ -1971,25 +2005,86 @@ function populateSetup(){
 
 $('generateBtn').addEventListener('click',function(){var a=crypto.getRandomValues(new Uint8Array(16));$('familyCode').value='Family-'+Array.from(a).map(function(x){return x.toString(16).padStart(2,'0');}).join('');});
 $('startBtn').addEventListener('click',async function(){
- var c=$('familyCode').value.trim(),rb=$('relayBase').value.trim().replace(/\/+$/,'')||'https://our-family-relay.family-860c7981b2d4.workers.dev';
+ var c=$('familyCode').value.trim(),rb=$('relayBase').value.trim().replace(/\/+$/,'')||'https://family.familysergey.netcraze.pro';
  if(!NAMES[role]){toast('Выберите своё имя');return;}if(c.length<14){toast('Код минимум 14 символов');return;}if(!/^https:\/\//.test(rb)){toast('Relay должен начинаться с https://');return;}
  code=c;relayBase=rb;turnUrl=$('turnUrl').value.trim();turnUser=$('turnUser').value.trim();turnPass=$('turnPass').value;
  try{if(!AndroidBridge.saveProfile(role,code,relayBase,turnUrl,turnUser,turnPass)){toast('Не удалось сохранить профиль');return;}}catch(e){toast('Ошибка безопасного хранилища');return;}
  await enter();
 });
+
+function gameScoreKey(){return 'of620_game_score_'+ownTag;}
+function gameScore(){try{return JSON.parse(localStorage.getItem(gameScoreKey())||'{"points":0,"awarded":{}}');}catch(e){return {points:0,awarded:{}};}}
+function gameRank(points){return points>=600?'Профи':points>=300?'Крутяга':points>=150?'Мастер':points>=50?'Опытный':'Новичок';}
+function awardGameOnce(id,result){var s=gameScore();if(s.awarded[id])return;s.awarded[id]=result;s.points+=(result==='win'?10:result==='draw'?5:3);try{localStorage.setItem(gameScoreKey(),JSON.stringify(s));}catch(e){}renderGameProfile();}
+function renderGameProfile(){var s=gameScore();if($('gamePoints'))$('gamePoints').textContent=String(s.points||0);if($('gameRank'))$('gameRank').textContent=gameRank(s.points||0);}
+function saveDurakGames(){try{localStorage.setItem('of620_durak_'+ownTag,JSON.stringify(Object.values(durakGames).slice(-30)));}catch(e){toast('Не удалось сохранить партию');}}
+function loadDurakGames(){durakGames={};try{var a=JSON.parse(localStorage.getItem('of620_durak_'+ownTag)||'[]');if(Array.isArray(a))a.forEach(function(g){if(g&&/^[a-f0-9]{32}$/.test(g.id)&&g.state&&g.players&&g.players.includes(role))durakGames[g.id]=g;});}catch(e){}var waiting=Object.values(durakGames).filter(function(g){return g.status==='invited'&&g.invitee===role;}).sort(function(a,b){return b.updated-a.updated;})[0];pendingDurakAcceptId=waiting?waiting.id:'';if(waiting)showDurakRequest();}
+function durakPeer(g){return g.players.find(function(x){return x!==role;});}
+function durakSide(g){return g.players.indexOf(role);}
+function suitGlyph(s){return s==='h'?'♥':s==='d'?'♦':s==='c'?'♣':'♠';}
+function rankGlyph(r){return r===11?'J':r===12?'Q':r===13?'K':r===14?'A':String(r);}
+function cardHtml(c,extra){var red=DurakRules.suit(c)==='h'||DurakRules.suit(c)==='d';return '<button type="button" class="playing-card '+(red?'red ':'')+(extra||'')+'" data-card="'+c+'"><span>'+rankGlyph(DurakRules.rank(c))+'</span><span class="suit">'+suitGlyph(DurakRules.suit(c))+'</span></button>';}
+function randomSeed(){try{var a=new Uint32Array(1);crypto.getRandomValues(a);return a[0];}catch(e){return (Date.now()^Math.floor(Math.random()*0xffffffff))>>>0;}}
+function openGameChoice(peer){gamePickPeer=peer||'';$('gameChoice').classList.remove('hidden');}
+function openOpponentChoice(kind){gamePickKind=kind;$('gameChoice').classList.add('hidden');var box=$('opponentList');box.innerHTML='';MEMBERS.filter(function(x){return x.id!==role;}).forEach(function(member){var peer=member.id,b=document.createElement('button');b.type='button';b.textContent=(onlineNow(peer)?'🟢 ':'⚪ ')+NAMES[peer];b.onclick=function(){$('opponentChoice').classList.add('hidden');launchGame(kind,peer);};box.appendChild(b);});$('opponentChoice').classList.remove('hidden');}
+function launchGame(kind,peer){if(kind==='checkers'){var prev=currentThread;currentThread={type:'direct',peer:peer};inviteCheckers().finally(function(){currentThread=prev;});}else inviteDurak(peer);}
+function openGamesHub(){renderGameProfile();var box=$('gameSessions');box.innerHTML='';Object.values(games).map(function(g){return {g:g,type:'checkers'};}).concat(Object.values(durakGames).map(function(g){return {g:g,type:'durak'};})).filter(function(item){return item.g.status==='active'||item.g.status==='invited';}).sort(function(a,b){return b.g.updated-a.g.updated;}).forEach(function(item){var b=document.createElement('button');b.className='game-entry';b.textContent=(item.type==='durak'?'🃏 Дурак':'♟ Шашки')+' · '+NAMES[item.g.players.find(function(x){return x!==role;})]+' · '+(item.g.status==='active'?'Продолжить':'Ожидание');b.onclick=function(){item.type==='durak'?openDurak(item.g.id):openCheckers(item.g.id);};box.appendChild(b);});if(!box.children.length)box.textContent='Пока нет активных партий';showScreen('gamesHub');}
+async function inviteDurak(peer){
+ var old=Object.values(durakGames).find(function(g){return g.status==='active'&&durakPeer(g)===peer&&g.state.winner===null;});if(old){openDurak(old.id);return;}
+ var id=randomId(),seed=randomSeed(),g={id:id,players:[role,peer],inviter:role,invitee:peer,status:'invited',updated:Date.now(),state:DurakRules.initial(seed),target:0};
+ try{await publishEnvelope(peer,'game_invite',{gameType:'durak',gameId:id,seed:seed,state:g.state},4,'durak_invite',id);durakGames[id]=g;saveDurakGames();openDurak(id);}catch(e){toast(relayErrorText(e&&e.message||e));}
+}
+async function acceptDurak(id){var g=durakGames[id];if(!g||g.invitee!==role||g.status!=='invited')return;try{await publishEnvelope(g.inviter,'game_accept',{gameType:'durak',gameId:id},4,'durak_accept',id);g.status='active';g.updated=Date.now();saveDurakGames();$('checkersRequest').classList.add('hidden');pendingDurakAcceptId='';openDurak(id);}catch(e){toast(relayErrorText(e&&e.message||e));}}
+async function declineDurak(id){var g=durakGames[id];if(!g)return;try{await publishEnvelope(g.inviter,'game_decline',{gameType:'durak',gameId:id},4,'game_decline',id);}catch(e){}g.status='declined';g.updated=Date.now();saveDurakGames();pendingDurakAcceptId='';$('checkersRequest').classList.add('hidden');}
+function showDurakRequest(){var g=pendingDurakAcceptId&&durakGames[pendingDurakAcceptId];if(!g||g.status!=='invited'||g.invitee!==role){return;}$('checkersRequestText').textContent=NAMES[g.inviter]+' приглашает сыграть в Дурака';$('checkersRequest').classList.remove('hidden');}
+function receiveDurak(p){
+ var d=p.data||{},id=d.gameId,peer=p.from;if(!/^[a-f0-9]{32}$/.test(id||''))return;var g=durakGames[id];
+ if(p.kind==='game_invite'){
+  if(g||Date.now()-p.ts>86400000)return;var st=d.state||DurakRules.initial(d.seed>>>0);g={id:id,players:[peer,role],inviter:peer,invitee:role,status:'invited',updated:Date.now(),state:st,target:0};durakGames[id]=g;saveDurakGames();pendingDurakAcceptId=id;showDurakRequest();return;
+ }
+ if(!g||durakPeer(g)!==peer)return;
+ if(p.kind==='game_accept'){g.status='active';g.updated=Date.now();saveDurakGames();if(activeDurakId===id)renderDurak();return;}
+ if(p.kind==='game_decline'){g.status='declined';g.updated=Date.now();saveDurakGames();if(activeDurakId===id)renderDurak();return;}
+ if(p.kind==='game_move'&&g.status==='active'&&d.state&&Number(d.state.seq)===Number(g.state.seq)+1&&d.state.seed===g.state.seed){g.state=d.state;g.status=g.state.winner===null?'active':'ended';g.updated=Date.now();saveDurakGames();if(activeDurakId===id)renderDurak();return;}
+ if(p.kind==='game_resign'){g.state.winner=durakSide(g);g.status='ended';g.updated=Date.now();saveDurakGames();awardGameOnce(g.id,'win');if(activeDurakId===id)renderDurak();}
+}
+function openDurak(id){var g=durakGames[id];if(!g)return;activeDurakId=id;$('durakTitle').textContent='Дурак · '+NAMES[durakPeer(g)];$('checkersRequest').classList.add('hidden');showScreen('durak');renderDurak();}
+function renderDurak(){
+ var g=durakGames[activeDurakId];if(!g)return;var s=g.state,side=durakSide(g),peer=durakPeer(g),meAttack=s.attacker===side,meDefend=s.defender===side;
+ if(s.winner!==null){g.status='ended';var r=s.winner==='draw'?'draw':(Number(s.winner)===side?'win':'loss');awardGameOnce(g.id,r);saveDurakGames();}
+ $('durakDeckInfo').textContent='Колода: '+s.deck.length;$('durakTrumpInfo').textContent='Козырь: '+suitGlyph(s.trump)+' '+rankGlyph(DurakRules.rank(s.trumpCard));$('durakOpponent').textContent=NAMES[peer]+' · '+s.hands[1-side].length+' карт';
+ var backs='';for(var i=0;i<s.hands[1-side].length;i++)backs+='<span class="durak-back"></span>';$('durakOpponentCards').innerHTML=backs;
+ var status=g.status==='invited'?(role===g.inviter?'Ждём ответа':'Приглашение'):g.status==='declined'?'Приглашение отклонено':s.winner!==null?(s.winner==='draw'?'Ничья':Number(s.winner)===side?'Вы победили!':'Победил '+NAMES[peer]):(meAttack?'Ваш ход — отбивайтесь картой того же ранга на столе':'Ход '+NAMES[peer]);
+ if(meDefend&&s.table.some(function(x){return !x.d;}))status='Ваш ход — отбивайтесь';if(meAttack)status='Ваш ход — атакуйте';$('durakStatus').textContent=status;$('durakTopStatus').textContent=gameRank(gameScore().points||0)+' · '+(gameScore().points||0)+' очков';
+ var tb='';s.table.forEach(function(pair,idx){tb+='<div class="durak-pair '+(g.target===idx?'target':'')+'" data-pair="'+idx+'">'+cardHtml(pair.a,'attack')+(pair.d?cardHtml(pair.d,'defense'):'')+'</div>';});$('durakTable').innerHTML=tb;
+ Array.from($('durakTable').querySelectorAll('.durak-pair')).forEach(function(el){el.onclick=function(){g.target=Number(el.dataset.pair);renderDurak();};});
+ $('durakHand').innerHTML=s.hands[side].map(function(c){return cardHtml(c,'hand-card');}).join('');Array.from($('durakHand').querySelectorAll('.playing-card')).forEach(function(el){el.onclick=function(){durakPlayCard(el.dataset.card);};});
+ var active=g.status==='active'&&s.winner===null;$('durakTakeBtn').classList.toggle('hidden',!active||!meDefend||!s.table.length);$('durakBitoBtn').classList.toggle('hidden',!active||!meAttack||!DurakRules.canBeatAll(s));$('durakResignBtn').classList.toggle('hidden',!active);
+}
+async function sendDurakState(g,next){if(!next||durakSending)return;durakSending=true;try{await publishEnvelope(durakPeer(g),'game_move',{gameType:'durak',gameId:g.id,state:next,seq:next.seq},4,'durak_move',g.id);g.state=next;g.status=next.winner===null?'active':'ended';g.updated=Date.now();saveDurakGames();renderDurak();}catch(e){toast(relayErrorText(e&&e.message||e));}finally{durakSending=false;}}
+function durakPlayCard(c){var g=durakGames[activeDurakId];if(!g||g.status!=='active'||g.state.winner!==null)return;var side=durakSide(g),s=g.state,next=null;if(s.attacker===side)next=DurakRules.attack(s,c);else if(s.defender===side){var idx=Number.isInteger(g.target)?g.target:-1;if(idx<0||!DurakRules.legalDefense(s,idx,c)){idx=s.table.findIndex(function(p,i){return !p.d&&DurakRules.legalDefense(s,i,c);});}if(idx>=0)next=DurakRules.defend(s,idx,c);}if(next)sendDurakState(g,next);else toast('Этой картой сейчас ходить нельзя');}
+function durakTake(){var g=durakGames[activeDurakId];if(!g||g.state.defender!==durakSide(g))return;sendDurakState(g,DurakRules.pickup(g.state));}
+function durakBito(){var g=durakGames[activeDurakId];if(!g||g.state.attacker!==durakSide(g))return;sendDurakState(g,DurakRules.done(g.state));}
+async function resignDurak(){var g=durakGames[activeDurakId];if(!g||g.status!=='active'||!confirm('Сдаться в этой партии?'))return;var side=durakSide(g);try{await publishEnvelope(durakPeer(g),'game_resign',{gameType:'durak',gameId:g.id,seq:g.state.seq},4,'game_resign',g.id);}catch(e){}g.state.winner=1-side;g.status='ended';g.updated=Date.now();saveDurakGames();awardGameOnce(g.id,'loss');renderDurak();}
+renderGameProfile();
+$('navFamily').addEventListener('click',function(){showScreen('home');renderHome();});$('navGames').addEventListener('click',openGamesHub);$('navNews').addEventListener('click',openNews);$('navMore').addEventListener('click',function(){showScreen('home');renderHome();$('settingsPop').classList.remove('hidden');});
+$('gamesBackBtn').addEventListener('click',function(){showScreen('home');renderHome();});$('hubCheckersBtn').addEventListener('click',function(){openOpponentChoice('checkers');});$('hubDurakBtn').addEventListener('click',function(){openOpponentChoice('durak');});
+$('pickCheckersBtn').addEventListener('click',function(){var p=gamePickPeer;$('gameChoice').classList.add('hidden');if(p)launchGame('checkers',p);else openOpponentChoice('checkers');});$('pickDurakBtn').addEventListener('click',function(){var p=gamePickPeer;$('gameChoice').classList.add('hidden');if(p)launchGame('durak',p);else openOpponentChoice('durak');});$('gameChoiceCancel').addEventListener('click',function(){$('gameChoice').classList.add('hidden');});$('opponentCancel').addEventListener('click',function(){$('opponentChoice').classList.add('hidden');});
+$('durakBackBtn').addEventListener('click',function(){activeDurakId='';openGamesHub();});$('durakTakeBtn').addEventListener('click',durakTake);$('durakBitoBtn').addEventListener('click',durakBito);$('durakResignBtn').addEventListener('click',resignDurak);
+
 $('newChatBtn').addEventListener('click',function(){openPicker('new',[]);});
 $('newVideoBtn').addEventListener('click',function(){openPicker('new',[]);});
 $('newsBtn').addEventListener('click',openNews);
 $('resumeCheckersBtn').addEventListener('click',function(){var running=Object.values(games).filter(function(g){return g.status==='active'&&g.players.includes(role);}).sort(function(a,b){return b.updated-a.updated;});if(running.length)openCheckers(running[0].id);});
-$('inviteCheckersBtn').addEventListener('click',inviteCheckers);
+$('inviteCheckersBtn').addEventListener('click',function(){if(currentThread&&currentThread.type==='direct')openGameChoice(currentThread.peer);});
 $('checkersBackBtn').addEventListener('click',function(){activeGameId='';if(currentThread){showScreen('chat');renderMessages();}else{showScreen('home');renderHome();}});
 $('checkersResignBtn').addEventListener('click',resignCheckers);
 $('checkersBoard').addEventListener('pointerdown',checkersPointerDown);
 $('checkersBoard').addEventListener('pointermove',checkersPointerMove);
 $('checkersBoard').addEventListener('pointerup',checkersPointerUp);
 $('checkersBoard').addEventListener('pointercancel',checkersPointerCancel);
-$('checkersAcceptBtn').addEventListener('click',function(){acceptCheckers(pendingGameAcceptId);});
-$('checkersDeclineBtn').addEventListener('click',function(){declineCheckers(pendingGameAcceptId);});
+$('checkersAcceptBtn').addEventListener('click',function(){if(pendingDurakAcceptId)acceptDurak(pendingDurakAcceptId);else acceptCheckers(pendingGameAcceptId);});
+$('checkersDeclineBtn').addEventListener('click',function(){if(pendingDurakAcceptId)declineDurak(pendingDurakAcceptId);else declineCheckers(pendingGameAcceptId);});
 $('newsBackBtn').addEventListener('click',function(){showScreen('home');renderHome();});
 $('pickerBackBtn').addEventListener('click',function(){showScreen(currentThread?'chat':'home');});
 $('selectAllBtn').addEventListener('click',toggleAll);
