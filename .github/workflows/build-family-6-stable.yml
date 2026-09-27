@@ -7,6 +7,7 @@ on:
     paths:
       - 'duoapp/**'
       - 'tools/patch_family_620.py'
+      - 'tools/fix_family_620_network.py'
       - 'tools/test_durak.cjs'
       - 'settings-duo.gradle'
       - '.github/workflows/build-family-6-stable.yml'
@@ -31,6 +32,9 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
+      - name: Apply 6.0.20 home relay fix
+        run: python3 tools/fix_family_620_network.py
+
       - name: Validate stable identity
         run: |
           grep -q "applicationId 'com.sergey.ourfamily'" duoapp/build.gradle
@@ -54,6 +58,8 @@ jobs:
           assert 'bottomNav' in h
           assert "gameType:'durak'" in h
           assert "gameType:'checkers'" in h
+          assert "'durak_invite',id,true" in h
+          assert "'durak_move',g.id,true" in h
           PY
           node --check /tmp/family6.js
           node --check duoapp/src/main/assets/checkers.js
@@ -114,6 +120,8 @@ jobs:
           grep -q "AndroidBridge.uploadAttachment" "$H"
           grep -q "public String sendRelay" duoapp/src/main/java/com/sergey/duochat/MainActivity.java
           grep -q "postBlocking" "$R"
+          grep -q "setReadTimeout(35000)" "$R"
+          grep -q "t.join(65000L)" "$R"
           grep -q "uploadBase64" "$A"
 
       - name: Validate low-latency relay and call setup
@@ -155,6 +163,7 @@ jobs:
           unzip -t "$APK" >/dev/null
           unzip -p "$APK" assets/index.html | grep -q "Наша семья · v6.0.20"
           unzip -p "$APK" assets/index.html | grep -q "Подкидной · 36 карт · 1 на 1"
+          unzip -p "$APK" assets/index.html | grep -q "durak_invite',id,true"
           unzip -p "$APK" assets/durak.js | grep -q "function pickup"
           sha256sum "$APK"
           ls -lh "$APK"
