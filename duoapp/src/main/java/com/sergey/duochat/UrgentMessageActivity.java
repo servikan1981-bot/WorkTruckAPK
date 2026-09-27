@@ -33,6 +33,9 @@ public class UrgentMessageActivity extends Activity {
         if (context == null || id == null || id.isEmpty() || text == null || text.trim().isEmpty()) return;
         ensureChannel(context);
 
+        SharedPreferences prefs = SecureStore.prefs(context);
+        if (id.equals(prefs.getString("urgent_dismissed_id", ""))) return;
+
         Intent open = new Intent(context, UrgentMessageActivity.class);
         open.putExtra(EXTRA_ID, id);
         open.putExtra(EXTRA_TEXT, text);
@@ -190,7 +193,12 @@ public class UrgentMessageActivity extends Activity {
     }
 
     private void dismiss(String id) {
-        SecureStore.prefs(this).edit().putString("urgent_dismissed_id", id).apply();
+        SharedPreferences prefs = SecureStore.prefs(this);
+        SharedPreferences.Editor editor = prefs.edit().putString("urgent_dismissed_id", id);
+        if (id.equals(prefs.getString("urgent_active_id", ""))) {
+            editor.remove("urgent_active_id").remove("urgent_active_text").remove("urgent_active_ts");
+        }
+        editor.commit();
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(BASE_NOTIFICATION_ID + Math.abs(id.hashCode() % 700));
         finish();
