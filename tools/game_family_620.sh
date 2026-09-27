@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+for host in https://family.familysergey.netcraze.pro https://our-family-relay.family-860c7981b2d4.workers.dev; do
+ echo "Relay check: $host"
+ curl -L --max-time 8 -sS -w ' HTTP %{http_code}\n' "$host/health" || true
+done
 python3 - <<'PY'
 import base64,hashlib,json,pathlib
 for version in (619,620):
