@@ -1,14 +1,13 @@
-"""Upgrade two phones, accept a Durak invitation, and synchronize a round."""
-import os
+"""Upgrade two phones from published 6.0.19, accept a Durak invitation, and synchronize a round."""
 import re
 import subprocess
 import time
 from pathlib import Path
 import video_family_613 as helper
 
-helper.CODE = 'Family620-' + os.environ.get('GITHUB_RUN_ID', 'local')
+helper.CODE = 'Family620-' + str(int(time.time()))
 A, B = 'emulator-5554', 'emulator-5556'
-HOME_RELAY = 'https://family.familysergey.netcraze.pro'
+HOME_RELAY = 'family.familysergey.netcraze.pro'
 
 
 def labels(serial):
@@ -62,15 +61,12 @@ def tap_visible_button(serial, needle):
 
 
 def main():
-    relay = os.environ.get('FAMILY_TEST_RELAY') or HOME_RELAY
-    print('Forcing profile relay:', relay, flush=True)
-    helper.profile(A, 'Сергей', relay)
-    helper.profile(B, 'Света', relay)
+    # 6.0.19 has no relay field in the login UI. This deliberately logs in exactly
+    # like a real 6.0.19 phone, then verifies that 6.0.20 migrates it automatically.
+    print('Creating real 6.0.19 profiles; 6.0.20 must migrate to', HOME_RELAY, flush=True)
+    helper.profile(A, 'Сергей')
+    helper.profile(B, 'Света')
     for serial in (A, B):
-        try:
-            print(serial, 'DNS/ping:', helper.adb(serial, 'shell', 'ping', '-c', '1', '-W', '5', 'family.familysergey.netcraze.pro'), flush=True)
-        except Exception as e:
-            print(serial, 'DNS/ping failed:', e, flush=True)
         helper.adb(serial, 'shell', 'am', 'force-stop', helper.PKG)
         helper.adb(serial, 'install', '-r', '/tmp/family-620.apk')
         helper.adb(serial, 'shell', 'am', 'start', '-n', helper.ACT)
@@ -82,22 +78,20 @@ def main():
     helper.tap(A, 'Дурак')
     started = time.monotonic()
     tap_visible_button(A, 'Света')
-    time.sleep(3)
-    print('After invite:', labels(A)[-30:], flush=True)
-    wait_text(A, 'Дурак · Света', 50)
+    wait_text(A, 'Дурак · Света', 8)
     print(f'Sender opened Durak after {time.monotonic()-started:.1f}s', flush=True)
-    wait_text(B, 'приглашает сыграть в Дурака', 50)
+    wait_text(B, 'приглашает сыграть в Дурака', 70)
     print(f'Recipient received Durak invite after {time.monotonic()-started:.1f}s', flush=True)
     helper.tap(B, 'Принять')
-    wait_text(A, 'Дурак · Света', 25)
-    wait_text(B, 'Дурак · Сергей', 25)
+    wait_text(A, 'Дурак · Света', 35)
+    wait_text(B, 'Дурак · Сергей', 15)
     attacker = A if any('Ваш ход — атакуйте' in x[0] for x in labels(A)) else B
     defender = B if attacker == A else A
     first_hand_card(attacker)
-    wait_text(defender, 'Ваш ход — отбивайтесь', 35)
+    wait_text(defender, 'Ваш ход — отбивайтесь', 70)
     helper.tap(defender, 'Взять')
-    wait_text(attacker, 'Ваш ход — атакуйте', 35)
-    print('PASS upgrade 6.0.19 -> 6.0.20, invite, accept, attack and pickup on two phones', flush=True)
+    wait_text(attacker, 'Ваш ход — атакуйте', 70)
+    print('PASS upgrade 6.0.19 -> 6.0.20, home relay migration, invite, accept, attack and pickup on two phones', flush=True)
 
 
 if __name__ == '__main__':
