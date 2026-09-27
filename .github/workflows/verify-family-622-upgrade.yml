@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/verify-family-622-upgrade.yml'
       - 'updates/candidates/622.json'
+      - 'tools/verify_family_622.sh'
   workflow_dispatch:
 
 permissions:
@@ -54,21 +55,9 @@ jobs:
           arch: x86_64
           target: google_apis
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          script: |
-            set -euo pipefail
-            adb install -r /tmp/family621.apk
-            adb shell am start -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
-            sleep 3
-            adb install -r /tmp/family622.apk
-            adb shell am force-stop com.sergey.ourfamily
-            adb shell am start -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
-            sleep 5
-            adb shell dumpsys package com.sergey.ourfamily | grep -q 'versionCode=6022'
-            adb shell pidof com.sergey.ourfamily
-            adb logcat -d -v brief > "/tmp/upgrade622-api${{ matrix.api-level }}.log"
-            if grep -E 'FATAL EXCEPTION|Fatal signal' "/tmp/upgrade622-api${{ matrix.api-level }}.log" | grep -q 'com.sergey.ourfamily'; then exit 1; fi
-            adb shell screencap -p "/sdcard/upgrade622.png"
-            adb pull "/sdcard/upgrade622.png" "/tmp/upgrade622-api${{ matrix.api-level }}.png"
+          script: bash tools/verify_family_622.sh
+        env:
+          FAMILY_API_LEVEL: ${{ matrix.api-level }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
