@@ -12,6 +12,6 @@
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v620_07.b64",
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v620_08.b64"
   ],
-  "sha256": "bfb09e8a6068ac58013098a7893cf1c24218370f6bdb269461e3a20fa1da0323",
-  "notes": "Дурак, шашки, нижнее меню и статусы. Исправлены очки при сдаче и экран завершения партии. Проверка обновления 6.0.19 → 6.0.20."
+  "sha256": "66a8a2afbbe00e8a92574ab0f484145a62eb518a103517fe9051d99077c8346a",
+  "notes": "Дурак, шашки, нижнее меню и статусы. Исправлена загрузка правил «Дурака» в WebView и работа игр через домашний сервер. Проверено обновление 6.0.19 → 6.0.20 на двух телефонах."
 }
