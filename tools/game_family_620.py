@@ -1,5 +1,4 @@
 """Upgrade two phones from published 6.0.19, accept a Durak invitation, and synchronize a round."""
-# Final release trigger after stabilizing 6.0.19 cold start on CI emulators.
 import re
 import subprocess
 import time
@@ -31,6 +30,18 @@ def logcat(serial, lines=700):
         return 'logcat failed: ' + repr(e)
 
 
+def tap_visible_button(serial, needle):
+    for label, bounds, cls in labels(serial):
+        if needle not in label or 'Button' not in cls:
+            continue
+        x1, y1, x2, y2 = map(int, re.findall(r'\d+', bounds))
+        if x2 <= x1 or y2 <= y1:
+            continue
+        helper.adb(serial, 'shell', 'input', 'tap', str((x1+x2)//2), str((y1+y2)//2))
+        return True
+    return False
+
+
 def wait_text(serial, needle, timeout=35):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -42,6 +53,47 @@ def wait_text(serial, needle, timeout=35):
             return
         time.sleep(1)
     raise AssertionError(f'{serial}: missing {needle}: {labels(serial)[-25:]}')
+
+
+def launch_family(serial):
+    helper.adb(serial, 'shell', 'am', 'force-stop', helper.PKG)
+    out = helper.adb(serial, 'shell', 'monkey', '-p', helper.PKG,
+                     '-c', 'android.intent.category.LAUNCHER', '1')
+    print(serial, 'launcher:', out[-300:], flush=True)
+    time.sleep(3)
+
+
+def profile_619(serial, role):
+    # CI sometimes returns to Launcher after a cold install. Launch through the
+    # same MAIN/LAUNCHER path a real phone uses and retry until the profile UI is visible.
+    deadline = time.monotonic() + 35
+    while time.monotonic() < deadline:
+        launch_family(serial)
+        current = labels(serial)
+        if any('Разрешите системные входящие звонки' in label for label, _, _ in current):
+            tap_visible_button(serial, 'ПОЗЖЕ')
+            time.sleep(1)
+            current = labels(serial)
+        if any(role in label for label, _, _ in current):
+            break
+    else:
+        raise AssertionError(f'{serial}: 6.0.19 profile screen did not open: {labels(serial)[-25:]}')
+
+    if not tap_visible_button(serial, role):
+        raise AssertionError(f'{serial}: cannot tap profile {role}')
+    time.sleep(1)
+    root = helper.snap(serial)
+    fields = [n for n in root.iter('node') if n.get('class') == 'android.widget.EditText']
+    if not fields:
+        raise AssertionError(f'{serial}: family code input missing')
+    x1, y1, x2, y2 = map(int, re.findall(r'\d+', fields[0].get('bounds', '')))
+    helper.adb(serial, 'shell', 'input', 'tap', str((x1+x2)//2), str((y1+y2)//2))
+    helper.adb(serial, 'shell', 'input', 'text', helper.CODE)
+    helper.adb(serial, 'shell', 'input', 'keyevent', '4')
+    if not tap_visible_button(serial, 'Войти в семью'):
+        raise AssertionError(f'{serial}: login button missing')
+    wait_text(serial, 'Новый чат', 25)
+    print(serial, '6.0.19 profile ready for', role, flush=True)
 
 
 def first_hand_card(serial):
@@ -58,36 +110,28 @@ def first_hand_card(serial):
     print('Tapped card', serial, label, flush=True)
 
 
-def tap_visible_button(serial, needle):
-    for label, bounds, cls in labels(serial):
-        if needle not in label or 'Button' not in cls:
-            continue
-        x1, y1, x2, y2 = map(int, re.findall(r'\d+', bounds))
-        if x2 <= x1 or y2 <= y1:
-            continue
-        helper.adb(serial, 'shell', 'input', 'tap', str((x1+x2)//2), str((y1+y2)//2))
-        return
-    raise AssertionError(f'{serial}: no visible button {needle}')
-
-
 def main():
     print('Creating real 6.0.19 profiles; 6.0.20 must migrate to', HOME_RELAY, flush=True)
-    helper.profile(A, 'Сергей')
-    helper.profile(B, 'Света')
+    profile_619(A, 'Сергей')
+    profile_619(B, 'Света')
     for serial in (A, B):
         helper.adb(serial, 'shell', 'am', 'force-stop', helper.PKG)
-        helper.adb(serial, 'install', '-r', '/tmp/family-620.apk')
+        install = helper.adb(serial, 'install', '-r', '/tmp/family-620.apk')
+        print(serial, 'upgrade result:', install, flush=True)
+        if 'Success' not in install:
+            raise AssertionError(serial + ': 6.0.19 -> 6.0.20 install failed: ' + install)
         helper.adb(serial, 'shell', 'logcat', '-c')
-        helper.adb(serial, 'shell', 'am', 'start', '-n', helper.ACT)
+        launch_family(serial)
         if any('Разрешите системные входящие звонки' in x[0] for x in labels(serial)):
-            helper.tap(serial, 'ПОЗЖЕ')
-        wait_text(serial, 'v6.0.20', 20)
-        wait_text(serial, 'Новый чат', 20)
+            tap_visible_button(serial, 'ПОЗЖЕ')
+        wait_text(serial, 'v6.0.20', 25)
+        wait_text(serial, 'Новый чат', 25)
     time.sleep(2)
     helper.tap(A, 'Игры')
     helper.tap(A, 'Дурак')
     started = time.monotonic()
-    tap_visible_button(A, 'Света')
+    if not tap_visible_button(A, 'Света'):
+        raise AssertionError('Sender cannot select Света in Durak club')
     time.sleep(1)
     print('Sender UI after opponent tap:', labels(A)[-30:], flush=True)
     try:
@@ -96,7 +140,7 @@ def main():
         lc = logcat(A)
         print('--- SENDER LOGCAT AFTER DURAK TAP ---', flush=True)
         for line in lc.splitlines():
-            low=line.lower()
+            low = line.lower()
             if ('chromium' in low or 'console' in low or 'ourfamily' in low or 'androidruntime' in low or 'uncaught' in low or 'javascript' in low):
                 print(line, flush=True)
         raise
@@ -105,7 +149,7 @@ def main():
     print(f'Recipient received Durak invite after {time.monotonic()-started:.1f}s', flush=True)
     helper.tap(B, 'Принять')
     wait_text(A, 'Дурак · Света', 35)
-    wait_text(B, 'Дурак · Сергей', 15)
+    wait_text(B, 'Дурак · Сергей', 20)
     attacker = A if any('Ваш ход — атакуйте' in x[0] for x in labels(A)) else B
     defender = B if attacker == A else A
     first_hand_card(attacker)
