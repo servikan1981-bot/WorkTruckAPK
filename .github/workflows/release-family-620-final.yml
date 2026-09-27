@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/release-family-620-final.yml'
       - 'tools/game_family_620.py'
+      - 'updates/candidates/sign620.patch.b64'
   workflow_dispatch:
 
 permissions:
@@ -34,23 +35,25 @@ jobs:
           name: OurFamily_6_0_20_unsigned
           path: /tmp/family620unsigned
           github-token: ${{ github.token }}
-          run-id: 36304374072
+          run-id: 36308209674
 
       - name: Verify exact unsigned base and restore Stable-signed 6.0.20
         run: |
           APK=$(find /tmp/family620unsigned -type f -name '*.apk' | head -1)
           test -n "$APK"
-          echo 'b732a4d447d5d1be4de1f1c0110ee69c34fa3d244353e4ac9b172e8f33cd539a  '"$APK" | sha256sum -c -
+          echo '3192e325f6e966a9461a0178e80e206df8caeecacd6db0458c8739a8dd0a3b31  '"$APK" | sha256sum -c -
           base64 -d updates/candidates/sign620.patch.b64 > /tmp/sign620.patch.zst
           zstd -q -d --patch-from="$APK" /tmp/sign620.patch.zst -o /tmp/OurFamily_6_0_20_Stable.apk
-          echo '4e9eaa7a7ade703b225b400d0986e878a6b5ce7b7e48d7dc04548a409ec6a099  /tmp/OurFamily_6_0_20_Stable.apk' | sha256sum -c -
+          echo '66a8a2afbbe00e8a92574ab0f484145a62eb518a103517fe9051d99077c8346a  /tmp/OurFamily_6_0_20_Stable.apk' | sha256sum -c -
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 /tmp/OurFamily_6_0_20_Stable.apk >/dev/null
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_20_Stable.apk | tee /tmp/620-certs.txt
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_20_Stable.apk | tee /tmp/620-badging.txt
           grep -q "package: name='com.sergey.ourfamily' versionCode='6020' versionName='6.0.20'" /tmp/620-badging.txt
+          grep -q '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/620-certs.txt
           unzip -p /tmp/OurFamily_6_0_20_Stable.apk assets/index.html | grep -q "Наша семья · v6.0.20"
           unzip -p /tmp/OurFamily_6_0_20_Stable.apk assets/index.html | grep -q "Подкидной · 36 карт · 1 на 1"
           unzip -p /tmp/OurFamily_6_0_20_Stable.apk classes.dex | strings | grep -q 'family.familysergey.netcraze.pro'
+          unzip -p /tmp/OurFamily_6_0_20_Stable.apk classes.dex | strings | grep -q 'durak.js'
 
       - name: Prepare candidate update files
         run: |
@@ -64,8 +67,8 @@ jobs:
             'versionCode':6020,
             'versionName':'6.0.20',
             'apkBase64Parts':['https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'+p.name for p in parts],
-            'sha256':'4e9eaa7a7ade703b225b400d0986e878a6b5ce7b7e48d7dc04548a409ec6a099',
-            'notes':'Дурак, шашки, нижнее меню и статусы. Исправлена работа игр через домашний сервер: приглашения и ходы не блокируют экран при медленном ответе туннеля. Проверено обновление 6.0.19 → 6.0.20 на двух телефонах.'
+            'sha256':'66a8a2afbbe00e8a92574ab0f484145a62eb518a103517fe9051d99077c8346a',
+            'notes':'Дурак, шашки, нижнее меню и статусы. Исправлена загрузка правил Дурака и работа игр через домашний сервер: приглашения и ходы не блокируют экран при медленном ответе туннеля. Проверено обновление 6.0.19 → 6.0.20 на двух телефонах.'
           }
           pathlib.Path('updates/candidates/620.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2)+'\n')
           raw=''.join(p.read_text().strip() for p in parts)
