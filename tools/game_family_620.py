@@ -51,8 +51,9 @@ def tap_visible_button(serial, needle):
 
 
 def main():
-    helper.profile(A, 'Сергей')
-    helper.profile(B, 'Света')
+    relay = os.environ.get('FAMILY_TEST_RELAY', 'https://our-family-relay.family-860c7981b2d4.workers.dev')
+    helper.profile(A, 'Сергей', relay)
+    helper.profile(B, 'Света', relay)
     for serial in (A, B):
         helper.adb(serial, 'shell', 'am', 'force-stop', helper.PKG)
         helper.adb(serial, 'install', '-r', '/tmp/family-620.apk')
