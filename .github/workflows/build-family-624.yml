@@ -1,0 +1,93 @@
+name: Build and test OurFamily 6.0.24
+
+on:
+  push:
+    branches: [family-624-performance]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Check messaging and game logic
+        run: |
+          node tools/test_family_624_async.cjs
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('duoapp/src/main/assets/index.html').read_text()
+          Path('/tmp/family624.js').write_text('\n'.join(re.findall(r'<script>(.*?)</script>', html, re.S)))
+          PY
+          node --check /tmp/family624.js
+      - name: Build unsigned APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+      - name: Check package
+        run: |
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          unzip -t "$APK" >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionCode='6024' versionName='6.0.24'"
+          sha256sum "$APK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_24_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error
+
+  video:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: OurFamily_6_0_24_unsigned
+          path: /tmp/family624
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Test video on two Android emulators
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-front emulated -camera-back emulated
+          script: bash tools/video_family_624.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: family-video-624-evidence
+          path: |
+            /tmp/emulator-5554.xml
+            /tmp/emulator-5556.xml
+            /tmp/emulator-5554.png
+            /tmp/emulator-5556.png
+            /tmp/emulator-5554-call.log
+            /tmp/emulator-5556-call.log
+            /tmp/emulator-5554-crash.log
+            /tmp/emulator-5556-crash.log
+            /tmp/second-emulator.log
+          if-no-files-found: ignore

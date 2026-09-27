@@ -40,9 +40,21 @@ public final class NativeRelayTransport {
             }
             final String[] result = {"ERR:timeout"};
             Thread t = new Thread(() -> result[0] = postBatch(context, topic, messages, priority), "OurFamilyRelayBatch");
-            t.start();t.join(42000L);
+            t.start();t.join(65000L);
             if (t.isAlive()) { t.interrupt();return "ERR:timeout"; }
             return result[0];
+        } catch (Exception e) { return "ERR:batch"; }
+    }
+
+    public static String postBatchJson(Context context, String topic, String messagesJson, int priority) {
+        try {
+            JSONArray messages = new JSONArray(messagesJson);
+            if (messages.length() < 2 || messages.length() > 16) return "ERR:batch_size";
+            for (int i = 0; i < messages.length(); i++) {
+                String wire = messages.getString(i);
+                if (wire.isEmpty() || wire.length() > 8000) return "ERR:message";
+            }
+            return postBatch(context, topic, messages, priority);
         } catch (Exception e) { return "ERR:batch"; }
     }
 
@@ -66,7 +78,7 @@ public final class NativeRelayTransport {
             JSONObject body = new JSONObject();body.put("topic", topic);body.put("messages", messages);
             body.put("priority", Math.max(1, Math.min(5, priority)));
             c = (HttpURLConnection) new URL(relay.replaceAll("/+$", "") + "/").openConnection();
-            c.setConnectTimeout(12000);c.setReadTimeout(12000);c.setUseCaches(false);
+            c.setConnectTimeout(10000);c.setReadTimeout(12000);c.setUseCaches(false);
             c.setDoOutput(true);c.setRequestMethod("POST");
             c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             c.setRequestProperty("Accept", "application/json");
@@ -108,7 +120,7 @@ public final class NativeRelayTransport {
             body.put("priority", priority);
 
             c = (HttpURLConnection) new URL(relay + "/").openConnection();
-            c.setConnectTimeout(12000);
+            c.setConnectTimeout(10000);
             c.setReadTimeout(12000);
             c.setUseCaches(false);
             c.setDoOutput(true);
@@ -142,7 +154,7 @@ public final class NativeRelayTransport {
         Thread t = new Thread(() -> result[0] = post(context, topic, message, priority), "OurFamilyRelayPost");
         t.start();
         try {
-            t.join(42000L);
+            t.join(65000L);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return "ERR:interrupted";

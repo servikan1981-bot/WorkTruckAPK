@@ -41,6 +41,7 @@ public class MessagingService extends Service {
     private static final String CH_SERVICE = "family_service_v6";
     private static final String CH_MESSAGES = "family_messages_v6";
     private static final String CH_CALLS = "family_calls_v6";
+    private static final String CH_URGENT = "family_urgent_v621";
     private static final int FG_ID = 7501;
 
     private volatile boolean running = false;
@@ -61,6 +62,7 @@ public class MessagingService extends Service {
         createChannels();
         startAsForeground();
         running = true;
+        ReliableRelayOutbox.kick(this);
         startWorker();
         startNewsWorker();
         startFamilyNewsWorker();
@@ -326,6 +328,7 @@ public class MessagingService extends Service {
             }
 
             RelayInbox.enqueue(this, id, eventTime, msg);
+            MainActivity.notifyRelayArrived();
 
             if (msg.startsWith("of5ctl|") || msg.startsWith("of5ack|")) {
                 try {
@@ -360,7 +363,10 @@ public class MessagingService extends Service {
 
             long age = eventTime > 0 ? System.currentTimeMillis() - eventTime : 0L;
 
-            if ("direct_chat".equals(kind) || "group_chat".equals(kind)) {
+            if ("urgent_broadcast".equals(kind) && "sergey".equals(senderRole)) {
+                if ("0".equals(chunkIndex) && age <= 7L * 24L * 60L * 60L * 1000L)
+                    notifyUrgent(eventTime > 0L ? eventTime : System.currentTimeMillis(), id);
+            } else if ("direct_chat".equals(kind) || "group_chat".equals(kind)) {
                 try {
                     int idx = Integer.parseInt(chunkIndex);
                     int total = Integer.parseInt(totalChunks);
@@ -417,6 +423,28 @@ public class MessagingService extends Service {
             receiptSender.execute(() -> NativeRelayTransport.post(
                     getApplicationContext(), topic, wire, 2));
         } catch (Exception ignored) {}
+    }
+
+    private void notifyUrgent(long eventTime, String eventId) {
+        Intent open = new Intent(this, MainActivity.class);
+        open.putExtra("open_message_kind", "urgent");
+        open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pi = PendingIntent.getActivity(this, 12000 + Math.abs(eventId.hashCode() % 1000), open,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder b = Build.VERSION.SDK_INT >= 26
+                ? new Notification.Builder(this, CH_URGENT) : new Notification.Builder(this);
+        Notification n = b.setSmallIcon(R.drawable.ic_launcher)
+                .setContentTitle("Срочное сообщение от Сергея")
+                .setContentText("Откройте сообщение семьи")
+                .setContentIntent(pi)
+                .setFullScreenIntent(pi, true)
+                .setAutoCancel(true)
+                .setCategory(Notification.CATEGORY_ALARM)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setPriority(Notification.PRIORITY_MAX)
+                .build();
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        nm.notify(12000 + Math.abs(eventId.hashCode() % 1000), n);
     }
 
     private void notifyMessage(String senderRole, String eventId, String text, String messageId, String messageKind) {
@@ -571,6 +599,15 @@ public class MessagingService extends Service {
                 CH_MESSAGES, "Семейные сообщения", NotificationManager.IMPORTANCE_HIGH);
         messages.enableVibration(true);
         nm.createNotificationChannel(messages);
+
+        NotificationChannel urgent = new NotificationChannel(
+                CH_URGENT, "Срочные семейные сообщения", NotificationManager.IMPORTANCE_MAX);
+        urgent.setDescription("Срочные сообщения Сергея для всей семьи");
+        urgent.enableVibration(true);
+        urgent.enableLights(true);
+        urgent.setLightColor(Color.RED);
+        urgent.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+        nm.createNotificationChannel(urgent);
 
         Uri ringtone = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
         AudioAttributes attrs = new AudioAttributes.Builder()
