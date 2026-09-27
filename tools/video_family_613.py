@@ -30,13 +30,14 @@ def tap(serial,needle,optional=False):
     if optional:return False
     raise AssertionError(serial+' missing '+needle+'; '+ET.tostring(root,encoding='unicode')[-1700:])
 
-def profile(serial,role):
+def profile(serial,role,relay=None):
     adb(serial,'shell','am','start','-W','-n',ACT)
     time.sleep(5)
     tap(serial,'ПОЗЖЕ',optional=True)
     tap(serial,role)
     root=snap(serial)
-    for node in root.iter('node'):
+    fields=[node for node in root.iter('node') if node.get('class')=='android.widget.EditText']
+    for node in fields:
         if node.get('class')=='android.widget.EditText':
             x1,y1,x2,y2=map(int,re.findall(r'\d+',node.get('bounds','')))
             adb(serial,'shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
@@ -44,6 +45,14 @@ def profile(serial,role):
     else:raise AssertionError('family code input missing')
     adb(serial,'shell','input','text',CODE)
     adb(serial,'shell','input','keyevent','4')
+    if relay:
+        assert len(fields)>1, 'relay input missing'
+        x1,y1,x2,y2=map(int,re.findall(r'\d+',fields[1].get('bounds','')))
+        adb(serial,'shell','input','tap',str((x1+x2)//2),str((y1+y2)//2))
+        adb(serial,'shell','input','keyevent','123')
+        adb(serial,'shell','input','keyevent',*(['67']*100))
+        adb(serial,'shell','input','text',relay)
+        adb(serial,'shell','input','keyevent','4')
     tap(serial,'Войти в семью')
     time.sleep(5)
     assert 'Новый чат' in ET.tostring(snap(serial),encoding='unicode')
