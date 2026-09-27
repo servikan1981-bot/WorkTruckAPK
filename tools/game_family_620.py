@@ -21,6 +21,15 @@ def labels(serial):
     return result
 
 
+def logcat(serial, lines=700):
+    try:
+        return subprocess.check_output(
+            ['adb', '-s', serial, 'logcat', '-d', '-t', str(lines)],
+            text=True, stderr=subprocess.STDOUT, errors='replace')
+    except Exception as e:
+        return 'logcat failed: ' + repr(e)
+
+
 def wait_text(serial, needle, timeout=35):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -61,24 +70,36 @@ def tap_visible_button(serial, needle):
 
 
 def main():
-    # 6.0.19 has no relay field in the login UI. This deliberately logs in exactly
-    # like a real 6.0.19 phone, then verifies that 6.0.20 migrates it automatically.
     print('Creating real 6.0.19 profiles; 6.0.20 must migrate to', HOME_RELAY, flush=True)
     helper.profile(A, 'Сергей')
     helper.profile(B, 'Света')
     for serial in (A, B):
         helper.adb(serial, 'shell', 'am', 'force-stop', helper.PKG)
         helper.adb(serial, 'install', '-r', '/tmp/family-620.apk')
+        helper.adb(serial, 'shell', 'logcat', '-c')
         helper.adb(serial, 'shell', 'am', 'start', '-n', helper.ACT)
         if any('Разрешите системные входящие звонки' in x[0] for x in labels(serial)):
             helper.tap(serial, 'ПОЗЖЕ')
         wait_text(serial, 'v6.0.20', 20)
         wait_text(serial, 'Новый чат', 20)
+    # Let configure()/WebView crypto initialization finish before the game tap.
+    time.sleep(2)
     helper.tap(A, 'Игры')
     helper.tap(A, 'Дурак')
     started = time.monotonic()
     tap_visible_button(A, 'Света')
-    wait_text(A, 'Дурак · Света', 8)
+    time.sleep(1)
+    print('Sender UI after opponent tap:', labels(A)[-30:], flush=True)
+    try:
+        wait_text(A, 'Дурак · Света', 8)
+    except Exception:
+        lc = logcat(A)
+        print('--- SENDER LOGCAT AFTER DURAK TAP ---', flush=True)
+        for line in lc.splitlines():
+            low=line.lower()
+            if ('chromium' in low or 'console' in low or 'ourfamily' in low or 'androidruntime' in low or 'uncaught' in low or 'javascript' in low):
+                print(line, flush=True)
+        raise
     print(f'Sender opened Durak after {time.monotonic()-started:.1f}s', flush=True)
     wait_text(B, 'приглашает сыграть в Дурака', 70)
     print(f'Recipient received Durak invite after {time.monotonic()-started:.1f}s', flush=True)
@@ -104,5 +125,6 @@ if __name__ == '__main__':
                     subprocess.check_output(['adb', '-s', serial, 'exec-out', 'screencap', '-p']))
                 Path('/tmp/' + serial + '-game.xml').write_text(
                     helper.adb(serial, 'exec-out', 'cat', '/sdcard/video-ui.xml'))
+                Path('/tmp/' + serial + '-logcat.txt').write_text(logcat(serial), errors='replace')
             except Exception:
                 pass
