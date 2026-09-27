@@ -8,6 +8,7 @@ import video_family_613 as helper
 
 helper.CODE = 'Family620-' + os.environ.get('GITHUB_RUN_ID', 'local')
 A, B = 'emulator-5554', 'emulator-5556'
+HOME_RELAY = 'https://family.familysergey.netcraze.pro'
 
 
 def labels(serial):
@@ -61,10 +62,15 @@ def tap_visible_button(serial, needle):
 
 
 def main():
-    relay = os.environ.get('FAMILY_TEST_RELAY')
+    relay = os.environ.get('FAMILY_TEST_RELAY') or HOME_RELAY
+    print('Forcing profile relay:', relay, flush=True)
     helper.profile(A, 'Сергей', relay)
     helper.profile(B, 'Света', relay)
     for serial in (A, B):
+        try:
+            print(serial, 'DNS/ping:', helper.adb(serial, 'shell', 'ping', '-c', '1', '-W', '5', 'family.familysergey.netcraze.pro'), flush=True)
+        except Exception as e:
+            print(serial, 'DNS/ping failed:', e, flush=True)
         helper.adb(serial, 'shell', 'am', 'force-stop', helper.PKG)
         helper.adb(serial, 'install', '-r', '/tmp/family-620.apk')
         helper.adb(serial, 'shell', 'am', 'start', '-n', helper.ACT)
@@ -85,7 +91,6 @@ def main():
     helper.tap(B, 'Принять')
     wait_text(A, 'Дурак · Света', 25)
     wait_text(B, 'Дурак · Сергей', 25)
-    # A complete exchange must appear on both replicas.
     attacker = A if any('Ваш ход — атакуйте' in x[0] for x in labels(A)) else B
     defender = B if attacker == A else A
     first_hand_card(attacker)
