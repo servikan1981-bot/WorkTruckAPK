@@ -5,6 +5,7 @@ on:
     branches: [family-stable-6]
     paths:
       - 'tools/fix_family_621.py'
+      - 'tools/fix_family_621_compile.py'
       - '.github/workflows/build-family-621.yml'
   workflow_dispatch:
 
@@ -32,6 +33,7 @@ jobs:
         run: |
           python3 tools/fix_family_620_network.py
           python3 tools/fix_family_621.py
+          python3 tools/fix_family_621_compile.py
 
       - name: Validate 6.0.21 source
         run: |
@@ -47,6 +49,7 @@ jobs:
           grep -q 'urgent_broadcast' "$S"
           grep -q 'CH_URGENT' "$S"
           grep -q 'setFullScreenIntent(pi, true)' "$S"
+          grep -q 'notifyUrgent(eventTime > 0L ? eventTime : System.currentTimeMillis(), id);' "$S"
           grep -q 'iceCandidatePoolSize:12' "$H"
           grep -q 'stun4.l.google.com:19302' "$H"
           grep -q 'ps.restart<3' "$H"
