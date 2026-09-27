@@ -110,7 +110,7 @@ jobs:
           APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
           test -s "$APK"
           unzip -t "$APK" >/dev/null
-          unzip -p "$APK" assets/index.html | grep -q 'Наша семья · v6.0.21'
+          unzip -p "$APK" assets/index.html | grep -q "APP_VERSION='6.0.21'"
           unzip -p "$APK" assets/index.html | grep -q 'Срочное сообщение всем'
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionCode='6021'"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionName='6.0.21'"
