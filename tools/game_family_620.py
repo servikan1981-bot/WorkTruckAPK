@@ -51,7 +51,7 @@ def tap_visible_button(serial, needle):
 
 
 def main():
-    relay = os.environ.get('FAMILY_TEST_RELAY', 'https://our-family-relay.family-860c7981b2d4.workers.dev')
+    relay = os.environ.get('FAMILY_TEST_RELAY')
     helper.profile(A, 'Сергей', relay)
     helper.profile(B, 'Света', relay)
     for serial in (A, B):
