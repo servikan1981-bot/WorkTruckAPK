@@ -10,6 +10,25 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
+      - name: Probe home relay write and read
+        run: |
+          python3 - <<'PY'
+          import json,time,uuid,urllib.request
+          base='https://family.familysergey.netcraze.pro'
+          topic='of5-'+uuid.uuid4().hex
+          message='of5probe|'+uuid.uuid4().hex
+          started=time.monotonic()
+          with urllib.request.urlopen(base+'/health',timeout=10) as r:
+              print('HOME health',r.status,r.read(300).decode())
+          body=json.dumps({'topic':topic,'message':message,'priority':4}).encode()
+          req=urllib.request.Request(base+'/',data=body,headers={'Content-Type':'application/json','User-Agent':'OurFamily/6.0.20 Android'})
+          with urllib.request.urlopen(req,timeout=12) as r:
+              print('HOME post',r.status,r.read(500).decode(),'seconds',round(time.monotonic()-started,3))
+          with urllib.request.urlopen(base+'/'+topic+'/json?since=10m',timeout=12) as r:
+              data=r.read(2000).decode()
+              print('HOME read',r.status,data[:1000],'seconds',round(time.monotonic()-started,3))
+              assert message in data
+          PY
       - name: Read today's Durable Object use
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
