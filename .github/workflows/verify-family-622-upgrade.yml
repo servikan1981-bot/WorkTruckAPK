@@ -1,0 +1,79 @@
+name: Verify OurFamily 6.0.21 to 6.0.22 upgrade
+
+on:
+  push:
+    branches: [family-stable-6]
+    paths:
+      - '.github/workflows/verify-family-622-upgrade.yml'
+      - 'updates/candidates/622.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [33, 35]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Reassemble and verify signed APKs
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, pathlib
+          for ver in (621,622):
+              meta=json.loads(pathlib.Path(f'updates/candidates/{ver}.json').read_text())
+              data=base64.b64decode(''.join(pathlib.Path('updates/parts',u.rsplit('/',1)[-1]).read_text() for u in meta['apkBase64Parts']))
+              assert hashlib.sha256(data).hexdigest()==meta['sha256']
+              pathlib.Path(f'/tmp/family{ver}.apk').write_bytes(data)
+          PY
+          for v in 621 622; do
+            "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "/tmp/family$v.apk" >/dev/null
+            "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "/tmp/family$v.apk" > "/tmp/cert$v.txt"
+            grep -q '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' "/tmp/cert$v.txt"
+          done
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/family622.apk | grep -q "versionCode='6022' versionName='6.0.22'"
+          unzip -p /tmp/family622.apk assets/index.html | grep -q 'id="more"'
+          if unzip -p /tmp/family622.apk assets/index.html | grep -q 'id="menuBtn"'; then exit 1; fi
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install 6.0.21 then upgrade in place to 6.0.22
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            set -euo pipefail
+            adb install -r /tmp/family621.apk
+            adb shell am start -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
+            sleep 3
+            adb install -r /tmp/family622.apk
+            adb shell am force-stop com.sergey.ourfamily
+            adb shell am start -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
+            sleep 5
+            adb shell dumpsys package com.sergey.ourfamily | grep -q 'versionCode=6022'
+            adb shell pidof com.sergey.ourfamily
+            adb logcat -d -v brief > "/tmp/upgrade622-api${{ matrix.api-level }}.log"
+            if grep -E 'FATAL EXCEPTION|Fatal signal' "/tmp/upgrade622-api${{ matrix.api-level }}.log" | grep -q 'com.sergey.ourfamily'; then exit 1; fi
+            adb shell screencap -p "/sdcard/upgrade622.png"
+            adb pull "/sdcard/upgrade622.png" "/tmp/upgrade622-api${{ matrix.api-level }}.png"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: upgrade-622-api-${{ matrix.api-level }}
+          path: |
+            /tmp/upgrade622-api${{ matrix.api-level }}.png
+            /tmp/upgrade622-api${{ matrix.api-level }}.log
+          if-no-files-found: ignore
