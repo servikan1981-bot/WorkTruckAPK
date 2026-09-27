@@ -1,0 +1,83 @@
+name: Recover signed Family 6.0.20
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-620-games ]
+    paths:
+      - '.github/workflows/recover-family-620-signed.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+      - name: Fetch all branches
+        run: git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+      - name: Scan git history for complete signed 6.0.20
+        shell: bash
+        run: |
+          cat > /tmp/recover.py <<'PY'
+          import subprocess,base64,hashlib,zipfile,io,re,os,pathlib,sys
+          expected='237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83'
+          commits=subprocess.check_output(['git','rev-list','--all'],text=True).splitlines()
+          seen=set(); hits=[]
+          def show(c,p):
+            r=subprocess.run(['git','show',f'{c}:{p}'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
+            return r.stdout if r.returncode==0 else None
+          for n,c in enumerate(commits):
+            listing=subprocess.run(['git','ls-tree','-r','--name-only',c,'updates/parts'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
+            names=[x for x in listing.stdout.splitlines() if re.search(r'/v620_\d+\.b64$',x)]
+            if not names: continue
+            sig=tuple((p,subprocess.check_output(['git','rev-parse',f'{c}:{p}'],text=True).strip()) for p in sorted(names))
+            if sig in seen: continue
+            seen.add(sig)
+            try:
+              raw=b''.join(show(c,p).strip() for p in sorted(names))
+              data=base64.b64decode(raw,validate=True)
+              z=zipfile.ZipFile(io.BytesIO(data)); bad=z.testzip()
+              if bad: continue
+            except Exception: continue
+            out=pathlib.Path('/tmp/candidate.apk'); out.write_bytes(data)
+            ap=os.environ['ANDROID_HOME']+'/build-tools/35.0.0/apksigner'
+            vr=subprocess.run([ap,'verify','--verbose','--print-certs',str(out)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+            cert=vr.stdout.lower().replace(':','')
+            if vr.returncode or expected not in cert: continue
+            aapt=os.environ['ANDROID_HOME']+'/build-tools/35.0.0/aapt'
+            bd=subprocess.run([aapt,'dump','badging',str(out)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True).stdout
+            if "name='com.sergey.ourfamily'" not in bd or "versionCode='6020'" not in bd: continue
+            try: html=z.read('assets/index.html').decode('utf-8','ignore')
+            except: html=''
+            markers={x:(x in html) for x in ['Дурак','Шашки','Игры','Новичок','Опытный','Мастер','Крутяга','Профи','bottomNav','gameType','Пригласить в игру']}
+            sha=hashlib.sha256(data).hexdigest()
+            print('VALID_COMMIT',c)
+            print('PARTS',','.join(names))
+            print('SIZE',len(data),'SHA256',sha)
+            print('MARKERS',markers)
+            hits.append((sum(markers.values()),c,names,data,sha,markers))
+          if not hits:
+            print('NO_VALID_SIGNED_620_FOUND')
+            sys.exit(2)
+          hits.sort(reverse=True,key=lambda x:x[0])
+          score,c,names,data,sha,markers=hits[0]
+          pathlib.Path('/tmp/OurFamily_6_0_20_recovered.apk').write_bytes(data)
+          pathlib.Path('/tmp/recovered_commit.txt').write_text(c+'\n'+sha+'\n'+'\n'.join(names)+'\n'+repr(markers))
+          print('SELECTED',c,'SCORE',score,'SHA256',sha)
+          PY
+          python3 /tmp/recover.py
+      - name: Upload recovered signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_20_recovered_signed
+          path: |
+            /tmp/OurFamily_6_0_20_recovered.apk
+            /tmp/recovered_commit.txt
+          if-no-files-found: error
