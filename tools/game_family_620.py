@@ -10,9 +10,20 @@ A, B = 'emulator-5554', 'emulator-5556'
 HOME_RELAY = 'family.familysergey.netcraze.pro'
 
 
+def snap_retry(serial, attempts=6):
+    last = None
+    for _ in range(attempts):
+        try:
+            return helper.snap(serial)
+        except Exception as e:
+            last = e
+            time.sleep(1)
+    raise last
+
+
 def labels(serial):
     result = []
-    for n in helper.snap(serial).iter('node'):
+    for n in snap_retry(serial).iter('node'):
         bounds = n.get('bounds', '')
         coords = list(map(int, re.findall(r'\d+', bounds)))
         if len(coords) != 4 or coords[2] <= coords[0] or coords[3] <= coords[1]:
@@ -44,8 +55,14 @@ def tap_visible_button(serial, needle):
 
 def wait_text(serial, needle, timeout=35):
     deadline = time.monotonic() + timeout
+    last = []
     while time.monotonic() < deadline:
-        current = labels(serial)
+        try:
+            current = labels(serial)
+            last = current
+        except Exception:
+            time.sleep(1)
+            continue
         if any('Разрешите системные входящие звонки' in label for label, _, _ in current):
             tap_visible_button(serial, 'ПОЗЖЕ')
             time.sleep(1)
@@ -53,7 +70,7 @@ def wait_text(serial, needle, timeout=35):
         if any(needle in label for label, _, _ in current):
             return
         time.sleep(1)
-    raise AssertionError(f'{serial}: missing {needle}: {labels(serial)[-25:]}')
+    raise AssertionError(f'{serial}: missing {needle}: {last[-25:]}')
 
 
 def launch_family(serial):
@@ -64,14 +81,12 @@ def launch_family(serial):
 
 
 def profile_619(serial, role):
-    # Cold WebView startup on CI may take 10-20 seconds. Launch once and wait;
-    # repeatedly force-stopping the app only restarts WebView initialization.
     launch_family(serial)
     wait_text(serial, 'Кто использует этот телефон?', 45)
     if not tap_visible_button(serial, role):
         raise AssertionError(f'{serial}: cannot tap profile {role}: {labels(serial)[-25:]}')
     time.sleep(1)
-    root = helper.snap(serial)
+    root = snap_retry(serial)
     fields = [n for n in root.iter('node') if n.get('class') == 'android.widget.EditText']
     if not fields:
         raise AssertionError(f'{serial}: family code input missing')
