@@ -2,7 +2,7 @@ name: Build OurFamily 6.0.22
 
 on:
   push:
-    branches: [family-622-menu]
+    branches: [family-622-menu, family-stable-6]
     paths:
       - 'tools/fix_family_621.py'
       - 'tools/fix_family_621_compile.py'
