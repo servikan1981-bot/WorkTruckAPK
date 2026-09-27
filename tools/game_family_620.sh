@@ -4,7 +4,7 @@ python3 - <<'PY'
 import base64,hashlib,json,pathlib
 for version in (619,620):
  meta=json.loads(pathlib.Path(f'updates/{"candidates/620" if version==620 else "latest"}.json').read_text())
- assert meta['versionCode']==version
+ assert meta['versionCode']=={619:6019,620:6020}[version]
  data=base64.b64decode(''.join(pathlib.Path('updates/parts/'+u.rsplit('/',1)[-1]).read_text() for u in meta['apkBase64Parts']))
  assert hashlib.sha256(data).hexdigest()==meta['sha256']
  pathlib.Path(f'/tmp/family-{version}.apk').write_bytes(data)
