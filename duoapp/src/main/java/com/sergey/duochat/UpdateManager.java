@@ -61,7 +61,7 @@ public final class UpdateManager {
 
         new Thread(() -> {
             try {
-                UpdateInfo info = fetchInfo();
+                UpdateInfo info = fetchInfo(currentVersionCode(activity));
                 p.edit().putLong(PREF_LAST_CHECK, now).apply();
                 if (info.versionCode <= currentVersionCode(activity)) {
                     if (force) activity.runOnUiThread(() ->
@@ -81,8 +81,8 @@ public final class UpdateManager {
     public static void checkBackground(Context context) {
         if (context == null) return;
         try {
-            UpdateInfo info = fetchInfo();
             long current = currentVersionCode(context);
+            UpdateInfo info = fetchInfo(current);
             NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             if (info == null || info.versionCode <= current) {
                 if (nm != null) nm.cancel(UPDATE_NOTIFICATION_ID);
@@ -136,16 +136,33 @@ public final class UpdateManager {
         installDownloadedApk(activity);
     }
 
-    private static UpdateInfo fetchInfo() throws Exception {
-        String text;
+    private static UpdateInfo fetchInfo(long installedVersionCode) throws Exception {
+        UpdateInfo raw = null;
+        Exception rawError = null;
         try {
-            text = readText(META_URL);
-        } catch (Exception primary) {
-            // A separate GitHub endpoint avoids a stale or unreachable raw CDN.
-            JSONObject wrapper = new JSONObject(readText(META_API_URL));
-            text = new String(Base64.decode(wrapper.getString("content"), Base64.DEFAULT), StandardCharsets.UTF_8);
+            // A changing URL avoids a cached manifest at an intermediate proxy.
+            raw = parseInfo(readText(META_URL + "?t=" + System.currentTimeMillis()));
+        } catch (Exception e) {
+            rawError = e;
         }
+        if (raw != null && raw.versionCode > installedVersionCode) return raw;
 
+        // A successful raw response can still be stale. Confirm "latest" with
+        // the GitHub contents API before telling the user there is no update.
+        try {
+            JSONObject wrapper = new JSONObject(readText(META_API_URL));
+            String text = new String(Base64.decode(wrapper.getString("content"), Base64.DEFAULT), StandardCharsets.UTF_8);
+            UpdateInfo api = parseInfo(text);
+            if (api != null && (raw == null || api.versionCode > raw.versionCode)) return api;
+        } catch (Exception e) {
+            if (raw == null) throw e;
+        }
+        if (raw != null) return raw;
+        if (rawError != null) throw rawError;
+        throw new IllegalStateException("No valid update manifest");
+    }
+
+    private static UpdateInfo parseInfo(String text) throws Exception {
         JSONObject o = new JSONObject(text);
         UpdateInfo i = new UpdateInfo();
         i.versionCode = o.optLong("versionCode", 0L);

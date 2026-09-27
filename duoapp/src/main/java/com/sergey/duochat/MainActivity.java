@@ -720,7 +720,12 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "6.0.18";
+            try {
+                String version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+                return version == null ? "" : version;
+            } catch (Exception e) {
+                return "";
+            }
         }
     }
 

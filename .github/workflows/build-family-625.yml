@@ -1,0 +1,40 @@
+name: Build OurFamily 6.0.25 update fix
+
+on:
+  push:
+    branches: [family-625-update-check]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Validate source and build release APK
+        run: |
+          node tools/test_family_624_async.cjs
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          unzip -t "$APK" >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionCode='6025' versionName='6.0.25'"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_25_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error
