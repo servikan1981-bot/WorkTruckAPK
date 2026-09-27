@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 adb install -r /tmp/family621.apk
+for permission in CAMERA RECORD_AUDIO POST_NOTIFICATIONS; do adb shell pm grant com.sergey.ourfamily "android.permission.$permission"; done
 adb shell am start -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
 sleep 3
 adb install -r /tmp/family622.apk
 adb shell am force-stop com.sergey.ourfamily
+adb shell input keyevent 3
 adb shell am start -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
 sleep 5
 adb shell dumpsys package com.sergey.ourfamily > "/tmp/package622-api${FAMILY_API_LEVEL}.txt"
