@@ -26,6 +26,7 @@ import android.view.WindowManager;
 
 import org.json.JSONObject;
 
+import java.lang.ref.WeakReference;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -35,12 +36,25 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends Activity {
+    private static final ThreadPoolExecutor MESSAGE_POSTER = new ThreadPoolExecutor(
+            3, 3, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(64), r -> {
+                Thread t = new Thread(r, "OurFamilyMessageSend");
+                t.setDaemon(true);
+                return t;
+            });
+    private static final ThreadPoolExecutor CALL_POSTER = new ThreadPoolExecutor(
+            2, 2, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(32), r -> {
+                Thread t = new Thread(r, "OurFamilyCallSignal");
+                t.setDaemon(true);
+                return t;
+            });
     private static final ThreadPoolExecutor SIGNAL_POSTER = new ThreadPoolExecutor(
             2, 2, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(128), r -> {
                 Thread t = new Thread(r, "OurFamilyIceSignal");
                 t.setDaemon(true);
                 return t;
             });
+    private static volatile WeakReference<MainActivity> visibleActivity = new WeakReference<>(null);
     private WebView webView;
     private static final int PERMISSION_REQUEST = 2001;
     private static final int FILE_CHOOSER_REQUEST = 2002;
@@ -211,7 +225,7 @@ public class MainActivity extends Activity {
             o.put("messageId", messageId);
             o.put("senderRole", senderRole == null ? "" : senderRole);
             o.put("kind", messageKind == null ? "" : messageKind);
-            o.put("accept", "checkers".equals(messageKind) && intent.getBooleanExtra("open_game_accept", false));
+            o.put("accept", ("checkers".equals(messageKind) || "durak".equals(messageKind)) && intent.getBooleanExtra("open_game_accept", false));
             SecureStore.prefs(this).edit()
                     .putString("pending_message_navigation", o.toString())
                     .apply();
@@ -238,13 +252,16 @@ public class MainActivity extends Activity {
             int n;
             while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
             String html = new String(out.toByteArray(), StandardCharsets.UTF_8);
-            try (InputStream game = getAssets().open("checkers.js")) {
-                ByteArrayOutputStream rules = new ByteArrayOutputStream();
-                while ((n = game.read(buf)) > 0) rules.write(buf, 0, n);
-                String marker = "<script src=\"checkers.js\"></script>";
-                if (!html.contains(marker)) throw new IllegalStateException("checkers marker missing");
-                html = html.replace(marker, "<script>\n" +
-                        new String(rules.toByteArray(), StandardCharsets.UTF_8) + "\n</script>");
+            String[] gameRuleAssets = {"checkers.js", "durak.js"};
+            for (String assetName : gameRuleAssets) {
+                try (InputStream game = getAssets().open(assetName)) {
+                    ByteArrayOutputStream rules = new ByteArrayOutputStream();
+                    while ((n = game.read(buf)) > 0) rules.write(buf, 0, n);
+                    String marker = "<script src=\"" + assetName + "\"></script>";
+                    if (!html.contains(marker)) throw new IllegalStateException(assetName + " marker missing");
+                    html = html.replace(marker, "<script>\n" +
+                            new String(rules.toByteArray(), StandardCharsets.UTF_8) + "\n</script>");
+                }
             }
             webView.loadDataWithBaseURL("https://app.local/", html, "text/html", "UTF-8", null);
         } catch (Exception e) {
@@ -410,7 +427,7 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void logCallMetric(String phase) {
-            if (phase != null && phase.matches("invite_start|accepted|media_ready|offer_sent|offer_received|offer_apply_start|remote_description|answer_local_description|answer_sent|answer_received|video_track|connected|remote_frame")) {
+            if (phase != null && phase.matches("invite_start|accepted|media_ready|offer_sent|offer_received|offer_apply_start|remote_description|answer_local_description|answer_sent|answer_received|video_track|connected|remote_frame|candidate_sent|candidate_send_failed|candidate_added|candidate_add_failed|restart_failed")) {
                 android.util.Log.i("OurFamilyCall", phase + " " + System.currentTimeMillis());
             }
         }
@@ -426,16 +443,62 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public boolean sendRelayAsync(String requestId, String topic, String message, int priority) {
+            if (requestId == null || !requestId.matches("[a-f0-9]{32}") ||
+                    topic == null || !topic.matches("[a-zA-Z0-9_-]{12,100}") ||
+                    message == null || message.isEmpty() || message.length() > 8000) return false;
+            try {
+                android.content.Context app = getApplicationContext();
+                ThreadPoolExecutor executor = priority >= 5 ? CALL_POSTER : MESSAGE_POSTER;
+                executor.execute(() -> reportRelayResult(requestId,
+                        NativeRelayTransport.post(app, topic, message, priority)));
+                return true;
+            } catch (RejectedExecutionException e) { return false; }
+        }
+
+        @JavascriptInterface
+        public boolean sendRelayBatchAsync(String requestId, String topic, String messagesJson, int priority) {
+            if (requestId == null || !requestId.matches("[a-f0-9]{32}") ||
+                    topic == null || !topic.matches("[a-zA-Z0-9_-]{12,100}") ||
+                    messagesJson == null || messagesJson.length() > 130000) return false;
+            try {
+                android.content.Context app = getApplicationContext();
+                CALL_POSTER.execute(() -> reportRelayResult(requestId,
+                        NativeRelayTransport.postBatchJson(app, topic, messagesJson, priority)));
+                return true;
+            } catch (RejectedExecutionException e) { return false; }
+        }
+
+        private void reportRelayResult(String requestId, String result) {
+            runOnUiThread(() -> {
+                if (webView != null && !isFinishing() && !isDestroyed())
+                    webView.evaluateJavascript("window.__ourFamilyRelayResult && window.__ourFamilyRelayResult("
+                            + JSONObject.quote(requestId) + "," + JSONObject.quote(result) + ");", null);
+            });
+        }
+
+        @JavascriptInterface
         public String queueRelay(String topic, String message, int priority) {
             if (topic == null || !topic.matches("[a-zA-Z0-9_-]{12,100}") ||
                     message == null || message.isEmpty() || message.length() > 8000) return "ERR:message";
             try {
                 android.content.Context app = getApplicationContext();
-                SIGNAL_POSTER.execute(() -> NativeRelayTransport.post(app, topic, message, priority));
+                if (ReliableRelayOutbox.isCritical(message))
+                    return ReliableRelayOutbox.enqueue(app, topic, message, priority) ? "OK" : "ERR:outbox_full";
+                String[] parts = message.split("\\|", 5);
+                String kind = parts.length > 3 ? parts[3] : "";
+                ThreadPoolExecutor executor = (kind.endsWith("invite") || kind.endsWith("accept") ||
+                        kind.endsWith("join")) ? CALL_POSTER : SIGNAL_POSTER;
+                executor.execute(() -> NativeRelayTransport.post(app, topic, message, priority));
                 return "OK";
             } catch (RejectedExecutionException e) {
                 return "ERR:signal_queue_full";
             }
+        }
+
+        @JavascriptInterface
+        public int pendingCritical(String callId) {
+            return ReliableRelayOutbox.pendingFor(MainActivity.this, callId);
         }
 
         @JavascriptInterface
@@ -657,7 +720,12 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getVersion() {
-            return "6.0.18";
+            try {
+                String version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+                return version == null ? "" : version;
+            } catch (Exception e) {
+                return "";
+            }
         }
     }
 
@@ -677,9 +745,19 @@ public class MainActivity extends Activity {
                 }));
     }
 
+    public static void notifyRelayArrived() {
+        MainActivity activity = visibleActivity.get();
+        if (activity == null) return;
+        activity.runOnUiThread(() -> {
+            if (activity.webView != null) activity.webView.evaluateJavascript(
+                    "window.__ourFamilyConsumeNativeAction && window.__ourFamilyConsumeNativeAction();", null);
+        });
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
+        visibleActivity = new WeakReference<>(this);
         MessagingService.setAppVisible(true);
         sendVisibility(true);
         TelecomCallManager.register(this);
@@ -689,6 +767,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onPause() {
+        visibleActivity = new WeakReference<>(null);
         MessagingService.setAppVisible(false);
         sendVisibility(false);
         super.onPause();

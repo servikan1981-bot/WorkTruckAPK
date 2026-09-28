@@ -272,6 +272,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
     <div class="modal-title">Сервер видеозвонков</div>
     <p class="sub">Для видео между разными сетями введите данные TURN. Их нужно сохранить на обоих телефонах.</p>
     <div class="label">TURN URL</div><input id="turnSettingUrl" class="code" placeholder="turn:5.227.60.178:3478?transport=udp" autocapitalize="off">
+    <p class="sub">Если телефон бывает дома на Wi-Fi, можно добавить через запятую второй адрес turn:192.168.1.139:3478?transport=udp.</p>
     <div class="label">Пользователь</div><input id="turnSettingUser" class="code" autocapitalize="off">
     <div class="label">Пароль</div><input id="turnSettingPass" class="code" type="password">
     <div id="turnCheckResult" class="sub" style="margin:12px 0" aria-live="polite"></div>
@@ -1571,7 +1572,7 @@ async function sendAttachment(file,isPhoto){
 function markCall(phase){try{AndroidBridge.logCallMetric(phase);}catch(e){}}
 function iceServers(){
  var list=[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun2.l.google.com:19302','stun:stun3.l.google.com:19302','stun:stun4.l.google.com:19302']},{urls:['stun:stun.cloudflare.com:3478','stun:stun.cloudflare.com:53']}];
- if(turnUrl&&turnUser&&turnPass)list.unshift({urls:turnUrl,username:turnUser,credential:turnPass});
+ if(turnUrl&&turnUser&&turnPass)list.unshift({urls:turnUrl.split(',').map(function(x){return x.trim();}).filter(Boolean),username:turnUser,credential:turnPass});
  return list;
 }
 function stopRingback(){
@@ -2229,9 +2230,10 @@ $('turnModal').addEventListener('click',function(e){if(e.target===$('turnModal')
 function probeTurn(url,user,password){
  return new Promise(function(resolve){
    var pc,timer,finished=false;
+   var urls=url.split(',').map(function(x){return x.trim();}).filter(Boolean);
    function done(ok){if(finished)return;finished=true;clearTimeout(timer);if(pc)pc.close();resolve(ok);}
    try{
-     pc=new RTCPeerConnection({iceServers:[{urls:url,username:user,credential:password}],iceTransportPolicy:'relay'});
+     pc=new RTCPeerConnection({iceServers:[{urls:urls,username:user,credential:password}],iceTransportPolicy:'relay'});
      pc.onicecandidate=function(e){if(e.candidate&&/\btyp relay\b/.test(e.candidate.candidate))done(true);};
      pc.onicegatheringstatechange=function(){if(pc.iceGatheringState==='complete')done(false);};
      timer=setTimeout(function(){done(false);},15000);
@@ -2242,7 +2244,7 @@ function probeTurn(url,user,password){
 }
 $('saveTurnBtn').addEventListener('click',async function(){
  var url=$('turnSettingUrl').value.trim(),user=$('turnSettingUser').value.trim(),password=$('turnSettingPass').value;
- if(!/^turns?:[^\s]+$/i.test(url)||!user||!password){$('turnCheckResult').textContent='Заполните адрес TURN, пользователя и пароль.';return;}
+ if(!url.split(',').every(function(x){return /^turns?:[^\s,]+$/i.test(x.trim());})||!user||!password){$('turnCheckResult').textContent='Заполните адрес TURN, пользователя и пароль.';return;}
  var button=$('saveTurnBtn');button.disabled=true;$('turnCheckResult').textContent='Проверяю видеоканал через TURN…';
  try{
    if(!await probeTurn(url,user,password)){$('turnCheckResult').textContent='TURN недоступен: проверьте пароль, IP и UDP-порты на роутере.';return;}
