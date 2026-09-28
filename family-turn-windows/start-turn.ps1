@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 $configPath = Join-Path $PSScriptRoot 'turn-config.json'
 if (-not (Test-Path $configPath)) {
