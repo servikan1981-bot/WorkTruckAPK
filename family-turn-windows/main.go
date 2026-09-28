@@ -38,19 +38,8 @@ func validate(c config) (net.IP, error) {
 	return ip.To4(), nil
 }
 
-func main() {
-	path := flag.String("config", "turn-config.json", "local configuration file")
-	flag.Parse()
-	bytes, err := os.ReadFile(*path)
-	if err != nil { log.Fatal(err) }
-	var c config
-	if err := json.Unmarshal(bytes, &c); err != nil { log.Fatal(err) }
-	ip, err := validate(c)
-	if err != nil { log.Fatal(err) }
-	listener, err := net.ListenPacket("udp4", net.JoinHostPort("0.0.0.0", strconv.Itoa(c.Port)))
-	if err != nil { log.Fatal(err) }
-	defer listener.Close()
-	server, err := turn.NewServer(turn.ServerConfig{
+func newServer(c config, ip net.IP, listener net.PacketConn) (*turn.Server, error) {
+	return turn.NewServer(turn.ServerConfig{
 		Realm: "ourfamily",
 		AuthHandler: func(req *turn.RequestAttributes) (string, []byte, bool) {
 			if req.Username != c.Username { return "", nil, false }
@@ -65,6 +54,21 @@ func main() {
 			},
 		}},
 	})
+}
+
+func main() {
+	path := flag.String("config", "turn-config.json", "local configuration file")
+	flag.Parse()
+	bytes, err := os.ReadFile(*path)
+	if err != nil { log.Fatal(err) }
+	var c config
+	if err := json.Unmarshal(bytes, &c); err != nil { log.Fatal(err) }
+	ip, err := validate(c)
+	if err != nil { log.Fatal(err) }
+	listener, err := net.ListenPacket("udp4", net.JoinHostPort("0.0.0.0", strconv.Itoa(c.Port)))
+	if err != nil { log.Fatal(err) }
+	defer listener.Close()
+	server, err := newServer(c, ip, listener)
 	if err != nil { log.Fatal(err) }
 	log.Printf("Family TURN ready: %s UDP %d, relay UDP %d-%d", ip, c.Port, c.MinPort, c.MaxPort)
 	log.Print("Keep this window open. Credentials are in turn-config.json; never publish that file.")
