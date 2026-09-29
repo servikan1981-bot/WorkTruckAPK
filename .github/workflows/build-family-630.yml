@@ -1,0 +1,71 @@
+name: Build OurFamily 6.0.30 games fix
+on:
+  push:
+    branches: [family-630-games-fix]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Apply 6.0.30 game reliability patch
+        run: python3 tools/patch_family_630_games.py
+
+      - name: Validate game transport and notifications
+        run: |
+          grep -q "versionCode 6030" duoapp/build.gradle
+          grep -q "versionName '6.0.30'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.30"' duoapp/src/main/AndroidManifest.xml
+          grep -q 'OurFamilyGameSignal' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'isGameWireKind' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'family_games_v630' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q 'Игры — приглашения и ходы' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q 'CH_GAMES' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q '6.0.30' duoapp/src/main/assets/index.html
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          node tools/test_family_624_async.cjs
+          node tools/test_turn_sdp_627.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('duoapp/src/main/assets/index.html').read_text()
+          js='\n'.join(re.findall(r'<script>(.*?)</script>',html,re.S))
+          Path('/tmp/family630.js').write_text(js)
+          assert "APP_VERSION='6.0.30'" in html
+          assert "'durak_invite',g.id,true" in html
+          assert "'durak_move',g.id,true" in html
+          PY
+          node --check /tmp/family630.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+
+      - name: Build unsigned 6.0.30 candidate
+        run: |
+          gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionCode='6030' versionName='6.0.30'"
+          unzip -p "$APK" assets/index.html | grep -q '6.0.30'
+          sha256sum "$APK"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_30_games_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error
