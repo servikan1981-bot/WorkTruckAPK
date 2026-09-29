@@ -21,7 +21,7 @@ const pc = {
   removeEventListener(name) { handlers.delete(name); },
 };
 const published = [];
-const ps = { pc, sdpPublishing: false };
+const ps = { pc, sdpPublishing: false, debug: {error:''} };
 const context = {
   Promise, setTimeout, clearTimeout,
   turnUrl: 'turn:192.168.1.139:3478?transport=udp',
@@ -30,6 +30,8 @@ const context = {
   createPeer: () => ps, callSignalKind: () => 'direct_offer',
   publishEnvelope: async (_peer, _kind, data) => { published.push(data.sdp.sdp); },
   drainCandidateQueue() {}, markCall() {},
+  noteCall() {}, countRelay: sdp => (sdp.match(/typ relay/g) || []).length,
+  updateCallDiagnostics() {},
 };
 vm.createContext(context);
 vm.runInContext(source, context);
