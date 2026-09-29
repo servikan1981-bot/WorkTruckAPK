@@ -140,7 +140,9 @@ def first_hand_card(serial):
 def main():
     profile(A, 'Сергей')
     profile(B, 'Света')
-    time.sleep(2)
+    # Let the foreground relay service establish its first long-poll before
+    # measuring steady-state background delivery.
+    time.sleep(8)
 
     # Checkers invitation must notify while recipient is merely backgrounded.
     home(B)
@@ -157,13 +159,14 @@ def main():
         raise AssertionError('checkers accept missing')
     wait_text(A, 'Шашки', 25)
     wait_text(B, 'Шашки', 25)
-    # Return both to game hub.
+    # Return both to the main screen, then explicitly reopen the Games hub.
     tap_button(A, '‹')
     tap_button(B, '‹')
     time.sleep(1)
 
     # Durak invite + turn notifications and round synchronization.
     home(B)
+    helper.tap(A, 'Игры')
     helper.tap(A, 'Дурак')
     t0=time.monotonic()
     if not tap_button(A, 'Света'):
