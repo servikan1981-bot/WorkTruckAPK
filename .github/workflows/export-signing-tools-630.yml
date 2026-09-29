@@ -22,11 +22,18 @@ jobs:
       - name: Package signing tools
         run: |
           BT="$ANDROID_HOME/build-tools/35.0.0"
-          mkdir -p signing-tools/lib
+          mkdir -p signing-tools/lib signing-tools/lib64
           cp "$BT/apksigner" signing-tools/
           cp "$BT/zipalign" signing-tools/
           cp "$BT/aapt" signing-tools/
           cp "$BT/lib/apksigner.jar" signing-tools/lib/
+          if [ -f "$BT/lib64/libc++.so" ]; then
+            cp "$BT/lib64/libc++.so" signing-tools/lib64/
+          else
+            LIBCXX=$(find "$ANDROID_HOME" -type f -name 'libc++.so' | head -1)
+            test -n "$LIBCXX"
+            cp "$LIBCXX" signing-tools/lib64/
+          fi
           chmod +x signing-tools/apksigner signing-tools/zipalign signing-tools/aapt
       - uses: actions/upload-artifact@v4
         with:
