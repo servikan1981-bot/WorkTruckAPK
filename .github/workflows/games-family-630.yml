@@ -7,6 +7,7 @@ on:
       - 'tools/game_family_630.sh'
       - '.github/workflows/games-family-630.yml'
       - 'tools/patch_family_630_games.py'
+      - 'tools/patch_family_630_game_transport.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,12 +27,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
-      - name: Apply 6.0.30 games fix and build debug APK
+      - name: Apply final 6.0.30 games fixes and build debug APK
         run: |
           python3 tools/patch_family_630_games.py
+          python3 tools/patch_family_630_game_transport.py
+          grep -q 'relayBatchWireKind' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q "var queued=nonBlocking&&/^urgent_broadcast\$/.test(wk);" duoapp/src/main/assets/index.html
           gradle --no-daemon -c settings-duo.gradle :duoapp:assembleDebug
           node tools/test_checkers.cjs
           node tools/test_durak.cjs
+          node tools/test_family_624_async.cjs
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
