@@ -60,7 +60,7 @@ body[data-theme="ocean"] .mine{background:#d1edf2}
 #videoGrid.layout-stack{display:grid;grid-template-columns:1fr;grid-template-rows:repeat(2,minmax(0,1fr))}
 #videoGrid.layout-pip{display:block;position:relative;padding:6px}
 #videoGrid.layout-pip .videoTile{position:absolute;inset:6px;min-height:0}
-#videoGrid.layout-pip .videoTile:first-child{inset:auto 14px auto auto;right:14px;top:14px;width:31%;height:31%;min-height:120px;z-index:3;border:2px solid rgba(255,255,255,.7);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#videoGrid.layout-pip .videoTile.local-self{inset:auto 14px auto auto;right:14px;top:14px;width:31%;height:31%;min-height:120px;z-index:3;border:2px solid rgba(255,255,255,.7);box-shadow:0 8px 24px rgba(0,0,0,.35)}
 #videoGrid.layout-group{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(150px,1fr)}
 .news-action{width:100%;border:0;border-radius:16px;padding:13px;margin-bottom:13px;background:linear-gradient(135deg,#fff1cc,#ffe2e9);color:#7f4a18;font-weight:900;text-align:left}
 body[data-theme="dark"] .news-action{background:linear-gradient(135deg,#3a3020,#39242c);color:#ffd78b}
@@ -1402,8 +1402,7 @@ async function processPayload(p){
    activeCall.accepted=true;stopRingback();noteCall('ответил');
    try{
      await prepareLocalMedia(activeCall.kind);
-     var existing=callPeers[peer];
-     if(!existing)await makeOffer(peer,false);
+     await ensureInitialOffer(peer);
    }catch(e){toast('Не удалось подготовить камеру');endCall(true);}
    return;
  }
@@ -1426,6 +1425,13 @@ async function processPayload(p){
    return;
  }
  if(p.kind==='direct_hangup'&&activeCall&&activeCall.type==='direct'&&activeCall.id===d.callId){toast('Звонок завершён');endCall(false);return;}
+ if(p.kind==='direct_hangup'&&pendingInvite&&pendingInvite.type==='direct'&&pendingInvite.id===d.callId){
+   removePeer(pendingInvite.from);pendingInvite=null;incomingWarmCallId='';
+   $('incomingCard').classList.add('hidden');
+   if(localStream){localStream.getTracks().forEach(function(t){t.stop();});localStream=null;}
+   delete pendingEarlyOffers[d.callId];delete pendingEarlyCandidates[d.callId];
+   return;
+ }
 
  if(p.kind==='group_join'){
    if(activeCall&&activeCall.type==='group'&&activeCall.id===d.callId){stopRingback();
@@ -1447,7 +1453,12 @@ async function processPayload(p){
 function showIncoming(peer,kind,group){
  $('incomingName').textContent=NAMES[peer]+' звонит';
  $('incomingKind').textContent=group?(kind==='audio'?'Групповой аудиозвонок':'Групповой видеозвонок'):(kind==='audio'?'Аудиозвонок':'Видеозвонок');
- $('incomingCard').classList.remove('hidden');
+ // Android owns the answer controls when it can display a call notification.
+ // Keep the in-app controls as a fallback when notifications are unavailable.
+ var nativeUi=false;
+ try{nativeUi=AndroidBridge.nativeCallUiAvailable(kind);}catch(e){}
+ $('incomingCard').classList.toggle('hidden',nativeUi);
+ if(kind==='video'&&!group&&pendingInvite&&!activeCall)createPeer(peer);
  if(kind==='video'&&pendingInvite&&!activeCall&&document.visibilityState==='visible'){
    incomingWarmCallId=pendingInvite.id;
    prepareLocalMedia('video').then(function(stream){
@@ -1756,7 +1767,7 @@ function callSignalKind(base){return activeCall&&activeCall.type==='group'?'grou
 function createPeer(peer){
  if(callPeers[peer])return callPeers[peer];
  var usingTurn=!!(turnUrl&&turnUser&&turnPass);
- var pc=new RTCPeerConnection({iceServers:iceServers(),iceCandidatePoolSize:usingTurn?0:4,bundlePolicy:'max-bundle',rtcpMuxPolicy:'require',iceTransportPolicy:usingTurn?'relay':'all'});
+ var pc=new RTCPeerConnection({iceServers:iceServers(),iceCandidatePoolSize:usingTurn?1:4,bundlePolicy:'max-bundle',rtcpMuxPolicy:'require',iceTransportPolicy:usingTurn?'relay':'all'});
  var ps={pc:pc,pending:[],restart:0,connectTimer:null,failureTimer:null,disconnectTimer:null,statsTimer:null,sdpPublishing:false,candidateQueue:[],candidateSending:false,answering:false,debug:{remoteCandidates:0,pair:'',error:''}};callPeers[peer]=ps;
  noteCall('WebRTC создан');ps.statsTimer=setInterval(function(){inspectCallPair(peer,ps);},3000);
  if(localStream)localStream.getTracks().forEach(function(t){pc.addTrack(t,localStream);});
@@ -1786,11 +1797,14 @@ function createPeer(peer){
      if(ps.restart<2&&shouldOffer(peer)&&pc.signalingState==='stable'&&!ps.sdpPublishing){ps.restart++;restartPeer(peer);}
    },delay);
  };
- ps.failureTimer=setTimeout(function(){
+ ps.armFailureTimer=function(){
+   if(ps.failureTimer)clearTimeout(ps.failureTimer);
+   ps.failureTimer=setTimeout(function(){
    if(!activeCall||callPeers[peer]!==ps||pc.connectionState==='connected')return;
    var own=countRelay(pc.localDescription&&pc.localDescription.sdp),other=countRelay(pc.remoteDescription&&pc.remoteDescription.sdp);
    $('callState').textContent=!own?'На этом телефоне нет TURN-адреса. Откройте «Ещё» → «Сервер видеозвонков» и проверьте настройки.':!other?'Телефон собеседника не передал TURN-адрес. Проверьте настройки TURN на его телефоне.':'Видеоканал не подключился. Проверьте TURN и сеть.';
- },42000);
+   },42000);
+ };
  pc.oniceconnectionstatechange=function(){
    updateCallDiagnostics();
    if(pc.iceConnectionState==='disconnected'){
@@ -1844,9 +1858,14 @@ async function makeOffer(peer,restart){
    var k=callSignalKind('offer');
    await publishEnvelope(peer,k,{callId:activeCall.id,sdp:ps.pc.localDescription},5,k,activeCall.id,true);
    markCall('offer_sent');noteCall('offer отправлен');
+   ps.armFailureTimer();
    if(restart)ps.scheduleRecovery(22000);
  }catch(e){ps.debug.error='offer '+String(e.message||e).slice(0,45);updateCallDiagnostics();if(e.message==='TURN_RELAY_MISSING'){$('callState').textContent='На этом телефоне не получен TURN-адрес. Проверьте TURN в разделе «Ещё».';return;}throw e;}
  finally{ps.sdpPublishing=false;drainCandidateQueue(peer,ps);}
+}
+async function ensureInitialOffer(peer){
+ var ps=createPeer(peer);
+ if(!ps.sdpPublishing&&!ps.pc.localDescription&&ps.pc.signalingState==='stable')await makeOffer(peer,false);
 }
 async function restartPeer(peer){try{$('callState').textContent='Восстановление связи…';noteCall('повтор ICE');await makeOffer(peer,true);}catch(e){markCall('restart_failed');var ps=callPeers[peer];if(ps){ps.debug.error='повтор offer '+String(e.message||e).slice(0,35);updateCallDiagnostics();}}}
 async function answerOffer(peer,sdp,isGroup){
@@ -1868,6 +1887,7 @@ async function answerOffer(peer,sdp,isGroup){
    var k=isGroup?'group_answer':'direct_answer';
    await publishEnvelope(peer,k,{callId:activeCall.id,sdp:ps.pc.localDescription},5,k,activeCall.id,true);
    markCall('answer_sent');noteCall('answer отправлен');
+   ps.armFailureTimer();
    ps.scheduleRecovery(22000);
  }catch(e){ps.debug.error='answer '+String(e.message||e).slice(0,45);updateCallDiagnostics();if(e.message==='TURN_RELAY_MISSING'){$('callState').textContent='На этом телефоне не получен TURN-адрес. Проверьте TURN в разделе «Ещё».';return;}throw e;}
  finally{ps.answering=false;ps.sdpPublishing=false;drainCandidateQueue(peer,ps);}
@@ -1906,6 +1926,8 @@ async function startDirectCall(peer,kind){
  showCall((kind==='audio'?'Аудиозвонок · ':'Видеозвонок · ')+NAMES[peer],'Вызов…');
  startRingback();
  var mediaPromise=prepareLocalMedia(kind);
+ // Start TURN allocation while the invite is being delivered and camera starts.
+ createPeer(peer);
  async function sendInvite(){
    if(!activeCall||activeCall.id!==id||activeCall.accepted)return;
    try{await publishEnvelope(peer,'direct_invite',{callId:id,kind:kind},5,wireKind,id,true);}catch(e){}
@@ -1916,7 +1938,7 @@ async function startDirectCall(peer,kind){
    clearTimeout(callTimeout);callTimeout=setTimeout(function(){if(activeCall&&activeCall.id===id&&!activeCall.accepted){toast('Нет ответа');endCall(true);}},65000);
    await sendInvite();
    await mediaPromise;
-   if(activeCall&&activeCall.id===id&&!callPeers[peer])await makeOffer(peer,false);
+   if(activeCall&&activeCall.id===id)await ensureInitialOffer(peer);
  }catch(e){toast('Не удалось подготовить или отправить вызов');endCall(false);}
 }
 async function startGroupCall(members,kind){
@@ -1944,6 +1966,7 @@ async function acceptPendingInvite(){
  if(inv.type==='group')activeCall.joined=new Set([role,inv.from]);
  showCall(inv.type==='group'?(inv.kind==='audio'?'Групповой аудиозвонок':'Групповой видеозвонок'):((inv.kind==='audio'?'Аудиозвонок · ':'Видеозвонок · ')+NAMES[inv.from]),'Подготовка…');
  var mediaPromise=prepareLocalMedia(inv.kind);
+ if(inv.type==='direct')createPeer(inv.from);
  markCall('accepted');
  if(inv.type==='direct'){
    try{
@@ -1974,6 +1997,7 @@ async function maybeConnectGroupPeer(peer){
 async function declinePendingInvite(){
  if(!pendingInvite)return;var inv=pendingInvite;pendingInvite=null;$('incomingCard').classList.add('hidden');
  incomingWarmCallId='';
+ if(inv.type==='direct')removePeer(inv.from);
  if(localStream){localStream.getTracks().forEach(function(t){t.stop();});localStream=null;}
  try{
    if(inv.type==='direct')await publishEnvelope(inv.from,'direct_hangup',{callId:inv.id},4,'direct_hangup',inv.id);

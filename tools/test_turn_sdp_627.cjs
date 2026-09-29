@@ -14,6 +14,7 @@ const source = section('function iceServers()', 'function stopRingback()') +
 const handlers = new Map();
 const pc = {
   localDescription: null,
+  signalingState: 'stable',
   iceGatheringState: 'gathering',
   createOffer: async () => ({ type: 'offer', sdp: 'v=0\r\n' }),
   async setLocalDescription(desc) { this.localDescription = desc; },
@@ -21,7 +22,7 @@ const pc = {
   removeEventListener(name) { handlers.delete(name); },
 };
 const published = [];
-const ps = { pc, sdpPublishing: false, debug: {error:''} };
+const ps = { pc, sdpPublishing: false, armFailureTimer() {}, debug: {error:''} };
 const callState = {textContent: ''};
 const context = {
   Promise, setTimeout, clearTimeout,
@@ -43,14 +44,19 @@ vm.runInContext(source, context);
   assert.equal(servers.length, 1, 'a configured TURN call must not wait on public STUN servers');
   assert.equal(servers[0].username, 'familyvideo');
 
-  const offer = context.makeOffer('sveta', false);
+  // A peer may be created while the camera starts. Acceptance must still
+  // publish exactly one initial offer for that prewarmed peer.
+  const offer = context.ensureInitialOffer('sveta');
+  const duplicate = context.ensureInitialOffer('sveta');
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(published.length, 0, 'offer must wait for a relay candidate');
   pc.localDescription.sdp += 'a=candidate:1 1 udp 123 192.168.1.139 49160 typ relay\r\n';
   handlers.get('icecandidate')({ candidate: { candidate: 'candidate:1 1 udp 123 192.168.1.139 49160 typ relay' } });
-  await offer;
+  await Promise.all([offer, duplicate]);
   assert.equal(published.length, 1);
   assert.match(published[0], /typ relay/);
+  await context.ensureInitialOffer('sveta');
+  assert.equal(published.length, 1, 'prewarmed peer must not publish a second offer');
   assert.equal(handlers.size, 0, 'ICE gathering listeners must be removed');
 
   pc.iceGatheringState = 'complete';
