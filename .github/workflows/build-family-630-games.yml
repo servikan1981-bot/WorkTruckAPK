@@ -1,0 +1,79 @@
+name: Build OurFamily 6.0.30 games candidate
+
+on:
+  push:
+    branches: [family-630-games-candidate]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Apply game delivery fixes
+        run: python3 tools/patch_family_630_games.py
+
+      - name: Validate game logic and notification path
+        run: |
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          node tools/test_family_624_async.cjs
+          node tools/test_turn_sdp_627.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          g=Path('duoapp/build.gradle').read_text()
+          m=Path('duoapp/src/main/AndroidManifest.xml').read_text()
+          h=Path('duoapp/src/main/assets/index.html').read_text()
+          r=Path('duoapp/src/main/java/com/sergey/duochat/ReliableRelayOutbox.java').read_text()
+          s=Path('duoapp/src/main/java/com/sergey/duochat/MessagingService.java').read_text()
+          assert "versionCode 6030" in g and "versionName '6.0.30'" in g
+          assert 'android:label="Наша семья 6.0.30"' in m
+          assert "APP_VERSION='6.0.30'" in h
+          assert 'pendingDurakAcceptId=id;showDurakRequest();tryOpenPendingMessage();return;' in h
+          assert 'Executors.newSingleThreadExecutor' in r
+          assert 'newFixedThreadPool(4' not in r
+          assert 'for (int i = 0; i < 4; i++) WORKERS.execute' not in r
+          assert 'CH_GAMES = "family_games_v630"' in s
+          assert 'ReliableRelayOutbox.kick(this);' in s
+          assert 'new Notification.Builder(this, CH_GAMES)' in s
+          assert '"Семейные игры", NotificationManager.IMPORTANCE_HIGH' in s
+          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
+          Path('/tmp/family630.js').write_text('\n'.join(blocks))
+          PY
+          node --check /tmp/family630.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+
+      - name: Build APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Verify APK identity
+        run: |
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionCode='6030' versionName='6.0.30'"
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья 6.0.30"
+          sha256sum "$APK"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_30_games_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error
