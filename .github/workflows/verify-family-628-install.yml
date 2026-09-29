@@ -1,0 +1,53 @@
+name: Verify OurFamily 6.0.28 signed update
+on:
+  push:
+    branches: [family-628-release]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Verify update package and reconstruction
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json
+          from pathlib import Path
+          m=json.loads(Path('updates/candidates/628.json').read_text())
+          parts=[Path('updates/parts/'+u.rsplit('/',1)[-1]).read_text() for u in m['apkBase64Parts']]
+          apk=Path('updates/downloads/OurFamily_6_0_28_Stable.apk').read_bytes()
+          assert base64.b64decode(''.join(parts))==apk
+          assert hashlib.sha256(apk).hexdigest()==m['sha256']
+          assert m['versionCode']==6028
+          PY
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 updates/downloads/OurFamily_6_0_28_Stable.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs updates/downloads/OurFamily_6_0_28_Stable.apk | tee /tmp/cert628.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs updates/downloads/OurFamily_6_0_27_Stable.apk | tee /tmp/cert627.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/cert628.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/cert627.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging updates/downloads/OurFamily_6_0_28_Stable.apk | grep -q "versionCode='6028' versionName='6.0.28'"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Upgrade and launch on Android 13
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            adb install -r updates/downloads/OurFamily_6_0_27_Stable.apk
+            adb install -r updates/downloads/OurFamily_6_0_28_Stable.apk
+            adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6028'
+            adb shell monkey -p com.sergey.ourfamily 1
+            sleep 3
+            adb shell pidof com.sergey.ourfamily
