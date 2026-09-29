@@ -19,7 +19,7 @@ jobs:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
       - name: Verify signed candidate
         run: |
-          echo '2a5e6bc785911658a1619bdf5bc11145703d4e24948bfbae6649ddc8c9dc481d  updates/downloads/OurFamily_6_0_29_Candidate.apk' | sha256sum -c -
+          echo '170f1f37842f824e996b2ba69d50b4dae416cc4fc061ed8a1557c514cdac417d  updates/downloads/OurFamily_6_0_29_Candidate.apk' | sha256sum -c -
           "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 updates/downloads/OurFamily_6_0_29_Candidate.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs updates/downloads/OurFamily_6_0_29_Candidate.apk | tee /tmp/cert629.txt
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs updates/downloads/OurFamily_6_0_28_Stable.apk | tee /tmp/cert628.txt
