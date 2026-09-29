@@ -17,6 +17,7 @@ jobs:
           cache: false
       - working-directory: family-turn-windows
         run: |
+          go mod tidy
           go test -v -count=1 ./...
           GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o family-turn.exe .
           file family-turn.exe
