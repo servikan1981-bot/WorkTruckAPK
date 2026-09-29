@@ -27,9 +27,15 @@ manifest.write_text(s, encoding="utf-8")
 
 html = Path("duoapp/src/main/assets/index.html")
 s = html.read_text(encoding="utf-8")
-if s.count("6.0.29") < 2:
-    raise SystemExit("index.html 6.0.29 anchors missing")
+if s.count("6.0.29") < 1:
+    raise SystemExit("index.html 6.0.29 anchor missing")
 s = s.replace("6.0.29", "6.0.30")
+if "APP_VERSION='6.0.27'" in s:
+    s = replace_once(s, "APP_VERSION='6.0.27'", "APP_VERSION='6.0.30'", "APP_VERSION")
+elif "APP_VERSION='6.0.29'" in s:
+    s = replace_once(s, "APP_VERSION='6.0.29'", "APP_VERSION='6.0.30'", "APP_VERSION")
+elif "APP_VERSION='6.0.30'" not in s:
+    raise SystemExit("APP_VERSION anchor missing")
 html.write_text(s, encoding="utf-8")
 
 # All game packets must leave the phone in exactly the order in which the game
