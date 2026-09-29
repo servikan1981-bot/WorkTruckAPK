@@ -1,0 +1,35 @@
+name: Export Android signing tools for 6.0.30
+
+on:
+  push:
+    branches: [family-630-games-candidate]
+    paths:
+      - '.github/workflows/export-signing-tools-630.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'build-tools;35.0.0'
+      - name: Package signing tools
+        run: |
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          mkdir -p signing-tools/lib
+          cp "$BT/apksigner" signing-tools/
+          cp "$BT/zipalign" signing-tools/
+          cp "$BT/aapt" signing-tools/
+          cp "$BT/lib/apksigner.jar" signing-tools/lib/
+          chmod +x signing-tools/apksigner signing-tools/zipalign signing-tools/aapt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-signing-tools-35-v630
+          path: signing-tools
+          if-no-files-found: error
