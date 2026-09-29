@@ -1,0 +1,47 @@
+name: Verify OurFamily 6.0.29 candidate upgrade
+on:
+  push:
+    branches: [family-629-final-candidate]
+    paths:
+      - '.github/workflows/verify-family-629-install.yml'
+      - 'updates/downloads/OurFamily_6_0_29_Candidate.apk'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Verify signed candidate
+        run: |
+          echo '2a5e6bc785911658a1619bdf5bc11145703d4e24948bfbae6649ddc8c9dc481d  updates/downloads/OurFamily_6_0_29_Candidate.apk' | sha256sum -c -
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 updates/downloads/OurFamily_6_0_29_Candidate.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs updates/downloads/OurFamily_6_0_29_Candidate.apk | tee /tmp/cert629.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs updates/downloads/OurFamily_6_0_28_Stable.apk | tee /tmp/cert628.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/cert629.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/cert628.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging updates/downloads/OurFamily_6_0_29_Candidate.apk | grep -q "versionCode='6029' versionName='6.0.29'"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Upgrade and launch on Android 13
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            adb install -r updates/downloads/OurFamily_6_0_28_Stable.apk
+            adb install -r updates/downloads/OurFamily_6_0_29_Candidate.apk
+            adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6029'
+            adb shell monkey -p com.sergey.ourfamily 1
+            sleep 3
+            adb shell pidof com.sergey.ourfamily
