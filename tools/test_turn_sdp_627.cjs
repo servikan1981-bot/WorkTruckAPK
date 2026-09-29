@@ -22,6 +22,7 @@ const pc = {
 };
 const published = [];
 const ps = { pc, sdpPublishing: false, debug: {error:''} };
+const callState = {textContent: ''};
 const context = {
   Promise, setTimeout, clearTimeout,
   turnUrl: 'turn:192.168.1.139:3478?transport=udp',
@@ -32,6 +33,7 @@ const context = {
   drainCandidateQueue() {}, markCall() {},
   noteCall() {}, countRelay: sdp => (sdp.match(/typ relay/g) || []).length,
   updateCallDiagnostics() {},
+  $: id => id === 'callState' ? callState : null,
 };
 vm.createContext(context);
 vm.runInContext(source, context);
@@ -51,7 +53,13 @@ vm.runInContext(source, context);
   assert.match(published[0], /typ relay/);
   assert.equal(handlers.size, 0, 'ICE gathering listeners must be removed');
 
+  pc.iceGatheringState = 'complete';
+  await context.makeOffer('sveta', false);
+  assert.equal(published.length, 1, 'an offer without a TURN relay address must never be published');
+  assert.match(callState.textContent, /TURN-адрес/);
+  assert.match(ps.debug.error, /TURN_RELAY_MISSING/);
+
   context.turnUrl = '';
   assert.equal(context.iceServers().length, 2, 'calls without TURN keep STUN fallback');
-  console.log('PASS: TURN offer carries a relay candidate in the first signal');
+  console.log('PASS: TURN offer includes a relay address and missing relay is rejected');
 })().catch(err => { console.error(err); process.exitCode = 1; });

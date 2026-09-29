@@ -1608,14 +1608,14 @@ function iceServers(){
  return [{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun2.l.google.com:19302','stun:stun3.l.google.com:19302','stun:stun4.l.google.com:19302']},{urls:['stun:stun.cloudflare.com:3478','stun:stun.cloudflare.com:53']}];
 }
 function waitForRelaySdp(pc,timeoutMs){
- if(!turnUrl||!turnUser||!turnPass)return Promise.resolve();
+ if(!turnUrl||!turnUser||!turnPass)return Promise.resolve(true);
  return new Promise(function(resolve){
    var timer;
    function hasRelay(){return /\ba=candidate:[^\r\n]*\btyp relay\b/.test((pc.localDescription&&pc.localDescription.sdp)||'');}
-   function finish(){clearTimeout(timer);pc.removeEventListener('icecandidate',onCandidate);pc.removeEventListener('icegatheringstatechange',onGathering);resolve();}
+   function finish(){clearTimeout(timer);pc.removeEventListener('icecandidate',onCandidate);pc.removeEventListener('icegatheringstatechange',onGathering);resolve(hasRelay());}
    function onCandidate(ev){if(!ev.candidate||/\btyp relay\b/.test(ev.candidate.candidate||''))finish();}
    function onGathering(){if(hasRelay()||pc.iceGatheringState==='complete')finish();}
-   if(hasRelay()||pc.iceGatheringState==='complete'){resolve();return;}
+   if(hasRelay()||pc.iceGatheringState==='complete'){resolve(hasRelay());return;}
    pc.addEventListener('icecandidate',onCandidate);
    pc.addEventListener('icegatheringstatechange',onGathering);
    timer=setTimeout(finish,timeoutMs);
@@ -1786,7 +1786,9 @@ function createPeer(peer){
    },delay);
  };
  ps.failureTimer=setTimeout(function(){
-   if(activeCall&&callPeers[peer]===ps&&pc.connectionState!=='connected')$('callState').textContent=turnUrl?'Видеоканал не подключился. Проверьте доступность TURN.':'Видеоканал не подключился. Для разных сетей нужен TURN-сервер.';
+   if(!activeCall||callPeers[peer]!==ps||pc.connectionState==='connected')return;
+   var own=countRelay(pc.localDescription&&pc.localDescription.sdp),other=countRelay(pc.remoteDescription&&pc.remoteDescription.sdp);
+   $('callState').textContent=!own?'На этом телефоне нет TURN-адреса. Откройте «Ещё» → «Сервер видеозвонков» и проверьте настройки.':!other?'Телефон собеседника не передал TURN-адрес. Проверьте настройки TURN на его телефоне.':'Видеоканал не подключился. Проверьте TURN и сеть.';
  },42000);
  pc.oniceconnectionstatechange=function(){
    updateCallDiagnostics();
@@ -1835,14 +1837,14 @@ async function makeOffer(peer,restart){
  try{
    var offer=await ps.pc.createOffer(restart?{iceRestart:true}:undefined);
    await ps.pc.setLocalDescription(offer);
-   await waitForRelaySdp(ps.pc,10000);
+   if(!await waitForRelaySdp(ps.pc,10000))throw new Error('TURN_RELAY_MISSING');
    noteCall('offer TURN '+countRelay(ps.pc.localDescription&&ps.pc.localDescription.sdp));
    if(!activeCall||callPeers[peer]!==ps)return;
    var k=callSignalKind('offer');
    await publishEnvelope(peer,k,{callId:activeCall.id,sdp:ps.pc.localDescription},5,k,activeCall.id,true);
    markCall('offer_sent');noteCall('offer отправлен');
    if(restart)ps.scheduleRecovery(22000);
- }catch(e){ps.debug.error='offer '+String(e.message||e).slice(0,45);updateCallDiagnostics();throw e;}
+ }catch(e){ps.debug.error='offer '+String(e.message||e).slice(0,45);updateCallDiagnostics();if(e.message==='TURN_RELAY_MISSING'){$('callState').textContent='На этом телефоне не получен TURN-адрес. Проверьте TURN в разделе «Ещё».';return;}throw e;}
  finally{ps.sdpPublishing=false;drainCandidateQueue(peer,ps);}
 }
 async function restartPeer(peer){try{$('callState').textContent='Восстановление связи…';noteCall('повтор ICE');await makeOffer(peer,true);}catch(e){markCall('restart_failed');var ps=callPeers[peer];if(ps){ps.debug.error='повтор offer '+String(e.message||e).slice(0,35);updateCallDiagnostics();}}}
@@ -1858,7 +1860,7 @@ async function answerOffer(peer,sdp,isGroup){
    flushCandidates(peer);
    await mediaPromise;
    var ans=await ps.pc.createAnswer();await ps.pc.setLocalDescription(ans);
-   await waitForRelaySdp(ps.pc,10000);
+   if(!await waitForRelaySdp(ps.pc,10000))throw new Error('TURN_RELAY_MISSING');
    noteCall('answer TURN '+countRelay(ps.pc.localDescription&&ps.pc.localDescription.sdp));
    if(!activeCall||callPeers[peer]!==ps)return;
    markCall('answer_local_description');
@@ -1866,7 +1868,7 @@ async function answerOffer(peer,sdp,isGroup){
    await publishEnvelope(peer,k,{callId:activeCall.id,sdp:ps.pc.localDescription},5,k,activeCall.id,true);
    markCall('answer_sent');noteCall('answer отправлен');
    ps.scheduleRecovery(22000);
- }catch(e){ps.debug.error='answer '+String(e.message||e).slice(0,45);updateCallDiagnostics();throw e;}
+ }catch(e){ps.debug.error='answer '+String(e.message||e).slice(0,45);updateCallDiagnostics();if(e.message==='TURN_RELAY_MISSING'){$('callState').textContent='На этом телефоне не получен TURN-адрес. Проверьте TURN в разделе «Ещё».';return;}throw e;}
  finally{ps.answering=false;ps.sdpPublishing=false;drainCandidateQueue(peer,ps);}
 }
 async function applyAnswer(peer,sdp){
