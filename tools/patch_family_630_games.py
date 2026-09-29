@@ -102,7 +102,7 @@ p.write_text(s)
 p = Path('duoapp/src/main/assets/index.html')
 s = p.read_text()
 s = must_replace(s, '<title>Наша семья 6.0.29</title>', '<title>Наша семья 6.0.30</title>', 'html title')
-s = must_replace(s, "var APP_VERSION='6.0.29'", "var APP_VERSION='6.0.30'", 'app version')
+s = must_replace(s, "var APP_VERSION='6.0.27'", "var APP_VERSION='6.0.30'", 'app version')
 s = must_replace(
     s,
     'pendingDurakAcceptId=id;showDurakRequest();return;',
