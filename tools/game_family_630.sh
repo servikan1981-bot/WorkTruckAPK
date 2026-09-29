@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Full two-emulator verification: background recipient must still get game notifications.
 APK=duoapp/build/outputs/apk/debug/duoapp-debug.apk
 test -s "$APK"
 "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionCode='6030' versionName='6.0.30'"
