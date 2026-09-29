@@ -40,7 +40,7 @@ public class MessagingService extends Service {
     public static boolean isAppVisible() { return appVisible; }
     private static final String CH_SERVICE = "family_service_v6";
     private static final String CH_MESSAGES = "family_messages_v6";
-    private static final String CH_CALLS = "family_calls_v6";
+    static final String CH_CALLS = "family_calls_v6";
     private static final int FG_ID = 7501;
 
     private volatile boolean running = false;

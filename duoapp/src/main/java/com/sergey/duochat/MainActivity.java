@@ -2,6 +2,7 @@ package com.sergey.duochat;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.ContentValues;
@@ -575,6 +576,16 @@ public class MainActivity extends Activity {
             NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             return (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
                     && (Build.VERSION.SDK_INT < 24 || nm != null && nm.areNotificationsEnabled());
+        }
+
+        @JavascriptInterface
+        public boolean nativeCallUiAvailable(String kind) {
+            if (kind != null && kind.contains("audio") && TelecomCallManager.isEnabled(MainActivity.this)) return true;
+            if (!notificationsAllowed()) return false;
+            if (Build.VERSION.SDK_INT < 26) return true;
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            NotificationChannel calls = nm == null ? null : nm.getNotificationChannel(MessagingService.CH_CALLS);
+            return calls != null && calls.getImportance() != NotificationManager.IMPORTANCE_NONE;
         }
 
         @JavascriptInterface
