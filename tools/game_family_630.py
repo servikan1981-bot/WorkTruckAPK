@@ -152,7 +152,7 @@ def main():
     tn=wait_notification(B, 'Приглашает играть в шашки', 30)
     print(f'PASS checkers background invite notification {tn-t0:.2f}s', flush=True)
     foreground(B)
-    wait_text(B, 'приглашает сыграть в шашки', 30)
+    wait_text(B, 'приглашает вас в шашки', 30)
     if not tap_button(B, 'Принять'):
         raise AssertionError('checkers accept missing')
     wait_text(A, 'Шашки', 25)
