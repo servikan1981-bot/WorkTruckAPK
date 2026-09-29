@@ -1,0 +1,31 @@
+name: Test OurFamily TURN relay media
+on:
+  push:
+    branches: [family-628-turn]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: false
+      - working-directory: family-turn-windows
+        run: |
+          go test -v -count=1 ./...
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o family-turn.exe .
+          file family-turn.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_TURN_hairpin_candidate
+          path: |
+            family-turn-windows/family-turn.exe
+            family-turn-windows/start-turn.cmd
+            family-turn-windows/start-turn.ps1
+            family-turn-windows/README-RU.txt
+          if-no-files-found: error
