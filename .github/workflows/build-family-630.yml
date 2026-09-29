@@ -23,7 +23,9 @@ jobs:
           gradle-version: '8.10.2'
 
       - name: Apply 6.0.30 game reliability patch
-        run: python3 tools/patch_family_630_games.py
+        run: |
+          python3 tools/patch_family_630_games.py
+          python3 tools/patch_family_630_game_transport.py
 
       - name: Validate game transport and notifications
         run: |
@@ -31,11 +33,13 @@ jobs:
           grep -q "versionName '6.0.30'" duoapp/build.gradle
           grep -q 'android:label="Наша семья 6.0.30"' duoapp/src/main/AndroidManifest.xml
           grep -q 'OurFamilyGameSignal' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
-          grep -q 'isGameWireKind' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'relayBatchWireKind' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'postBatchJson' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
           grep -q 'family_games_v630' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
           grep -q 'Игры — приглашения и ходы' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
           grep -q 'CH_GAMES' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
           grep -q '6.0.30' duoapp/src/main/assets/index.html
+          grep -q "durak_|game_" duoapp/src/main/assets/index.html
           node tools/test_checkers.cjs
           node tools/test_durak.cjs
           node tools/test_family_624_async.cjs
@@ -49,6 +53,8 @@ jobs:
           assert "APP_VERSION='6.0.30'" in html
           assert "'durak_invite',g.id,true" in html
           assert "'durak_move',g.id,true" in html
+          assert "(/^(direct|group)_(offer|answer)$/.test(wk)||/^(durak_|game_)/.test(wk))" in html
+          assert "var queued=nonBlocking&&/^urgent_broadcast$/.test(wk);" in html
           PY
           node --check /tmp/family630.js
           node --check duoapp/src/main/assets/checkers.js
