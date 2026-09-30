@@ -10,8 +10,9 @@
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_05.b64",
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_06.b64",
     "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_07.b64",
-    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_08.b64"
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_08.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_09.b64"
   ],
-  "sha256": "6663c18a9cc71f00f6eaf13e03981525587650f36a6f7c86bcdab9f4c379c735",
-  "notes": "Игры: приглашения и уведомления о ходе работают в фоне, игровые события отправляются строго по порядку, переход хода ускорен и стал надежнее. Сохранены исправления видеозвонков версии 6.0.29."
+  "sha256": "55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020",
+  "notes": "Игры: ускорена передача хода, игровые события отправляются последовательно; добавлены отдельные заметные уведомления о приглашениях и ходах, в том числе когда приложение свернуто."
 }
