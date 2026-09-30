@@ -19,6 +19,7 @@ jobs:
         shell: bash
         env:
           RELAY: https://family.familysergey.netcraze.pro
+          TOPIC_ENV: probe630-static-batch
         run: |
           set -euo pipefail
           echo '=== HEALTH x8 ==='
@@ -67,5 +68,3 @@ jobs:
             wait "$PID"
             cat "/tmp/wake-$i.time"
           done
-        env:
-          TOPIC_ENV: probe630-static-batch
