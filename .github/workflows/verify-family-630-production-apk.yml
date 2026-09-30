@@ -1,0 +1,120 @@
+name: Verify OurFamily 6.0.30 production APK
+
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths:
+      - '.github/workflows/verify-family-630-production-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-production-upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Reconstruct exact stable 6.0.29 and staged signed 6.0.30
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > /tmp/v629.b64
+          : > /tmp/v630.b64
+          for n in $(seq 0 9); do
+            p=$(printf '%02d' "$n")
+            curl --retry 4 --retry-delay 2 -fsSL \
+              "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v629_${p}.b64" >> /tmp/v629.b64
+            curl --retry 4 --retry-delay 2 -fsSL \
+              "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_${p}.b64" >> /tmp/v630.b64
+          done
+          tr -d '\r\n' < /tmp/v629.b64 | base64 -d > /tmp/OurFamily_6_0_29_Stable.apk
+          tr -d '\r\n' < /tmp/v630.b64 | base64 -d > /tmp/OurFamily_6_0_30_Stable.apk
+          test "$(sha256sum /tmp/OurFamily_6_0_29_Stable.apk | awk '{print $1}')" = \
+            "170f1f37842f824e996b2ba69d50b4dae416cc4fc061ed8a1557c514cdac417d"
+          test "$(sha256sum /tmp/OurFamily_6_0_30_Stable.apk | awk '{print $1}')" = \
+            "d675e85fc0c7ba41c8b952727f53d6683a829924a7cce18c14cb194c87b82688"
+          unzip -t /tmp/OurFamily_6_0_29_Stable.apk >/dev/null
+          unzip -t /tmp/OurFamily_6_0_30_Stable.apk >/dev/null
+          ls -lh /tmp/OurFamily_6_0_29_Stable.apk /tmp/OurFamily_6_0_30_Stable.apk
+
+      - name: Verify package versions and exact stable signer
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          SIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$AAPT" dump badging /tmp/OurFamily_6_0_29_Stable.apk | \
+            grep -q "package: name='com.sergey.ourfamily' versionCode='6029' versionName='6.0.29'"
+          "$AAPT" dump badging /tmp/OurFamily_6_0_30_Stable.apk | \
+            grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'"
+          "$SIGNER" verify --verbose --print-certs /tmp/OurFamily_6_0_29_Stable.apk > /tmp/cert629.txt
+          "$SIGNER" verify --verbose --print-certs /tmp/OurFamily_6_0_30_Stable.apk > /tmp/cert630.txt
+          CERT629=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert629.txt | awk '{print $NF}' | tr '[:upper:]' '[:lower:]')
+          CERT630=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert630.txt | awk '{print $NF}' | tr '[:upper:]' '[:lower:]')
+          EXPECTED='237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83'
+          test "$CERT629" = "$EXPECTED"
+          test "$CERT630" = "$EXPECTED"
+          test "$CERT629" = "$CERT630"
+          echo "Production signer and versions verified."
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install exact stable 6.0.29 then upgrade to exact signed 6.0.30
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            set -e
+            adb install -r /tmp/OurFamily_6_0_29_Stable.apk
+            adb shell dumpsys package com.sergey.ourfamily | grep -m1 'versionCode=6029'
+            adb shell am start -W -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
+            sleep 2
+            adb shell pidof com.sergey.ourfamily | grep -q '[0-9]'
+
+            adb logcat -c
+            adb install -r /tmp/OurFamily_6_0_30_Stable.apk
+            adb shell dumpsys package com.sergey.ourfamily | grep -m1 'versionCode=6030'
+            adb shell am start -W -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
+            sleep 4
+            adb shell pidof com.sergey.ourfamily | tee /tmp/pid630-production.txt
+            adb logcat -d -v threadtime | grep -E 'AndroidRuntime|FATAL EXCEPTION|Process: com\.sergey\.ourfamily|OurFamily' | tail -n 500 > /tmp/logcat630-production.txt || true
+            if grep -qE 'FATAL EXCEPTION|Process: com\.sergey\.ourfamily.*has died' /tmp/logcat630-production.txt; then
+              cat /tmp/logcat630-production.txt
+              exit 1
+            fi
+            grep -q '[0-9]' /tmp/pid630-production.txt
+
+            adb shell am force-stop com.sergey.ourfamily
+            adb shell am start -W -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
+            sleep 2
+            adb shell pidof com.sergey.ourfamily | grep -q '[0-9]'
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: OurFamily_6_0_30_exact-production-verification
+          path: |
+            /tmp/cert629.txt
+            /tmp/cert630.txt
+            /tmp/pid630-production.txt
+            /tmp/logcat630-production.txt
+          if-no-files-found: warn
