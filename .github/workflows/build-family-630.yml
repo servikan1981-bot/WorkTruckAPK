@@ -1,4 +1,4 @@
-name: Build OurFamily 6.0.30 game fix
+name: Build OurFamily 6.0.30 game and call fix
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
     paths:
       - 'duoapp/**'
       - 'tools/patch_family_630.py'
+      - 'tools/patch_family_630_call.py'
       - 'tools/test_checkers.cjs'
       - 'tools/test_durak.cjs'
       - 'settings-duo.gradle'
@@ -33,10 +34,12 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Apply 6.0.30 game delivery patch
-        run: python3 tools/patch_family_630.py
+      - name: Apply 6.0.30 fixes
+        run: |
+          python3 tools/patch_family_630.py
+          python3 tools/patch_family_630_call.py
 
-      - name: Validate ordered game transport and notifications
+      - name: Validate game and fast-call transport
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -47,23 +50,33 @@ jobs:
               'outbox': Path('duoapp/src/main/java/com/sergey/duochat/ReliableRelayOutbox.java').read_text(),
               'inbox': Path('duoapp/src/main/java/com/sergey/duochat/RelayInbox.java').read_text(),
               'service': Path('duoapp/src/main/java/com/sergey/duochat/MessagingService.java').read_text(),
+              'main': Path('duoapp/src/main/java/com/sergey/duochat/MainActivity.java').read_text(),
+              'transport': Path('duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java').read_text(),
               'html': Path('duoapp/src/main/assets/index.html').read_text(),
           }
           checks = [
               ('versionCode 6030', 'versionCode 6030' in files['gradle']),
               ('versionName 6.0.30', "versionName '6.0.30'" in files['gradle']),
               ('manifest label 6.0.30', 'android:label="Наша семья 6.0.30"' in files['manifest']),
-              ('single ordered outbox worker', 'newSingleThreadExecutor' in files['outbox'] and 'newFixedThreadPool(4' not in files['outbox']),
-              ('ordered worker name', 'OurFamilyReliableSendOrdered' in files['outbox']),
-              ('stop drain after failed head send', 'if (!sent) return;' in files['outbox']),
-              ('fast retry 1200 ms', '1200, TimeUnit.MILLISECONDS' in files['outbox']),
+              ('single ordered game outbox worker', 'newSingleThreadExecutor' in files['outbox'] and 'newFixedThreadPool(4' not in files['outbox']),
+              ('ordered game worker name', 'OurFamilyReliableSendOrdered' in files['outbox']),
+              ('stop drain after failed game head send', 'if (!sent) return;' in files['outbox']),
+              ('fast game retry 1200 ms', '1200, TimeUnit.MILLISECONDS' in files['outbox']),
               ('native inbox wakes visible UI', 'MainActivity.notifyRelayArrived();' in files['inbox']),
-              ('fresh game notification channel id', 'family_games_v630' in files['service']),
-              ('game channel user label', 'Игры — приглашения и ходы' in files['service']),
-              ('game notification uses CH_GAMES', 'new Notification.Builder(this, CH_GAMES)' in files['service']),
-              ('game notification visible on lock screen', 'setLockscreenVisibility(Notification.VISIBILITY_PUBLIC)' in files['service']),
+              ('fresh game notification channel', 'family_games_v630' in files['service']),
+              ('game notification lockscreen visible', 'setLockscreenVisibility(Notification.VISIBILITY_PUBLIC)' in files['service']),
+              ('dedicated SDP executor', 'OurFamilySdpSignal' in files['main'] and 'SDP_POSTER.execute' in files['main']),
+              ('batch SDP no longer uses call-control queue', 'CALL_POSTER.execute(() -> reportRelayResult(requestId,\n                        NativeRelayTransport.postBatchJson' not in files['main']),
+              ('fast high-priority connect timeout', 'priority >= 4 ? 4500 : 10000' in files['transport']),
+              ('fast high-priority read timeout', 'priority >= 4 ? 5000 : 12000' in files['transport']),
+              ('TLS failures retried', 'result.startsWith("ERR:SSL")' in files['transport']),
+              ('HTTPS response drained for keep-alive', 'drainResponse(c, status);' in files['transport'] and 'drainResponse(c, code);' in files['transport']),
+              ('call relay JS timeout bounded', 'var timeoutMs=(priority||0)>=4?18000:48000;' in files['html']),
+              ('TURN wait bounded to 2.5 sec', files['html'].count('waitForRelaySdp(ps.pc,2500)') == 2 and 'waitForRelaySdp(ps.pc,10000)' not in files['html']),
+              ('invite and offer no longer serialized', 'sendInvite();\n   setTimeout(sendInvite,700);' in files['html'] and 'await sendInvite();\n   await mediaPromise;' not in files['html']),
+              ('accept no longer blocks media on relay POST', "publishEnvelope(inv.from,'direct_accept',{callId:inv.id},5,'direct_accept',inv.id).catch(function(){});" in files['html']),
               ('web APP_VERSION 6.0.30', "APP_VERSION='6.0.30'" in files['html']),
-              ('350 ms fallback poll', 'setInterval(pollInbox,350)' in files['html']),
+              ('350 ms fallback inbox poll', 'setInterval(pollInbox,350)' in files['html']),
           ]
           failed=[]
           for name, ok in checks:
@@ -103,12 +116,13 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'"
           unzip -p "$APK" assets/index.html | grep -q '6.0.30'
           unzip -p "$APK" assets/index.html | grep -q 'setInterval(pollInbox,350)'
+          unzip -p "$APK" assets/index.html | grep -q 'waitForRelaySdp(ps.pc,2500)'
           sha256sum "$APK" | tee /tmp/family630.sha256
           ls -lh "$APK"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: OurFamily_6_0_30_GameFix_unsigned
+          name: OurFamily_6_0_30_Game_CallFix_unsigned
           path: |
             duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
             /tmp/family630.sha256
