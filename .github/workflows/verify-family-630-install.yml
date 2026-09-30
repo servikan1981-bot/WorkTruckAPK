@@ -73,49 +73,28 @@ jobs:
           target: google_apis
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
-            set -u
-            PACKAGE=com.sergey.ourfamily
             adb install -r /tmp/OurFamily_6_0_29_test.apk
-            adb shell dumpsys package "$PACKAGE" | grep -m 1 'versionCode=6029'
-            adb shell monkey -p "$PACKAGE" 1
+            adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6029'
+            adb shell am start -W -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
             sleep 2
-            PID629=$(adb shell pidof "$PACKAGE" || true)
-            echo "PID_629=$PID629"
-            test -n "$PID629"
-
+            adb shell pidof com.sergey.ourfamily | grep -q '[0-9]'
             adb logcat -c
             adb install -r /tmp/OurFamily_6_0_30_test.apk
-            adb shell dumpsys package "$PACKAGE" | grep -m 1 'versionCode=6030'
-
-            echo '=== explicit launch 6.0.30 ==='
-            adb shell am start -W -n "$PACKAGE/com.sergey.duochat.MainActivity" || true
+            adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6030'
+            adb shell am start -W -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
             sleep 3
-            PID630=$(adb shell pidof "$PACKAGE" || true)
-            echo "PID_630=$PID630"
-
-            echo '=== activity state ==='
-            adb shell dumpsys activity activities | grep -A35 -B10 "$PACKAGE" > /tmp/activity630.txt || true
-            cat /tmp/activity630.txt || true
-
-            echo '=== process state ==='
-            adb shell dumpsys activity processes | grep -A35 -B10 "$PACKAGE" > /tmp/process630.txt || true
-            cat /tmp/process630.txt || true
-
-            echo '=== crash / app logcat ==='
+            adb shell pidof com.sergey.ourfamily | tee /tmp/pid630.txt
+            adb shell dumpsys activity activities | grep -A35 -B10 com.sergey.ourfamily > /tmp/activity630.txt || true
+            adb shell dumpsys activity processes | grep -A35 -B10 com.sergey.ourfamily > /tmp/process630.txt || true
             adb logcat -d -v threadtime | grep -E 'AndroidRuntime|FATAL EXCEPTION|Process: com\.sergey\.ourfamily|com\.sergey\.ourfamily|com\.sergey\.duochat|OurFamily|SecurityException|IllegalArgumentException|IllegalStateException|RuntimeException' | tail -n 500 > /tmp/logcat630.txt || true
+            cat /tmp/activity630.txt || true
+            cat /tmp/process630.txt || true
             cat /tmp/logcat630.txt || true
-
-            if [ -z "$PID630" ]; then
-              echo '6.0.30 process did not survive launch'
-              exit 1
-            fi
-
-            adb shell am force-stop "$PACKAGE"
-            adb shell am start -W -n "$PACKAGE/com.sergey.duochat.MainActivity"
+            grep -q '[0-9]' /tmp/pid630.txt
+            adb shell am force-stop com.sergey.ourfamily
+            adb shell am start -W -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
             sleep 2
-            PID630_RESTART=$(adb shell pidof "$PACKAGE" || true)
-            echo "PID_630_RESTART=$PID630_RESTART"
-            test -n "$PID630_RESTART"
+            adb shell pidof com.sergey.ourfamily | grep -q '[0-9]'
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -124,6 +103,7 @@ jobs:
           path: |
             /tmp/cert629-ci.txt
             /tmp/cert630-ci.txt
+            /tmp/pid630.txt
             /tmp/activity630.txt
             /tmp/process630.txt
             /tmp/logcat630.txt
