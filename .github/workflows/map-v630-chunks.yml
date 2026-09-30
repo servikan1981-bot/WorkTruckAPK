@@ -1,0 +1,39 @@
+name: Map v630 chunks to signed target
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths:
+      - '.github/workflows/map-v630-chunks.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  mapchunks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch source material and map
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/11077063654/zip" -o /tmp/base.zip
+          mkdir /tmp/base && unzip -q /tmp/base.zip -d /tmp/base
+          BASE=$(find /tmp/base -type f -name '*.apk' | head -1); cp "$BASE" /tmp/base.apk
+          mkdir /tmp/p
+          for n in $(seq 0 9); do p=$(printf '%02d' "$n"); curl -fsSL "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_${p}.b64?x=${GITHUB_RUN_ID}" -o "/tmp/p/$p"; done
+          python3 - <<'PY'
+          import base64,json,hashlib
+          from pathlib import Path
+          base=Path('/tmp/base.apk').read_bytes(); d=json.loads(Path('updates/candidates/sign630.delta.json').read_text())
+          out=bytearray()
+          for op in d['ops']:
+            if op[0]=='c': out.extend(base[int(op[1]):int(op[1])+int(op[2])])
+            elif op[0]=='d': out.extend(base64.b64decode(op[1]))
+          rb=base64.b64encode(bytes(out)).decode()
+          print('DELTA_BYTES',len(out),'DELTA_B64',len(rb),'TARGET_B64',((int(d['target_size'])+2)//3)*4)
+          for p in sorted(Path('/tmp/p').iterdir()):
+            s=''.join(p.read_text().split()); L=len(s); print('PART',p.name,'LEN',L)
+            for off,label in [(0,'START'),(max(0,L//2-250),'MID'),(max(0,L-500),'END')]:
+              a=s[off:off+500]; pos=rb.find(a); print(label,'OFF',off,'POS',pos,'POS_PLUS_1768',pos+1768 if pos>=0 else -1)
+          PY
