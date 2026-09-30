@@ -1,0 +1,52 @@
+name: Debug sign630 delta
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths: ['.github/workflows/debug-sign630-delta.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact unsigned base and inspect delta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          curl --retry 4 -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/11077063654/zip" -o /tmp/base.zip
+          mkdir /tmp/base && unzip -q /tmp/base.zip -d /tmp/base
+          BASE=$(find /tmp/base -type f -name '*.apk' | head -1)
+          cp "$BASE" /tmp/base.apk
+          python3 - <<'PY'
+          import base64, hashlib, json
+          from pathlib import Path
+          base=Path('/tmp/base.apk').read_bytes()
+          d=json.loads(Path('updates/candidates/sign630.delta.json').read_text())
+          print('base len',len(base),'sha',hashlib.sha256(base).hexdigest())
+          print('target size',d['target_size'],'sha',d['target_sha256'],'ops',len(d['ops']))
+          copy_sum=data_sum=0
+          ends=[]
+          out=bytearray()
+          for i,op in enumerate(d['ops']):
+              if op[0]=='c':
+                  s,n=int(op[1]),int(op[2]); copy_sum+=n; ends.append(s+n); out.extend(base[s:s+n])
+              elif op[0]=='d':
+                  b=base64.b64decode(op[1]); data_sum+=len(b); out.extend(b)
+          print('copy_sum',copy_sum,'data_sum',data_sum,'out_len',len(out),'max_copy_end',max(ends),'last_copy_end',ends[-1])
+          print('short_by',int(d['target_size'])-len(out),'base_remaining_after_last',len(base)-ends[-1])
+          print('last 12 ops:',d['ops'][-12:])
+          print('built sha',hashlib.sha256(out).hexdigest())
+          # Try common implicit-tail interpretation.
+          tail=bytes(out)+base[ends[-1]:]
+          print('with_tail len',len(tail),'sha',hashlib.sha256(tail).hexdigest())
+          # Try append base suffix based on target length exactly.
+          need=int(d['target_size'])-len(out)
+          if need>=0:
+              for start in [ends[-1], len(base)-need, max(0,ends[-1]-need), 0]:
+                  cand=bytes(out)+base[start:start+need]
+                  print('candidate start',start,'len',len(cand),'sha',hashlib.sha256(cand).hexdigest())
+          PY
