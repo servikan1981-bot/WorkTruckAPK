@@ -65,7 +65,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Upgrade 6.0.29 to 6.0.30 and launch on Android 13
+      - name: Upgrade 6.0.29 to 6.0.30 and diagnose launch on Android 13
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
@@ -73,28 +73,58 @@ jobs:
           target: google_apis
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
-            set -eux
+            set -u
+            PACKAGE=com.sergey.ourfamily
             adb install -r /tmp/OurFamily_6_0_29_test.apk
-            adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6029'
-            adb shell monkey -p com.sergey.ourfamily 1
+            adb shell dumpsys package "$PACKAGE" | grep -m 1 'versionCode=6029'
+            adb shell monkey -p "$PACKAGE" 1
             sleep 2
-            adb shell pidof com.sergey.ourfamily
+            PID629=$(adb shell pidof "$PACKAGE" || true)
+            echo "PID_629=$PID629"
+            test -n "$PID629"
 
+            adb logcat -c
             adb install -r /tmp/OurFamily_6_0_30_test.apk
-            adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6030'
-            adb shell monkey -p com.sergey.ourfamily 1
-            sleep 3
-            adb shell pidof com.sergey.ourfamily
+            adb shell dumpsys package "$PACKAGE" | grep -m 1 'versionCode=6030'
 
-            adb shell am force-stop com.sergey.ourfamily
-            adb shell monkey -p com.sergey.ourfamily 1
+            echo '=== explicit launch 6.0.30 ==='
+            adb shell am start -W -n "$PACKAGE/com.sergey.duochat.MainActivity" || true
+            sleep 3
+            PID630=$(adb shell pidof "$PACKAGE" || true)
+            echo "PID_630=$PID630"
+
+            echo '=== activity state ==='
+            adb shell dumpsys activity activities | grep -A35 -B10 "$PACKAGE" > /tmp/activity630.txt || true
+            cat /tmp/activity630.txt || true
+
+            echo '=== process state ==='
+            adb shell dumpsys activity processes | grep -A35 -B10 "$PACKAGE" > /tmp/process630.txt || true
+            cat /tmp/process630.txt || true
+
+            echo '=== crash / app logcat ==='
+            adb logcat -d -v threadtime | grep -E 'AndroidRuntime|FATAL EXCEPTION|Process: com\.sergey\.ourfamily|com\.sergey\.ourfamily|com\.sergey\.duochat|OurFamily|SecurityException|IllegalArgumentException|IllegalStateException|RuntimeException' | tail -n 500 > /tmp/logcat630.txt || true
+            cat /tmp/logcat630.txt || true
+
+            if [ -z "$PID630" ]; then
+              echo '6.0.30 process did not survive launch'
+              exit 1
+            fi
+
+            adb shell am force-stop "$PACKAGE"
+            adb shell am start -W -n "$PACKAGE/com.sergey.duochat.MainActivity"
             sleep 2
-            adb shell pidof com.sergey.ourfamily
+            PID630_RESTART=$(adb shell pidof "$PACKAGE" || true)
+            echo "PID_630_RESTART=$PID630_RESTART"
+            test -n "$PID630_RESTART"
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: OurFamily_6_0_30_upgrade-test-results
+          name: OurFamily_6_0_30_upgrade-diagnostics
           path: |
             /tmp/cert629-ci.txt
             /tmp/cert630-ci.txt
-          if-no-files-found: error
+            /tmp/activity630.txt
+            /tmp/process630.txt
+            /tmp/logcat630.txt
+          if-no-files-found: warn
