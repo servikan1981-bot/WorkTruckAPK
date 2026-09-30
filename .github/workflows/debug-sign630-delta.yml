@@ -1,51 +1,44 @@
-name: Inspect staged v630 encoding
+name: Map staged v630 chunks
 on:
   push:
     branches: [family-630-game-fix]
     paths: ['.github/workflows/debug-sign630-delta.yml']
 permissions:
   contents: read
+  actions: read
 jobs:
-  inspect:
+  map:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect all staged v630 part boundaries
+      - name: Fetch unsigned base and staged chunks
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p /tmp/p630
-          for n in $(seq 0 9); do
-            p=$(printf '%02d' "$n")
-            curl --retry 4 -fsSL "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_${p}.b64?x=${GITHUB_RUN_ID}" -o "/tmp/p630/${p}.txt"
-          done
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/11077063654/zip" -o /tmp/base.zip
+          mkdir /tmp/base && unzip -q /tmp/base.zip -d /tmp/base
+          BASE=$(find /tmp/base -type f -name '*.apk' | head -1); cp "$BASE" /tmp/base.apk
+          mkdir /tmp/p
+          for n in $(seq 0 9); do p=$(printf '%02d' "$n"); curl -fsSL "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_${p}.b64?x=${GITHUB_RUN_ID}" -o "/tmp/p/$p"; done
+      - name: Map anchors
+        run: |
           python3 - <<'PY'
-          import base64,re,hashlib
+          import base64,json,hashlib
           from pathlib import Path
-          for p in sorted(Path('/tmp/p630').glob('*.txt')):
-              s=''.join(p.read_text().split())
-              bad=[(i,c) for i,c in enumerate(s) if c not in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=']
-              eq=s.find('=')
-              print(p.name,'len',len(s),'mod4',len(s)%4,'first_eq',eq,'eq_count',s.count('='),'bad',bad[:5],'tail',repr(s[-24:]))
-              try:
-                  b=base64.b64decode(s,validate=True)
-                  print('  independent ok bytes',len(b),'sha',hashlib.sha256(b).hexdigest())
-              except Exception as e:
-                  print('  independent FAIL',repr(e))
-          joined=''.join(''.join(p.read_text().split()) for p in sorted(Path('/tmp/p630').glob('*.txt')))
-          print('JOIN len',len(joined),'mod4',len(joined)%4,'first_eq',joined.find('='),'eq_count',joined.count('='))
-          try:
-              b=base64.b64decode(joined,validate=True)
-              print('JOIN valid bytes',len(b),'sha',hashlib.sha256(b).hexdigest())
-              Path('/tmp/join.apk').write_bytes(b)
-          except Exception as e: print('JOIN FAIL',repr(e))
-          # Decode each independent segment if internal '=' suggests concatenated base64 streams.
-          allb=bytearray()
-          ok=True
-          for p in sorted(Path('/tmp/p630').glob('*.txt')):
-              s=''.join(p.read_text().split())
-              try: allb += base64.b64decode(s,validate=False)
-              except Exception as e: print('loose fail',p.name,e); ok=False
-          if ok:
-              print('LOOSE-EACH bytes',len(allb),'sha',hashlib.sha256(allb).hexdigest())
-              Path('/tmp/each.apk').write_bytes(allb)
+          base=Path('/tmp/base.apk').read_bytes(); d=json.loads(Path('updates/candidates/sign630.delta.json').read_text())
+          out=bytearray()
+          for op in d['ops']:
+            if op[0]=='c': out.extend(base[int(op[1]):int(op[1])+int(op[2])])
+            elif op[0]=='d': out.extend(base64.b64decode(op[1]))
+          raw=bytes(out); rb=base64.b64encode(raw).decode()
+          print('delta bytes',len(raw),'b64',len(rb),'sha',hashlib.sha256(raw).hexdigest(),'expected target b64',((int(d['target_size'])+2)//3)*4)
+          for p in sorted(Path('/tmp/p').iterdir()):
+            s=''.join(p.read_text().split()); L=len(s)
+            print('\nPART',p.name,'len',L)
+            for off,label in [(0,'start'),(max(0,L//2-250),'mid'),(max(0,L-500),'end')]:
+              a=s[off:off+500]
+              pos=rb.find(a)
+              print(label,'anchor off',off,'delta_pos',pos,'implied_target_pos_if_after_gap',pos+1768 if pos>=0 else -1)
           PY
