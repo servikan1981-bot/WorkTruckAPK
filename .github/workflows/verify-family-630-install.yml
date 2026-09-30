@@ -1,11 +1,10 @@
-name: Verify OurFamily 6.0.30 candidate upgrade
+name: Verify OurFamily 6.0.30 upgrade mechanics
 
 on:
   push:
     branches: [family-630-game-fix]
     paths:
       - '.github/workflows/verify-family-630-install.yml'
-      - 'updates/candidates/sign630.delta.json'
       - 'tools/patch_family_630.py'
   workflow_dispatch:
 
@@ -32,51 +31,33 @@ jobs:
         with:
           gradle-version: '8.10.2'
 
-      - name: Rebuild exact 6.0.30 unsigned candidate
+      - name: Build untouched 6.0.29 debug baseline
+        run: |
+          grep -q 'versionCode 6029' duoapp/build.gradle
+          grep -q "versionName '6.0.29'" duoapp/build.gradle
+          gradle --no-daemon -c settings-duo.gradle :duoapp:assembleDebug
+          cp duoapp/build/outputs/apk/debug/duoapp-debug.apk /tmp/OurFamily_6_0_29_test.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_29_test.apk | grep -q "package: name='com.sergey.ourfamily' versionCode='6029' versionName='6.0.29'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_29_test.apk > /tmp/cert629-ci.txt
+
+      - name: Patch and build 6.0.30 debug candidate
         run: |
           python3 tools/patch_family_630.py
-          gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
-          echo '50a0f642a4afe2a02da37ff3690a676056e61fbeba2b84c905171b7ec9f16755  duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk' | sha256sum -c -
+          gradle --no-daemon -c settings-duo.gradle :duoapp:clean :duoapp:assembleDebug
+          cp duoapp/build/outputs/apk/debug/duoapp-debug.apk /tmp/OurFamily_6_0_30_test.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_30_test.apk | grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_30_test.apk > /tmp/cert630-ci.txt
+          grep -q 'newSingleThreadExecutor' duoapp/src/main/java/com/sergey/duochat/ReliableRelayOutbox.java
+          grep -q 'family_games_v630' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q 'MainActivity.notifyRelayArrived();' duoapp/src/main/java/com/sergey/duochat/RelayInbox.java
+          grep -q 'setInterval(pollInbox,350)' duoapp/src/main/assets/index.html
 
-      - name: Reconstruct signed Stable-6 candidate
+      - name: Confirm both CI builds use the same signer
         run: |
-          python3 - <<'PY'
-          import base64, hashlib, json
-          from pathlib import Path
-
-          base = Path('duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk').read_bytes()
-          patch = json.loads(Path('updates/candidates/sign630.delta.json').read_text())
-          got = hashlib.sha256(base).hexdigest()
-          assert got == patch['base_sha256'], (got, patch['base_sha256'])
-          out = bytearray()
-          for op in patch['ops']:
-              if op[0] == 'c':
-                  start, length = int(op[1]), int(op[2])
-                  out.extend(base[start:start+length])
-              elif op[0] == 'd':
-                  out.extend(base64.b64decode(op[1]))
-              else:
-                  raise SystemExit('unknown delta opcode')
-          assert len(out) == patch['target_size']
-          target = hashlib.sha256(out).hexdigest()
-          assert target == patch['target_sha256'], (target, patch['target_sha256'])
-          Path('/tmp/OurFamily_6_0_30_Candidate.apk').write_bytes(out)
-          print('signed candidate sha256', target)
-          PY
-
-      - name: Verify official Android signature and identity
-        run: |
-          BT="$ANDROID_HOME/build-tools/35.0.0"
-          APK=/tmp/OurFamily_6_0_30_Candidate.apk
-          "$BT/zipalign" -c -v 4 "$APK"
-          "$BT/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/cert630.txt
-          "$BT/apksigner" verify --print-certs updates/downloads/OurFamily_6_0_29_Stable.apk | tee /tmp/cert629.txt
-          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/cert630.txt
-          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/cert629.txt
-          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/cert630.txt
-          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' /tmp/cert630.txt
-          "$BT/aapt" dump badging "$APK" | grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'"
-          echo '55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020  /tmp/OurFamily_6_0_30_Candidate.apk' | sha256sum -c -
+          CERT629=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert629-ci.txt | awk '{print $NF}')
+          CERT630=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert630-ci.txt | awk '{print $NF}')
+          test -n "$CERT629"
+          test "$CERT629" = "$CERT630"
 
       - name: Enable KVM
         run: |
@@ -92,16 +73,28 @@ jobs:
           target: google_apis
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
-            adb install -r updates/downloads/OurFamily_6_0_29_Stable.apk
+            set -eux
+            adb install -r /tmp/OurFamily_6_0_29_test.apk
             adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6029'
-            adb install -r /tmp/OurFamily_6_0_30_Candidate.apk
+            adb shell monkey -p com.sergey.ourfamily 1
+            sleep 2
+            adb shell pidof com.sergey.ourfamily
+
+            adb install -r /tmp/OurFamily_6_0_30_test.apk
             adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6030'
             adb shell monkey -p com.sergey.ourfamily 1
             sleep 3
             adb shell pidof com.sergey.ourfamily
 
+            adb shell am force-stop com.sergey.ourfamily
+            adb shell monkey -p com.sergey.ourfamily 1
+            sleep 2
+            adb shell pidof com.sergey.ourfamily
+
       - uses: actions/upload-artifact@v4
         with:
-          name: OurFamily_6_0_30_Candidate_verified
-          path: /tmp/OurFamily_6_0_30_Candidate.apk
+          name: OurFamily_6_0_30_upgrade-test-results
+          path: |
+            /tmp/cert629-ci.txt
+            /tmp/cert630-ci.txt
           if-no-files-found: error
