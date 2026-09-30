@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/verify-family-630-install.yml'
       - 'tools/patch_family_630.py'
+      - 'tools/patch_family_630_call.py'
   workflow_dispatch:
 
 permissions:
@@ -43,6 +44,7 @@ jobs:
       - name: Patch and build 6.0.30 debug candidate
         run: |
           python3 tools/patch_family_630.py
+          python3 tools/patch_family_630_call.py
           gradle --no-daemon -c settings-duo.gradle :duoapp:clean :duoapp:assembleDebug
           cp duoapp/build/outputs/apk/debug/duoapp-debug.apk /tmp/OurFamily_6_0_30_test.apk
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_30_test.apk | grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'"
@@ -51,6 +53,9 @@ jobs:
           grep -q 'family_games_v630' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
           grep -q 'MainActivity.notifyRelayArrived();' duoapp/src/main/java/com/sergey/duochat/RelayInbox.java
           grep -q 'setInterval(pollInbox,350)' duoapp/src/main/assets/index.html
+          grep -q 'OurFamilySdpSignal' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'waitForRelaySdp(ps.pc,2500)' duoapp/src/main/assets/index.html
+          grep -q 'priority >= 4 ? 4500 : 10000' duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
 
       - name: Confirm both CI builds use the same signer
         run: |
