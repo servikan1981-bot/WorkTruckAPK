@@ -1,0 +1,161 @@
+name: Build and verify OurFamily 6.0.31 stability
+
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths:
+      - 'tools/patch_family_631_stability.py'
+      - '.github/workflows/build-family-631.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build_verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Apply 6.0.30 baseline plus 6.0.31 reliability fixes
+        run: |
+          set -euo pipefail
+          python3 tools/patch_family_630.py
+          python3 tools/patch_family_630_call.py
+          python3 tools/patch_family_630_fastrelay.py
+          python3 tools/patch_family_631_stability.py
+
+      - name: Validate identity and reliability invariants
+        run: |
+          set -euo pipefail
+          grep -q "versionCode 6031" duoapp/build.gradle
+          grep -q "versionName '6.0.31'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.31"' duoapp/src/main/AndroidManifest.xml
+          H=duoapp/src/main/assets/index.html
+          T=duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
+          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q "APP_VERSION='6.0.31'" "$H"
+          grep -q 'postHedgedRealtime' "$T"
+          grep -q 'postBatchHedgedRealtime' "$T"
+          grep -q 'kind.startsWith("durak_")' "$T"
+          grep -q 'kind.startsWith("game_")' "$T"
+          grep -q 'FAST_CALL_RELAY.equals(relay)' "$T"
+          grep -q 'setConnectTimeout(fastRealtime ? 2500' "$T"
+          grep -q 'isRealtimeSignalLine' "$S"
+          grep -q 'OurFamily/6.0.31 Realtime' "$S"
+          grep -q "сигнал: повтор" "$H"
+          grep -q "Нет связи с сервером" "$H"
+
+      - name: Validate JavaScript and games
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text()
+          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
+          assert blocks
+          Path('/tmp/family631.js').write_text('\n'.join(blocks))
+          PY
+          node --check /tmp/family631.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+
+      - name: Probe both live relays and encrypted event flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          HOME_RELAY='https://family.familysergey.netcraze.pro'
+          FAST_RELAY='https://our-family-relay.family-860c7981b2d4.workers.dev'
+          TOPIC="of631probe$(date +%s%N | sha256sum | cut -c1-40)"
+          MSG="of5|probeA|probeB|durak_move|631-test|g0|0|1|ciphertext"
+          for R in "$HOME_RELAY" "$FAST_RELAY"; do
+            echo "Testing $R"
+            curl --fail --silent --show-error --connect-timeout 5 --max-time 8 "$R/health" >/dev/null
+            START=$(date +%s%3N)
+            curl --fail --silent --show-error --connect-timeout 5 --max-time 8 \
+              -X POST -H 'Content-Type: text/plain' --data "$MSG" "$R/$TOPIC" >/tmp/post.txt
+            END=$(date +%s%3N)
+            echo "POST_MS=$((END-START))"
+            curl --fail --silent --show-error --connect-timeout 5 --max-time 8 \
+              "$R/$TOPIC/json?since=2m&after=0&wait=1" | grep -q 'durak_move'
+          done
+
+      - name: Build 6.0.31 release candidate
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Inspect unsigned APK
+        run: |
+          set -euo pipefail
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee /tmp/badging631.txt
+          grep -q "package: name='com.sergey.ourfamily' versionCode='6031' versionName='6.0.31'" /tmp/badging631.txt
+          unzip -p "$APK" assets/index.html | grep -q 'сигнал: повтор'
+          unzip -p "$APK" classes.dex | strings | grep -q 'OurFamily/6.0.31 Realtime'
+          sha256sum "$APK"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_31_Stability_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error
+
+  android13_smoke:
+    needs: build_verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Build debug candidate with identical app code
+        run: |
+          python3 tools/patch_family_630.py
+          python3 tools/patch_family_630_call.py
+          python3 tools/patch_family_630_fastrelay.py
+          python3 tools/patch_family_631_stability.py
+          gradle --no-daemon -c settings-duo.gradle :duoapp:assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install and launch on Android 13
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            adb install -r duoapp/build/outputs/apk/debug/duoapp-debug.apk
+            adb shell dumpsys package com.sergey.ourfamily | grep -m1 'versionCode=6031'
+            adb shell monkey -p com.sergey.ourfamily 1
+            sleep 4
+            adb shell pidof com.sergey.ourfamily
+            if adb logcat -d '*:E' | grep -E 'FATAL EXCEPTION.*com.sergey.ourfamily|Process: com.sergey.ourfamily' ; then exit 1; fi
+            echo ANDROID13_631_SMOKE_OK
