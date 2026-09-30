@@ -4,7 +4,7 @@ on:
   push:
     branches: [family-630-game-fix]
     paths:
-      - 'tools/patch_family_631_stability.py'
+      - 'tools/patch_family_631_v2.py'
       - '.github/workflows/build-family-631.yml'
   workflow_dispatch:
 
@@ -35,7 +35,7 @@ jobs:
           python3 tools/patch_family_630.py
           python3 tools/patch_family_630_call.py
           python3 tools/patch_family_630_fastrelay.py
-          python3 tools/patch_family_631_stability.py
+          python3 tools/patch_family_631_v2.py
 
       - name: Validate identity and reliability invariants
         run: |
@@ -49,10 +49,10 @@ jobs:
           grep -q "APP_VERSION='6.0.31'" "$H"
           grep -q 'postHedgedRealtime' "$T"
           grep -q 'postBatchHedgedRealtime' "$T"
+          grep -q 'firstSuccessful' "$T"
           grep -q 'kind.startsWith("durak_")' "$T"
           grep -q 'kind.startsWith("game_")' "$T"
-          grep -q 'FAST_CALL_RELAY.equals(relay)' "$T"
-          grep -q 'setConnectTimeout(fastRealtime ? 2500' "$T"
+          grep -q 'setConnectTimeout(fastRealtime ? 2200' "$T"
           grep -q 'isRealtimeSignalLine' "$S"
           grep -q 'OurFamily/6.0.31 Realtime' "$S"
           grep -q "сигнал: повтор" "$H"
@@ -75,7 +75,7 @@ jobs:
           node tools/test_checkers.cjs
           node tools/test_durak.cjs
 
-      - name: Probe both live relays and encrypted event flow
+      - name: Probe both live relays and game event flow
         shell: bash
         run: |
           set -euo pipefail
@@ -137,7 +137,7 @@ jobs:
           python3 tools/patch_family_630.py
           python3 tools/patch_family_630_call.py
           python3 tools/patch_family_630_fastrelay.py
-          python3 tools/patch_family_631_stability.py
+          python3 tools/patch_family_631_v2.py
           gradle --no-daemon -c settings-duo.gradle :duoapp:assembleDebug
       - name: Enable KVM
         run: |
