@@ -37,8 +37,7 @@ jobs:
               s=''.join(p.read_text(encoding='ascii').split())
               assert s, f'empty {p}'
               parts.append(s)
-          raw=''.join(parts)
-          apk=base64.b64decode(raw, validate=True)
+          apk=base64.b64decode(''.join(parts), validate=True)
           out=Path('/tmp/OurFamily_6_0_31_Stable.apk')
           out.write_bytes(apk)
           with zipfile.ZipFile(out) as z:
@@ -63,29 +62,33 @@ jobs:
           grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' /tmp/631-sign.txt
           grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/631-sign.txt
 
-      - name: Verify requested call-settings guidance and preserve 6.0.30 core
+      - name: Verify requested call-settings guidance and tested 6.0.30 FastCall core
         run: |
           set -euo pipefail
           NEW=/tmp/OurFamily_6_0_31_Stable.apk
-          OLD=updates/downloads/OurFamily_6_0_30_Stable.apk
-          test -s "$OLD"
           unzip -p "$NEW" assets/index.html > /tmp/new-index.html
           grep -q '6.0.31' /tmp/new-index.html
           grep -q 'Семейные звонки' /tmp/new-index.html
           grep -q 'Открыть уведомления' /tmp/new-index.html
           grep -q 'Уже включено' /tmp/new-index.html
           grep -q 'requestFullScreenCallPermission' /tmp/new-index.html
+          grep -q 'bottomNav' /tmp/new-index.html
+          grep -q 'videoBtn' /tmp/new-index.html
+          grep -q 'audioBtn' /tmp/new-index.html
+          grep -q 'durak_invite' /tmp/new-index.html
           python3 - <<'PY'
           import zipfile, hashlib
-          old='updates/downloads/OurFamily_6_0_30_Stable.apk'
+          expected={
+            'classes.dex':'516ef872adfa63b2ac6ab860d2cf3b01432eb565f6f356bbacd66635090bad73',
+            'assets/checkers.js':'57738724c238d988547823585a08992eb8724cc9b6911c8e521f124196bbb642',
+            'assets/durak.js':'721bd70196d473985917a62cb67b2267c200eb3ae037a44d4d91bdf87325b955'
+          }
           new='/tmp/OurFamily_6_0_31_Stable.apk'
-          preserve=['classes.dex','assets/checkers.js','assets/durak.js']
-          with zipfile.ZipFile(old) as a, zipfile.ZipFile(new) as b:
-              for n in preserve:
-                  ha=hashlib.sha256(a.read(n)).hexdigest()
-                  hb=hashlib.sha256(b.read(n)).hexdigest()
-                  assert ha==hb, f'unexpected core change in {n}'
-                  print('preserved',n,ha)
+          with zipfile.ZipFile(new) as z:
+              for n,want in expected.items():
+                  got=hashlib.sha256(z.read(n)).hexdigest()
+                  assert got==want, f'unexpected change in tested 6.0.30 core {n}: {got}'
+                  print('preserved tested core',n,got)
           PY
 
       - name: Prepare 6.0.31 update metadata
