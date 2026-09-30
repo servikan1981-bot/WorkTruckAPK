@@ -1,0 +1,80 @@
+name: Verify live OurFamily 6.0.30 release
+
+on:
+  push:
+    branches: [family-630-release-proof]
+    paths:
+      - '.github/workflows/verify-live-630-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Reconstruct and verify published 6.0.30
+        run: |
+          set -euo pipefail
+          git fetch origin family-stable-6 family-629-final-candidate
+          python3 - <<'PY'
+          import base64, hashlib, json, pathlib, subprocess
+          meta=json.loads(subprocess.check_output(['git','show','origin/family-stable-6:updates/latest.json'], text=True))
+          assert meta['versionCode']==6030, meta
+          assert meta['versionName']=='6.0.30', meta
+          chunks=[]
+          for url in meta['apkBase64Parts']:
+              name=url.rsplit('/',1)[-1]
+              s=subprocess.check_output(['git','show',f'origin/family-stable-6:updates/parts/{name}'], text=True)
+              chunks.append(s)
+          clean=''.join(chunks).replace('\r','').replace('\n','').strip()
+          assert len(clean)%4==0, f'base64 length mod4={len(clean)%4} length={len(clean)}'
+          apk=base64.b64decode(clean, validate=True)
+          sha=hashlib.sha256(apk).hexdigest()
+          print('META_SHA=',meta['sha256'])
+          print('APK_SHA=',sha)
+          print('APK_SIZE=',len(apk))
+          assert sha.lower()==meta['sha256'].lower()
+          pathlib.Path('/tmp/OurFamily_6_0_30.apk').write_bytes(apk)
+          PY
+          unzip -t /tmp/OurFamily_6_0_30.apk >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 /tmp/OurFamily_6_0_30.apk >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_30.apk | tee /tmp/cert630.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/cert630.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_30.apk | tee /tmp/badging630.txt
+          grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'" /tmp/badging630.txt
+          git show origin/family-629-final-candidate:updates/downloads/OurFamily_6_0_29_Candidate.apk > /tmp/OurFamily_6_0_29.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs /tmp/OurFamily_6_0_29.apk | tee /tmp/cert629.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/cert629.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_29.apk | grep -q "versionCode='6029' versionName='6.0.29'"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Upgrade 6.0.29 to published 6.0.30 and launch on Android 13
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            adb install -r /tmp/OurFamily_6_0_29.apk
+            adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6029'
+            adb install -r /tmp/OurFamily_6_0_30.apk
+            adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6030'
+            adb shell monkey -p com.sergey.ourfamily 1
+            sleep 4
+            adb shell pidof com.sergey.ourfamily
