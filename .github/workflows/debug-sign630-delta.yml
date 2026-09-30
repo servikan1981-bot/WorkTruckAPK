@@ -1,54 +1,41 @@
-name: Debug sign630 delta
+name: Recover staged 6.0.30 signed APK
 on:
   push:
     branches: [family-630-game-fix]
     paths: ['.github/workflows/debug-sign630-delta.yml']
 permissions:
   contents: read
-  actions: read
 jobs:
-  debug:
+  recover:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: android-actions/setup-android@v4
         with:
           packages: 'build-tools;35.0.0'
-      - name: Download exact unsigned base and reconstruct delta
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Decode each staged v630 part independently
         run: |
           set -euo pipefail
-          curl --retry 4 -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/11077063654/zip" -o /tmp/base.zip
-          mkdir /tmp/base && unzip -q /tmp/base.zip -d /tmp/base
-          BASE=$(find /tmp/base -type f -name '*.apk' | head -1)
-          cp "$BASE" /tmp/base.apk
-          python3 - <<'PY'
-          import base64, hashlib, json
-          from pathlib import Path
-          base=Path('/tmp/base.apk').read_bytes()
-          d=json.loads(Path('updates/candidates/sign630.delta.json').read_text())
-          out=bytearray(); copy_sum=data_sum=0
-          for op in d['ops']:
-              if op[0]=='c':
-                  s,n=int(op[1]),int(op[2]); copy_sum+=n; out.extend(base[s:s+n])
-              elif op[0]=='d':
-                  b=base64.b64decode(op[1]); data_sum+=len(b); out.extend(b)
-          Path('/tmp/delta630.apk').write_bytes(out)
-          print('base_len',len(base),'base_sha',hashlib.sha256(base).hexdigest())
-          print('copy_sum',copy_sum,'data_sum',data_sum,'built_len',len(out),'built_sha',hashlib.sha256(out).hexdigest())
-          print('declared_target_len',d['target_size'],'declared_target_sha',d['target_sha256'])
-          PY
-      - name: Test reconstructed APK
-        run: |
-          set -euo pipefail
-          APK=/tmp/delta630.apk
-          unzip -t "$APK" >/dev/null
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee /tmp/badging.txt
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/cert.txt
+          : > /tmp/OurFamily_6_0_30_recovered.apk
+          for n in $(seq 0 9); do
+            p=$(printf '%02d' "$n")
+            curl --retry 4 --retry-delay 2 -fsSL \
+              "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_${p}.b64?recover=${GITHUB_RUN_ID}" \
+              -o "/tmp/v630_${p}.b64"
+            tr -d '\r\n' < "/tmp/v630_${p}.b64" | base64 -d >> /tmp/OurFamily_6_0_30_recovered.apk
+          done
+          echo "SIZE=$(stat -c%s /tmp/OurFamily_6_0_30_recovered.apk)"
+          echo "SHA=$(sha256sum /tmp/OurFamily_6_0_30_recovered.apk | awk '{print $1}')"
+          unzip -t /tmp/OurFamily_6_0_30_recovered.apk >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_30_recovered.apk | tee /tmp/badging.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_30_recovered.apk | tee /tmp/cert.txt
           grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'" /tmp/badging.txt
           CERT=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert.txt | awk '{print $NF}' | tr '[:upper:]' '[:lower:]')
           echo "CERT=$CERT"
           test "$CERT" = '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83'
-          echo 'DELTA APK VALID'
+          unzip -p /tmp/OurFamily_6_0_30_recovered.apk assets/index.html | grep -q 'setInterval(pollInbox,350)'
+          echo 'RECOVERED PRODUCTION APK VALID'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_30_Recovered_Stable
+          path: /tmp/OurFamily_6_0_30_recovered.apk
