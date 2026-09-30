@@ -38,8 +38,9 @@ text = text.replace('6.0.29', '6.0.30')
 text, n = re.subn(r"var APP_VERSION='6\.0\.[0-9]+'", "var APP_VERSION='6.0.30'", text, count=1)
 if n != 1:
     raise SystemExit(f'{index}: APP_VERSION marker not found')
-if 'setInterval(poll,1000)' in text:
-    text = text.replace('setInterval(poll,1000)', 'setInterval(poll,350)', 1)
+text, n = re.subn(r'setInterval\(poll\s*,\s*1000\)', 'setInterval(poll,350)', text, count=1)
+if n != 1:
+    raise SystemExit(f'{index}: 1000ms polling marker not found')
 write(index, text)
 
 # Critical game traffic must retain order. The old four-worker pool could deliver move N+1
