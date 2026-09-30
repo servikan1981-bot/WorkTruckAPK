@@ -1,0 +1,49 @@
+name: Verify existing 6.0.31 payload
+
+on:
+  push:
+    branches: [ 'family-stable-6' ]
+    paths:
+      - '.github/workflows/verify-payload-631.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Reconstruct pre-publication 6.0.31 payload and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=d938e1161415079f4fac62ed0a6f524e76fb9415
+          git show "$BASE:updates/parts/v631_00.b64" > /tmp/p00
+          cat /tmp/p00 updates/parts/v631_01.b64 updates/parts/v631_02.b64 updates/parts/v631_03.b64 updates/parts/v631_04.b64 updates/parts/v631_05.b64 updates/parts/v631_06.b64 updates/parts/v631_07.b64 updates/parts/v631_08.b64 updates/parts/v631_09.b64 > /tmp/v631.b64
+          base64 -d /tmp/v631.b64 > /tmp/OurFamily_6_0_31_existing.apk
+          SHA=$(sha256sum /tmp/OurFamily_6_0_31_existing.apk | awk '{print $1}')
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          SIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          BADGING=$($AAPT dump badging /tmp/OurFamily_6_0_31_existing.apk | head -n 3 | tr '\n' ' ')
+          VERIFY=$($SIGNER verify --verbose --print-certs /tmp/OurFamily_6_0_31_existing.apk 2>&1)
+          CERT=$(printf '%s\n' "$VERIFY" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)
+          V2=$(printf '%s\n' "$VERIFY" | grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' >/dev/null && echo true || echo false)
+          V3=$(printf '%s\n' "$VERIFY" | grep -F 'Verified using v3 scheme (APK Signature Scheme v3): true' >/dev/null && echo true || echo false)
+          python3 - "$SHA" "$CERT" "$V2" "$V3" "$BADGING" <<'PY'
+          import json,sys
+          sha,cert,v2,v3,badging=sys.argv[1:]
+          data={'sha256':sha,'signerCertSha256':cert,'v2':v2=='true','v3':v3=='true','badging':badging}
+          open('updates/verify631.json','w',encoding='utf-8').write(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add updates/verify631.json
+          git commit -m 'Verify existing 6.0.31 payload' || exit 0
+          git push
