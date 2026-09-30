@@ -16,10 +16,15 @@ import javax.crypto.spec.GCMParameterSpec;
 
 public final class SecureStore {
     public static final String PREFS = "duo_native_v4";
+
+    // 6.0.31: signaling/chat must not depend on the home KeenDNS/cloud path.
+    // The Cloudflare relay is the primary message/signaling plane; the home
+    // server remains useful for TURN/media and can still be selected manually.
     public static final String DEFAULT_RELAY =
-            "https://family.familysergey.netcraze.pro";
-    private static final String OLD_DEFAULT_RELAY =
             "https://our-family-relay.family-860c7981b2d4.workers.dev";
+    public static final String HOME_RELAY =
+            "https://family.familysergey.netcraze.pro";
+    private static final String NTFY_RELAY = "https://ntfy.sh";
     private static final String KEY_ALIAS = "OurFamilyV4ProfileKey";
 
     private SecureStore() {}
@@ -85,11 +90,15 @@ public final class SecureStore {
         SharedPreferences p = prefs(c);
         String saved = p.getString("relay_base", "");
         String normalized = saved == null ? "" : saved.replaceAll("/+$", "");
-        if (normalized.isEmpty() || "https://ntfy.sh".equalsIgnoreCase(normalized) ||
-                OLD_DEFAULT_RELAY.equalsIgnoreCase(normalized)) {
+
+        // Existing 6.0.20-6.0.30 installs were pinned to the home KeenDNS relay.
+        // Migrate them to the independent public relay so chat/call signaling is
+        // no longer blocked by a slow/unreachable home HTTPS request.
+        if (normalized.isEmpty() || NTFY_RELAY.equalsIgnoreCase(normalized) ||
+                HOME_RELAY.equalsIgnoreCase(normalized)) {
             p.edit().putString("relay_base", DEFAULT_RELAY).apply();
             return DEFAULT_RELAY;
         }
-        return saved;
+        return normalized;
     }
 }
