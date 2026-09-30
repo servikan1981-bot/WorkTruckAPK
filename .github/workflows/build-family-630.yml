@@ -38,25 +38,40 @@ jobs:
 
       - name: Validate ordered game transport and notifications
         run: |
-          O=duoapp/src/main/java/com/sergey/duochat/ReliableRelayOutbox.java
-          I=duoapp/src/main/java/com/sergey/duochat/RelayInbox.java
-          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
-          H=duoapp/src/main/assets/index.html
-          grep -q 'versionCode 6030' duoapp/build.gradle
-          grep -q "versionName '6.0.30'" duoapp/build.gradle
-          grep -q 'android:label="Наша семья 6.0.30"' duoapp/src/main/AndroidManifest.xml
-          grep -q 'newSingleThreadExecutor' "$O"
-          ! grep -q 'newFixedThreadPool(4' "$O"
-          grep -q 'OurFamilyReliableSendOrdered' "$O"
-          grep -q 'if (!sent) return' "$O"
-          grep -q '1200, TimeUnit.MILLISECONDS' "$O"
-          grep -q 'MainActivity.notifyRelayArrived' "$I"
-          grep -q 'family_games_v630' "$S"
-          grep -q 'Игры — приглашения и ходы' "$S"
-          grep -q 'new Notification.Builder(this, CH_GAMES)' "$S"
-          grep -q 'VISIBILITY_PUBLIC' "$S"
-          grep -q "APP_VERSION='6.0.30'" "$H"
-          grep -q 'setInterval(poll,350)' "$H"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          files = {
+              'gradle': Path('duoapp/build.gradle').read_text(),
+              'manifest': Path('duoapp/src/main/AndroidManifest.xml').read_text(),
+              'outbox': Path('duoapp/src/main/java/com/sergey/duochat/ReliableRelayOutbox.java').read_text(),
+              'inbox': Path('duoapp/src/main/java/com/sergey/duochat/RelayInbox.java').read_text(),
+              'service': Path('duoapp/src/main/java/com/sergey/duochat/MessagingService.java').read_text(),
+              'html': Path('duoapp/src/main/assets/index.html').read_text(),
+          }
+          checks = [
+              ('versionCode 6030', 'versionCode 6030' in files['gradle']),
+              ('versionName 6.0.30', "versionName '6.0.30'" in files['gradle']),
+              ('manifest label 6.0.30', 'android:label="Наша семья 6.0.30"' in files['manifest']),
+              ('single ordered outbox worker', 'newSingleThreadExecutor' in files['outbox'] and 'newFixedThreadPool(4' not in files['outbox']),
+              ('ordered worker name', 'OurFamilyReliableSendOrdered' in files['outbox']),
+              ('stop drain after failed head send', 'if (!sent) return;' in files['outbox']),
+              ('fast retry 1200 ms', '1200, TimeUnit.MILLISECONDS' in files['outbox']),
+              ('native inbox wakes visible UI', 'MainActivity.notifyRelayArrived();' in files['inbox']),
+              ('fresh game notification channel id', 'family_games_v630' in files['service']),
+              ('game channel user label', 'Игры — приглашения и ходы' in files['service']),
+              ('game notification uses CH_GAMES', 'new Notification.Builder(this, CH_GAMES)' in files['service']),
+              ('game notification visible on lock screen', 'setLockscreenVisibility(Notification.VISIBILITY_PUBLIC)' in files['service']),
+              ('web APP_VERSION 6.0.30', "APP_VERSION='6.0.30'" in files['html']),
+              ('350 ms fallback poll', 'setInterval(poll,350)' in files['html']),
+          ]
+          failed=[]
+          for name, ok in checks:
+              print(('PASS' if ok else 'FAIL') + ' - ' + name)
+              if not ok: failed.append(name)
+          if failed:
+              raise SystemExit('Validation failed: ' + ', '.join(failed))
+          PY
 
       - name: Validate JavaScript and game rules
         run: |
