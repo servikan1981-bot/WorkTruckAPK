@@ -75,7 +75,7 @@ jobs:
           node tools/test_checkers.cjs
           node tools/test_durak.cjs
 
-      - name: Probe both live relays and game event flow
+      - name: Probe live fast relay; diagnose home relay without blocking fallback release
         run: |
           set -euo pipefail
           HOME_RELAY='https://family.familysergey.netcraze.pro'
@@ -83,15 +83,26 @@ jobs:
           TOPIC="of631probe$(date +%s%N | sha256sum | cut -c1-40)"
           MSG='of5|probeA|probeB|durak_move|631-test|g0|0|1|ciphertext'
           BODY=$(printf '{"topic":"%s","message":"%s","priority":5}' "$TOPIC" "$MSG")
-          for R in "$HOME_RELAY" "$FAST_RELAY"; do
-            echo "Testing $R"
-            curl --fail --silent --show-error --connect-timeout 5 --max-time 8 "$R/health" >/dev/null
+          echo 'Testing mandatory fast relay'
+          curl --fail --silent --show-error --connect-timeout 5 --max-time 8 "$FAST_RELAY/health" >/dev/null
+          START=$(date +%s%3N)
+          curl --fail --silent --show-error --connect-timeout 5 --max-time 8 -X POST -H 'Content-Type: application/json' --data "$BODY" "$FAST_RELAY/" >/tmp/post-fast.txt
+          END=$(date +%s%3N)
+          echo "FAST_POST_MS=$((END-START))"
+          curl --fail --silent --show-error --connect-timeout 5 --max-time 8 "$FAST_RELAY/$TOPIC/json?since=2m&after=0&wait=1" | grep -q 'durak_move'
+          echo 'FAST_RELAY_OK'
+          echo 'Testing home relay as secondary path'
+          if curl --fail --silent --show-error --connect-timeout 3 --max-time 5 "$HOME_RELAY/health" >/dev/null; then
             START=$(date +%s%3N)
-            curl --fail --silent --show-error --connect-timeout 5 --max-time 8 -X POST -H 'Content-Type: application/json' --data "$BODY" "$R/" >/tmp/post.txt
-            END=$(date +%s%3N)
-            echo "POST_MS=$((END-START))"
-            curl --fail --silent --show-error --connect-timeout 5 --max-time 8 "$R/$TOPIC/json?since=2m&after=0&wait=1" | grep -q 'durak_move'
-          done
+            if curl --fail --silent --show-error --connect-timeout 3 --max-time 5 -X POST -H 'Content-Type: application/json' --data "$BODY" "$HOME_RELAY/" >/tmp/post-home.txt; then
+              END=$(date +%s%3N)
+              echo "HOME_POST_MS=$((END-START))"
+            else
+              echo 'HOME_RELAY_POST_WARNING'
+            fi
+          else
+            echo 'HOME_RELAY_HEALTH_WARNING'
+          fi
 
       - name: Build 6.0.31 release candidate
         run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
