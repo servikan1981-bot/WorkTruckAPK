@@ -63,7 +63,7 @@ jobs:
               ('game notification uses CH_GAMES', 'new Notification.Builder(this, CH_GAMES)' in files['service']),
               ('game notification visible on lock screen', 'setLockscreenVisibility(Notification.VISIBILITY_PUBLIC)' in files['service']),
               ('web APP_VERSION 6.0.30', "APP_VERSION='6.0.30'" in files['html']),
-              ('350 ms fallback poll', 'setInterval(poll,350)' in files['html']),
+              ('350 ms fallback poll', 'setInterval(pollInbox,350)' in files['html']),
           ]
           failed=[]
           for name, ok in checks:
@@ -102,7 +102,7 @@ jobs:
           unzip -t "$APK" >/dev/null
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'"
           unzip -p "$APK" assets/index.html | grep -q '6.0.30'
-          unzip -p "$APK" assets/index.html | grep -q 'setInterval(poll,350)'
+          unzip -p "$APK" assets/index.html | grep -q 'setInterval(pollInbox,350)'
           sha256sum "$APK" | tee /tmp/family630.sha256
           ls -lh "$APK"
 
