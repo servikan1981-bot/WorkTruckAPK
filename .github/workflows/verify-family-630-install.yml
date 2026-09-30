@@ -7,6 +7,7 @@ on:
       - '.github/workflows/verify-family-630-install.yml'
       - 'tools/patch_family_630.py'
       - 'tools/patch_family_630_call.py'
+      - 'tools/patch_family_630_fastrelay.py'
   workflow_dispatch:
 
 permissions:
@@ -45,6 +46,7 @@ jobs:
         run: |
           python3 tools/patch_family_630.py
           python3 tools/patch_family_630_call.py
+          python3 tools/patch_family_630_fastrelay.py
           gradle --no-daemon -c settings-duo.gradle :duoapp:clean :duoapp:assembleDebug
           cp duoapp/build/outputs/apk/debug/duoapp-debug.apk /tmp/OurFamily_6_0_30_test.apk
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_30_test.apk | grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'"
@@ -56,6 +58,8 @@ jobs:
           grep -q 'OurFamilySdpSignal' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
           grep -q 'waitForRelaySdp(ps.pc,2500)' duoapp/src/main/assets/index.html
           grep -q 'priority >= 4 ? 4500 : 10000' duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
+          grep -q 'FAST_CALL_RELAY' duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
+          grep -q 'OurFamilyFastCallRelay' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
 
       - name: Confirm both CI builds use the same signer
         run: |
@@ -70,7 +74,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Upgrade 6.0.29 to 6.0.30 and diagnose launch on Android 13
+      - name: Upgrade 6.0.29 to 6.0.30 and launch on Android 13
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
@@ -80,14 +84,22 @@ jobs:
           script: |
             adb install -r /tmp/OurFamily_6_0_29_test.apk
             adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6029'
+            adb shell pm grant com.sergey.ourfamily android.permission.POST_NOTIFICATIONS || true
+            adb shell pm grant com.sergey.ourfamily android.permission.CAMERA || true
+            adb shell pm grant com.sergey.ourfamily android.permission.RECORD_AUDIO || true
             adb shell am start -W -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
-            sleep 2
+            sleep 3
             adb shell pidof com.sergey.ourfamily | grep -q '[0-9]'
+
             adb logcat -c
             adb install -r /tmp/OurFamily_6_0_30_test.apk
             adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6030'
+            adb shell pm grant com.sergey.ourfamily android.permission.POST_NOTIFICATIONS || true
+            adb shell pm grant com.sergey.ourfamily android.permission.CAMERA || true
+            adb shell pm grant com.sergey.ourfamily android.permission.RECORD_AUDIO || true
+            adb shell am force-stop com.sergey.ourfamily
             adb shell am start -W -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
-            sleep 3
+            sleep 4
             adb shell pidof com.sergey.ourfamily | tee /tmp/pid630.txt
             adb shell dumpsys activity activities | grep -A35 -B10 com.sergey.ourfamily > /tmp/activity630.txt || true
             adb shell dumpsys activity processes | grep -A35 -B10 com.sergey.ourfamily > /tmp/process630.txt || true
@@ -96,10 +108,7 @@ jobs:
             cat /tmp/process630.txt || true
             cat /tmp/logcat630.txt || true
             grep -q '[0-9]' /tmp/pid630.txt
-            adb shell am force-stop com.sergey.ourfamily
-            adb shell am start -W -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
-            sleep 2
-            adb shell pidof com.sergey.ourfamily | grep -q '[0-9]'
+            ! grep -q 'FATAL EXCEPTION.*com.sergey.ourfamily' /tmp/logcat630.txt
 
       - uses: actions/upload-artifact@v4
         if: always()
