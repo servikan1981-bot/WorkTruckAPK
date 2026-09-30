@@ -1,0 +1,48 @@
+name: Export current stable 6.0.30 APK
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths:
+      - '.github/workflows/export-stable-630-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'build-tools;35.0.0'
+      - name: Reconstruct and verify published stable APK
+        run: |
+          set -euo pipefail
+          git fetch origin family-stable-6
+          rm -rf /tmp/stable630 && mkdir -p /tmp/stable630
+          git show origin/family-stable-6:updates/latest.json >/tmp/stable630/latest.json
+          python3 - <<'PY'
+          import base64, hashlib, json, pathlib, subprocess
+          meta=json.loads(pathlib.Path('/tmp/stable630/latest.json').read_text())
+          assert meta['versionCode']==6030 and meta['versionName']=='6.0.30'
+          chunks=[]
+          for url in meta['apkBase64Parts']:
+              name=url.rsplit('/',1)[-1]
+              data=subprocess.check_output(['git','show',f'origin/family-stable-6:updates/parts/{name}'], text=True)
+              chunks.append(data.strip())
+          apk=base64.b64decode(''.join(chunks), validate=True)
+          sha=hashlib.sha256(apk).hexdigest()
+          assert sha==meta['sha256'], (sha,meta['sha256'])
+          pathlib.Path('/tmp/stable630/OurFamily_6_0_30_Stable.apk').write_bytes(apk)
+          print('STABLE630_SHA256='+sha)
+          PY
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/stable630/OurFamily_6_0_30_Stable.apk | grep -q "versionCode='6030' versionName='6.0.30'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/stable630/OurFamily_6_0_30_Stable.apk | tee /tmp/stable630/cert.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/stable630/cert.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_30_Stable_export
+          path: /tmp/stable630/OurFamily_6_0_30_Stable.apk
+          if-no-files-found: error
