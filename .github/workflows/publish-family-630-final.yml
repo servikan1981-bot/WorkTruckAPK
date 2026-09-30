@@ -20,47 +20,115 @@ jobs:
           ref: family-stable-6
           fetch-depth: 1
 
-      - uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools build-tools;35.0.0'
-
-      - name: Reconstruct staged 6.0.30 and verify exact SHA
+      - name: Recover exact staged signed 6.0.30 and normalize update chunks
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import json, base64, hashlib, re, zipfile
 
-          manifest = json.loads(Path('updates/candidates/630.json').read_text(encoding='utf-8'))
+          mp = Path('updates/candidates/630.json')
+          manifest = json.loads(mp.read_text(encoding='utf-8'))
           assert manifest['versionCode'] == 6030
           assert manifest['versionName'] == '6.0.30'
           expected = manifest['sha256'].lower()
-          urls = manifest['apkBase64Parts']
-          assert len(urls) == 9, f'expected 9 published chunks, got {len(urls)}'
 
-          chunks = []
-          for url in urls:
-              name = url.rsplit('/', 1)[-1]
-              p = Path('updates/parts') / name
-              assert p.is_file(), f'missing {p}'
-              chunks.append(re.sub(r'\s+', '', p.read_text(encoding='ascii')))
+          part_paths = [Path(f'updates/parts/v630_{i:02d}.b64') for i in range(10)]
+          assert all(p.is_file() for p in part_paths), 'not all staged v630 chunks exist'
+          parts = [re.sub(r'\s+', '', p.read_text(encoding='ascii')) for p in part_paths]
+          print('normalized chunk lengths:', [len(x) for x in parts])
+          print('first 9 total:', sum(map(len, parts[:9])), 'mod4=', sum(map(len, parts[:9])) % 4)
+          print('all 10 total:', sum(map(len, parts)), 'mod4=', sum(map(len, parts)) % 4)
 
-          joined = ''.join(chunks)
-          apk = base64.b64decode(joined, validate=True)
-          got = hashlib.sha256(apk).hexdigest()
-          print('base64 chars:', len(joined))
-          print('apk bytes:', len(apk))
-          print('sha256:', got)
-          assert got == expected, f'SHA mismatch: {got} != {expected}'
-          assert apk[:4] == b'PK\x03\x04', 'not an APK/ZIP'
+          def decode_join(xs):
+              s=''.join(xs)
+              if len(s) % 4 == 1:
+                  return None
+              try:
+                  return base64.b64decode(s + '=' * ((-len(s)) % 4), validate=True)
+              except Exception:
+                  return None
 
-          out = Path('/tmp/OurFamily_6_0_30_Stable.apk')
+          def decode_each(xs):
+              out=bytearray()
+              try:
+                  for s in xs:
+                      if len(s) % 4 == 1:
+                          return None
+                      out += base64.b64decode(s + '=' * ((-len(s)) % 4), validate=True)
+                  return bytes(out)
+              except Exception:
+                  return None
+
+          def is_expected(apk, label):
+              if not apk:
+                  return False
+              got=hashlib.sha256(apk).hexdigest()
+              if got == expected:
+                  print('RECOVERED:', label, 'bytes=', len(apk), 'sha256=', got)
+                  return True
+              return False
+
+          apk = None
+          for label, candidate in [
+              ('joined-first-9', decode_join(parts[:9])),
+              ('joined-all-10', decode_join(parts)),
+              ('decoded-each-first-9', decode_each(parts[:9])),
+              ('decoded-each-all-10', decode_each(parts)),
+          ]:
+              if is_expected(candidate, label):
+                  apk=candidate
+                  break
+
+          # The staged files came from a text split and one chunk had a one-character
+          # corruption in earlier publication attempts. Recover only if the result
+          # matches the already-recorded SHA-256 exactly.
+          if apk is None:
+              scopes=[('first-9', 9), ('all-10', 10)]
+              order=[4,9,8,7,6,5,3,2,1,0]
+              for scope_name, count in scopes:
+                  if apk is not None: break
+                  for idx in order:
+                      if idx >= count: continue
+                      original=parts[idx]
+                      for pos in range(len(original)):
+                          trial=parts[:count].copy()
+                          trial[idx]=original[:pos]+original[pos+1:]
+                          candidate=decode_join(trial)
+                          if is_expected(candidate, f'{scope_name}: delete char {pos} from part {idx:02d}'):
+                              apk=candidate
+                              break
+                      if apk is not None: break
+
+          assert apk is not None, 'Could not recover staged 6.0.30 matching recorded SHA-256'
+          assert apk[:4] == b'PK\x03\x04', 'recovered payload is not APK/ZIP'
+          out=Path('/tmp/OurFamily_6_0_30_Stable.apk')
           out.write_bytes(apk)
           with zipfile.ZipFile(out) as z:
-              bad = z.testzip()
-              assert bad is None, f'broken zip entry: {bad}'
+              bad=z.testzip()
+              assert bad is None, f'broken ZIP entry: {bad}'
+
+          # Re-publish clean chunks: one Base64 stream split only on 4-char boundaries.
+          b64=base64.b64encode(apk).decode('ascii')
+          clean_chunks=[b64[i:i+16000] for i in range(0, len(b64), 16000)]
+          assert all(len(c) % 4 == 0 for c in clean_chunks[:-1])
+          for p in Path('updates/parts').glob('v630_*.b64'):
+              p.unlink()
+          urls=[]
+          base='https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'
+          for i,c in enumerate(clean_chunks):
+              name=f'v630_{i:02d}.b64'
+              Path('updates/parts',name).write_text(c,encoding='ascii')
+              urls.append(base+name)
+          manifest['apkBase64Parts']=urls
+          mp.write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('clean chunks:', len(clean_chunks), [len(x) for x in clean_chunks])
           PY
 
-      - name: Verify package, version and signing certificate
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+
+      - name: Verify package, version and signing certificate against 6.0.29
         run: |
           set -euo pipefail
           BT="$ANDROID_HOME/build-tools/35.0.0"
@@ -81,21 +149,22 @@ jobs:
           test -n "$NEW_CERT"
           test "$NEW_CERT" = "$OLD_CERT"
 
-      - name: Verify updater reconstruction exactly as the app does
+      - name: Verify clean chunks exactly as Android updater reconstructs them
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import json, base64, hashlib, re
+          import json, base64, hashlib
           m=json.loads(Path('updates/candidates/630.json').read_text(encoding='utf-8'))
           s=''
           for u in m['apkBase64Parts']:
               p=Path('updates/parts')/u.rsplit('/',1)[-1]
+              assert p.is_file()
               s += p.read_text(encoding='ascii')
           clean=s.replace('\r','').replace('\n','').strip()
           apk=base64.b64decode(clean)
           assert hashlib.sha256(apk).hexdigest()==m['sha256'].lower()
           assert apk==Path('/tmp/OurFamily_6_0_30_Stable.apk').read_bytes()
-          print('updater reconstruction: OK')
+          print('Android updater reconstruction: OK')
           PY
 
       - name: Publish 6.0.30 atomically
@@ -105,13 +174,9 @@ jobs:
           cp updates/candidates/630.json updates/latest.json
           git config user.name 'ourfamily-release-bot'
           git config user.email 'ourfamily-release-bot@users.noreply.github.com'
-          git add updates/downloads/OurFamily_6_0_30_Stable.apk updates/latest.json
-          if git diff --cached --quiet; then
-            echo '6.0.30 already published'
-          else
-            git commit -m 'Release OurFamily 6.0.30 stable'
-            git push origin HEAD:family-stable-6
-          fi
+          git add -A updates/parts/v630_*.b64 updates/candidates/630.json updates/downloads/OurFamily_6_0_30_Stable.apk updates/latest.json
+          git commit -m 'Release OurFamily 6.0.30 stable'
+          git push origin HEAD:family-stable-6
 
       - name: Final release manifest check
         run: |
