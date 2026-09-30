@@ -61,8 +61,19 @@ jobs:
               else:
                   raise RuntimeError(f'Unknown delta op: {op[0]}')
           target = bytes(out)
-          assert len(target) == int(delta['target_size'])
-          assert hashlib.sha256(target).hexdigest() == delta['target_sha256']
+          target_size = int(delta['target_size'])
+          target_sha = delta['target_sha256']
+
+          # The repository delta lost a zero-padding run inside the APK Signing Block.
+          # Recover that deterministic padding and require the original target hash.
+          if len(target) != target_size:
+              need = target_size - len(target)
+              magic = target.rfind(b'APK Sig Block 42')
+              assert need > 0 and magic >= 8
+              target = target[:magic-8] + (b'\0' * need) + target[magic-8:]
+
+          assert len(target) == target_size
+          assert hashlib.sha256(target).hexdigest() == target_sha
           assert hashlib.sha256(target).hexdigest() == '55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020'
           Path('/tmp/OurFamily_6_0_30_Stable.apk').write_bytes(target)
           print('Recovered production APK:', len(target), hashlib.sha256(target).hexdigest())
