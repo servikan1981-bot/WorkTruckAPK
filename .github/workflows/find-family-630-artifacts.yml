@@ -1,0 +1,29 @@
+name: Find all OurFamily 6.0.30 artifacts
+
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths:
+      - '.github/workflows/find-family-630-artifacts.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  find:
+    runs-on: ubuntu-latest
+    steps:
+      - name: List matching artifacts and runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          echo '=== ARTIFACTS MATCHING 630/SIGNED/STABLE ==='
+          for page in 1 2 3 4 5; do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100&page=${page}" --jq '.artifacts[] | [.id,.name,.size_in_bytes,.expired,.created_at,.workflow_run.id,.workflow_run.head_branch,.workflow_run.head_sha] | @tsv' || true
+          done | grep -Ei '630|6_0_30|signed|production' || true
+          echo '=== RUNS MATCHING 630/SIGN/PRODUCTION ==='
+          for page in 1 2 3; do
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100&page=${page}" --jq '.workflow_runs[] | [.id,.name,.display_title,.head_branch,.head_sha,.status,.conclusion,.created_at] | @tsv' || true
+          done | grep -Ei '630|6\.0\.30|sign|production' || true
