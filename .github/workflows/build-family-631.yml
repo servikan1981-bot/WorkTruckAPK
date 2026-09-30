@@ -76,23 +76,21 @@ jobs:
           node tools/test_durak.cjs
 
       - name: Probe both live relays and game event flow
-        shell: bash
         run: |
           set -euo pipefail
           HOME_RELAY='https://family.familysergey.netcraze.pro'
           FAST_RELAY='https://our-family-relay.family-860c7981b2d4.workers.dev'
           TOPIC="of631probe$(date +%s%N | sha256sum | cut -c1-40)"
-          MSG="of5|probeA|probeB|durak_move|631-test|g0|0|1|ciphertext"
+          MSG='of5|probeA|probeB|durak_move|631-test|g0|0|1|ciphertext'
+          BODY=$(printf '{"topic":"%s","message":"%s","priority":5}' "$TOPIC" "$MSG")
           for R in "$HOME_RELAY" "$FAST_RELAY"; do
             echo "Testing $R"
             curl --fail --silent --show-error --connect-timeout 5 --max-time 8 "$R/health" >/dev/null
             START=$(date +%s%3N)
-            curl --fail --silent --show-error --connect-timeout 5 --max-time 8 \
-              -X POST -H 'Content-Type: text/plain' --data "$MSG" "$R/$TOPIC" >/tmp/post.txt
+            curl --fail --silent --show-error --connect-timeout 5 --max-time 8 -X POST -H 'Content-Type: application/json' --data "$BODY" "$R/" >/tmp/post.txt
             END=$(date +%s%3N)
             echo "POST_MS=$((END-START))"
-            curl --fail --silent --show-error --connect-timeout 5 --max-time 8 \
-              "$R/$TOPIC/json?since=2m&after=0&wait=1" | grep -q 'durak_move'
+            curl --fail --silent --show-error --connect-timeout 5 --max-time 8 "$R/$TOPIC/json?since=2m&after=0&wait=1" | grep -q 'durak_move'
           done
 
       - name: Build 6.0.31 release candidate
