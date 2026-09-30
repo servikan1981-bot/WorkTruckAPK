@@ -1,0 +1,156 @@
+name: Finalize OurFamily 6.0.30 stable
+
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths: ['.github/workflows/finalize-family-630-stable.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+      - name: Reconstruct and verify published APK from git
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin family-stable-6
+          git show origin/family-stable-6:updates/downloads/OurFamily_6_0_30_Stable.apk > /tmp/v630.apk
+          test "$(stat -c%s /tmp/v630.apk)" = "115523"
+          test "$(sha256sum /tmp/v630.apk | awk '{print $1}')" = "55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/v630.apk | grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/v630.apk | tee /tmp/cert630.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/cert630.txt
+      - name: Create cache-safe update parts
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/final630 && mkdir -p /tmp/final630/parts
+          python3 - <<'PY'
+          import base64,hashlib,json
+          from pathlib import Path
+          apk=Path('/tmp/v630.apk').read_bytes()
+          sha=hashlib.sha256(apk).hexdigest()
+          assert len(apk)==115523
+          assert sha=='55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020'
+          b64=base64.b64encode(apk).decode('ascii')
+          assert len(b64)==154032
+          parts=[b64[i:i+16000] for i in range(0,len(b64),16000)]
+          assert [len(x) for x in parts]==[16000]*9+[10032]
+          urls=[]
+          for i,p in enumerate(parts):
+              name=f'v630_final_{i:02d}.b64'
+              Path('/tmp/final630/parts/'+name).write_text(p)
+              urls.append('https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'+name)
+          rebuilt=base64.b64decode(''.join(parts),validate=True)
+          assert rebuilt==apk
+          meta={
+            'versionCode':6030,
+            'versionName':'6.0.30',
+            'apkBase64Parts':urls,
+            'sha256':sha,
+            'notes':'Игры: ускорена передача хода, игровые события отправляются последовательно; добавлены отдельные заметные уведомления о приглашениях и ходах, в том числе когда приложение свернуто.'
+          }
+          Path('/tmp/final630/latest.json').write_text(json.dumps(meta,ensure_ascii=False,indent=2)+'\n')
+          PY
+      - name: Publish cache-safe stream to stable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/stable-final630
+          git worktree add --detach /tmp/stable-final630 origin/family-stable-6
+          mkdir -p /tmp/stable-final630/updates/parts /tmp/stable-final630/updates/candidates
+          cp /tmp/final630/parts/v630_final_*.b64 /tmp/stable-final630/updates/parts/
+          cp /tmp/final630/latest.json /tmp/stable-final630/updates/latest.json
+          cp /tmp/final630/latest.json /tmp/stable-final630/updates/candidates/630.json
+          git -C /tmp/stable-final630 config user.name 'OurFamily Release Bot'
+          git -C /tmp/stable-final630 config user.email 'servikan1981-bot@users.noreply.github.com'
+          git -C /tmp/stable-final630 add updates/parts/v630_final_*.b64 updates/latest.json updates/candidates/630.json
+          git -C /tmp/stable-final630 commit -m 'Finalize OurFamily 6.0.30 cache-safe update stream'
+          git -C /tmp/stable-final630 push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:family-stable-6
+      - name: Verify cache-safe files from raw GitHub
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 4
+          curl --retry 6 --retry-delay 2 -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/family-stable-6/updates/latest.json" -o /tmp/live-latest.json
+          python3 - <<'PY'
+          import json
+          m=json.load(open('/tmp/live-latest.json'))
+          assert m['versionCode']==6030 and m['versionName']=='6.0.30'
+          assert m['sha256']=='55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020'
+          assert len(m['apkBase64Parts'])==10
+          assert all('v630_final_' in u for u in m['apkBase64Parts'])
+          PY
+          : > /tmp/live630.b64
+          for i in 00 01 02 03 04 05 06 07 08 09; do
+            curl --retry 6 --retry-delay 2 -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/family-stable-6/updates/parts/v630_final_${i}.b64" >> /tmp/live630.b64
+          done
+          python3 - <<'PY'
+          import base64,hashlib
+          from pathlib import Path
+          s=Path('/tmp/live630.b64').read_text().replace('\r','').replace('\n','')
+          assert len(s)==154032
+          b=base64.b64decode(s,validate=True)
+          assert len(b)==115523
+          assert hashlib.sha256(b).hexdigest()=='55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020'
+          Path('/tmp/live630.apk').write_bytes(b)
+          PY
+          cmp /tmp/live630.apk /tmp/v630.apk
+          echo 'LIVE_STREAM_OK'
+
+  upgrade_android13:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+      - name: Prepare stable 6.0.29 and 6.0.30
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin family-stable-6
+          git show origin/family-stable-6:updates/downloads/OurFamily_6_0_29_Stable.apk > /tmp/v629.apk
+          test "$(sha256sum /tmp/v629.apk | awk '{print $1}')" = "170f1f37842f824e996b2ba69d50b4dae416cc4fc061ed8a1557c514cdac417d"
+          : > /tmp/v630.b64
+          for i in 00 01 02 03 04 05 06 07 08 09; do git show origin/family-stable-6:updates/parts/v630_final_${i}.b64 >> /tmp/v630.b64; done
+          tr -d '\r\n' < /tmp/v630.b64 | base64 -d > /tmp/v630.apk
+          test "$(sha256sum /tmp/v630.apk | awk '{print $1}')" = "55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose /tmp/v630.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Upgrade 6.0.29 to 6.0.30 and launch on Android 13
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            adb install -r /tmp/v629.apk
+            adb install -r /tmp/v630.apk
+            adb shell dumpsys package com.sergey.ourfamily | grep -m1 'versionCode=6030'
+            adb shell monkey -p com.sergey.ourfamily 1
+            sleep 4
+            adb shell pidof com.sergey.ourfamily
+            echo 'ANDROID13_UPGRADE_OK'
