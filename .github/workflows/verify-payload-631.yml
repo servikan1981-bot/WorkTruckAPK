@@ -17,33 +17,43 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
-      - name: Reconstruct pre-publication 6.0.31 payload and verify
+      - name: Diagnose pre-publication 6.0.31 payload
         shell: bash
         run: |
-          set -euo pipefail
-          BASE=d938e1161415079f4fac62ed0a6f524e76fb9415
-          git show "$BASE:updates/parts/v631_00.b64" > /tmp/p00
-          cat /tmp/p00 updates/parts/v631_01.b64 updates/parts/v631_02.b64 updates/parts/v631_03.b64 updates/parts/v631_04.b64 updates/parts/v631_05.b64 updates/parts/v631_06.b64 updates/parts/v631_07.b64 updates/parts/v631_08.b64 updates/parts/v631_09.b64 > /tmp/v631.b64
-          base64 -d /tmp/v631.b64 > /tmp/OurFamily_6_0_31_existing.apk
-          SHA=$(sha256sum /tmp/OurFamily_6_0_31_existing.apk | awk '{print $1}')
-          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          SIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          BADGING=$($AAPT dump badging /tmp/OurFamily_6_0_31_existing.apk | head -n 3 | tr '\n' ' ')
-          VERIFY=$($SIGNER verify --verbose --print-certs /tmp/OurFamily_6_0_31_existing.apk 2>&1)
-          CERT=$(printf '%s\n' "$VERIFY" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)
-          V2=$(printf '%s\n' "$VERIFY" | grep -F 'Verified using v2 scheme (APK Signature Scheme v2): true' >/dev/null && echo true || echo false)
-          V3=$(printf '%s\n' "$VERIFY" | grep -F 'Verified using v3 scheme (APK Signature Scheme v3): true' >/dev/null && echo true || echo false)
-          python3 - "$SHA" "$CERT" "$V2" "$V3" "$BADGING" <<'PY'
-          import json,sys
-          sha,cert,v2,v3,badging=sys.argv[1:]
-          data={'sha256':sha,'signerCertSha256':cert,'v2':v2=='true','v3':v3=='true','badging':badging}
-          open('updates/verify631.json','w',encoding='utf-8').write(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          set -u
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib, json, subprocess, zipfile, traceback
+          base='d938e1161415079f4fac62ed0a6f524e76fb9415'
+          out={'baseCommit':base}
+          try:
+              p0=subprocess.check_output(['git','show',f'{base}:updates/parts/v631_00.b64']).decode('ascii')
+              parts=[p0]
+              for i in range(1,10):
+                  parts.append(Path(f'updates/parts/v631_{i:02d}.b64').read_text(encoding='ascii'))
+              joined=''.join(''.join(p.split()) for p in parts)
+              out['base64Chars']=len(joined)
+              apk=base64.b64decode(joined,validate=True)
+              Path('/tmp/existing631.apk').write_bytes(apk)
+              out['apkBytes']=len(apk)
+              out['sha256']=hashlib.sha256(apk).hexdigest()
+              try:
+                  with zipfile.ZipFile('/tmp/existing631.apk') as z:
+                      out['zipOk']=z.testzip() is None
+                      out['entries']=len(z.namelist())
+                      out['hasManifest']='AndroidManifest.xml' in z.namelist()
+                      out['hasIndex']='assets/index.html' in z.namelist()
+              except Exception as e:
+                  out['zipOk']=False
+                  out['zipError']=repr(e)
+          except Exception as e:
+              out['fatal']=repr(e)
+              out['trace']=traceback.format_exc()[-2000:]
+          Path('updates/verify631.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
           PY
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add updates/verify631.json
-          git commit -m 'Verify existing 6.0.31 payload' || exit 0
+          git commit -m 'Diagnose existing 6.0.31 payload' || exit 0
           git push
