@@ -1,0 +1,202 @@
+name: Release OurFamily 6.0.30 final
+
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths:
+      - '.github/workflows/release-family-630-final.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Recover exact production-signed 6.0.30
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/base630
+          curl --retry 4 --retry-delay 2 -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/11077063654/zip" \
+            -o /tmp/base630.zip
+          unzip -q /tmp/base630.zip -d /tmp/base630
+          BASE=$(find /tmp/base630 -type f -name '*.apk' | head -1)
+          test -n "$BASE"
+          BASE_SHA=$(sha256sum "$BASE" | awk '{print $1}')
+          test "$BASE_SHA" = "50a0f642a4afe2a02da37ff3690a676056e61fbeba2b84c905171b7ec9f16755"
+          cp "$BASE" /tmp/OurFamily_6_0_30_GameFix_unsigned.apk
+
+          python3 - <<'PY'
+          import base64, hashlib, json
+          from pathlib import Path
+
+          base = Path('/tmp/OurFamily_6_0_30_GameFix_unsigned.apk').read_bytes()
+          delta = json.loads(Path('updates/candidates/sign630.delta.json').read_text())
+          assert delta['format'] == 'ourfamily-binary-delta-v1'
+          assert hashlib.sha256(base).hexdigest() == delta['base_sha256']
+          out = bytearray()
+          for op in delta['ops']:
+              if op[0] == 'c':
+                  start, length = int(op[1]), int(op[2])
+                  out.extend(base[start:start+length])
+              elif op[0] == 'd':
+                  out.extend(base64.b64decode(op[1]))
+              else:
+                  raise RuntimeError(f'Unknown delta op: {op[0]}')
+          target = bytes(out)
+          assert len(target) == int(delta['target_size'])
+          assert hashlib.sha256(target).hexdigest() == delta['target_sha256']
+          assert hashlib.sha256(target).hexdigest() == '55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020'
+          Path('/tmp/OurFamily_6_0_30_Stable.apk').write_bytes(target)
+          print('Recovered production APK:', len(target), hashlib.sha256(target).hexdigest())
+          PY
+
+      - name: Verify package, game fix and production signer
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          SIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          APK=/tmp/OurFamily_6_0_30_Stable.apk
+          unzip -t "$APK" >/dev/null
+          "$AAPT" dump badging "$APK" | grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'"
+          "$SIGNER" verify --verbose --print-certs "$APK" | tee /tmp/cert630.txt
+          CERT630=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert630.txt | awk '{print $NF}' | tr '[:upper:]' '[:lower:]')
+          EXPECTED='237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83'
+          test "$CERT630" = "$EXPECTED"
+
+          curl --retry 4 --retry-delay 2 -fsSL \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/family-stable-6/updates/downloads/OurFamily_6_0_29_Stable.apk?run=${GITHUB_RUN_ID}" \
+            -o /tmp/OurFamily_6_0_29_Stable.apk
+          test "$(sha256sum /tmp/OurFamily_6_0_29_Stable.apk | awk '{print $1}')" = \
+            "170f1f37842f824e996b2ba69d50b4dae416cc4fc061ed8a1557c514cdac417d"
+          "$SIGNER" verify --verbose --print-certs /tmp/OurFamily_6_0_29_Stable.apk | tee /tmp/cert629.txt
+          CERT629=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert629.txt | awk '{print $NF}' | tr '[:upper:]' '[:lower:]')
+          test "$CERT629" = "$EXPECTED"
+          test "$CERT629" = "$CERT630"
+
+          unzip -p "$APK" assets/index.html | grep -q '6.0.30'
+          unzip -p "$APK" assets/index.html | grep -q 'setInterval(pollInbox,350)'
+          unzip -p "$APK" assets/index.html | grep -q 'Дурак'
+          unzip -p "$APK" assets/index.html | grep -q 'Шашки'
+          echo "Package, signer and game-polling fix verified."
+
+      - name: Build update stream and metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/release630
+          mkdir -p /tmp/release630/parts /tmp/release630/downloads /tmp/release630/candidates
+          cp /tmp/OurFamily_6_0_30_Stable.apk /tmp/release630/downloads/OurFamily_6_0_30_Stable.apk
+          python3 - <<'PY'
+          import base64, hashlib, json
+          from pathlib import Path
+
+          apk = Path('/tmp/OurFamily_6_0_30_Stable.apk').read_bytes()
+          expected = '55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020'
+          assert hashlib.sha256(apk).hexdigest() == expected
+          b64 = base64.b64encode(apk).decode('ascii')
+          assert len(b64) == 154032
+          parts = [b64[i:i+16000] for i in range(0, len(b64), 16000)]
+          assert len(parts) == 10
+          assert all(len(x) == 16000 for x in parts[:9])
+          assert len(parts[9]) == 10032
+          out = Path('/tmp/release630/parts')
+          urls=[]
+          for i, part in enumerate(parts):
+              name=f'v630_{i:02d}.b64'
+              (out/name).write_text(part)
+              urls.append(f'https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/{name}')
+          rebuilt = base64.b64decode(''.join((out/f'v630_{i:02d}.b64').read_text().strip() for i in range(10)))
+          assert rebuilt == apk
+          meta = {
+              'versionCode': 6030,
+              'versionName': '6.0.30',
+              'apkBase64Parts': urls,
+              'sha256': expected,
+              'notes': 'Игры: ускорена передача хода, игровые события отправляются последовательно; добавлены отдельные заметные уведомления о приглашениях и ходах, в том числе когда приложение свернуто.'
+          }
+          text=json.dumps(meta, ensure_ascii=False, indent=2)+'\n'
+          Path('/tmp/release630/latest.json').write_text(text)
+          Path('/tmp/release630/candidates/630.json').write_text(text)
+          print('parts:', [len(x) for x in parts])
+          PY
+
+      - name: Publish 6.0.30 atomically to stable branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin family-stable-6
+          rm -rf /tmp/stable630
+          git worktree add --detach /tmp/stable630 origin/family-stable-6
+          mkdir -p /tmp/stable630/updates/parts /tmp/stable630/updates/downloads /tmp/stable630/updates/candidates
+          rm -f /tmp/stable630/updates/parts/v630_*.b64
+          cp /tmp/release630/parts/v630_*.b64 /tmp/stable630/updates/parts/
+          cp /tmp/release630/downloads/OurFamily_6_0_30_Stable.apk /tmp/stable630/updates/downloads/
+          cp /tmp/release630/candidates/630.json /tmp/stable630/updates/candidates/630.json
+          cp /tmp/release630/latest.json /tmp/stable630/updates/latest.json
+          git -C /tmp/stable630 config user.name 'OurFamily Release Bot'
+          git -C /tmp/stable630 config user.email 'servikan1981-bot@users.noreply.github.com'
+          git -C /tmp/stable630 add -A updates/parts/v630_*.b64 updates/downloads/OurFamily_6_0_30_Stable.apk updates/candidates/630.json updates/latest.json
+          git -C /tmp/stable630 diff --cached --stat
+          git -C /tmp/stable630 commit -m 'Release OurFamily 6.0.30 stable'
+          git -C /tmp/stable630 push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:family-stable-6
+
+      - name: Verify files as served from stable branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 3
+          TS="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          curl --retry 5 --retry-delay 2 -fsSL \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/family-stable-6/updates/latest.json?ts=${TS}" \
+            -o /tmp/latest630.json
+          python3 - <<'PY'
+          import json
+          m=json.load(open('/tmp/latest630.json'))
+          assert m['versionCode'] == 6030
+          assert m['versionName'] == '6.0.30'
+          assert m['sha256'] == '55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020'
+          assert len(m['apkBase64Parts']) == 10
+          PY
+          : > /tmp/served630.b64
+          for n in $(seq 0 9); do
+            p=$(printf '%02d' "$n")
+            curl --retry 5 --retry-delay 2 -fsSL \
+              "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/family-stable-6/updates/parts/v630_${p}.b64?ts=${TS}" \
+              >> /tmp/served630.b64
+          done
+          tr -d '\r\n' < /tmp/served630.b64 | base64 -d > /tmp/served630.apk
+          test "$(sha256sum /tmp/served630.apk | awk '{print $1}')" = \
+            "55f51580f2f8c368a8351aac719dc8d08a36e8088284bbde761aa195e5dfa020"
+          cmp /tmp/served630.apk /tmp/OurFamily_6_0_30_Stable.apk
+          curl --retry 5 --retry-delay 2 -fsSL \
+            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/family-stable-6/updates/downloads/OurFamily_6_0_30_Stable.apk?ts=${TS}" \
+            -o /tmp/direct630.apk
+          cmp /tmp/direct630.apk /tmp/OurFamily_6_0_30_Stable.apk
+          echo 'Stable release 6.0.30 is published and reconstructs byte-for-byte.'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_30_Stable
+          path: /tmp/OurFamily_6_0_30_Stable.apk
+          if-no-files-found: error
