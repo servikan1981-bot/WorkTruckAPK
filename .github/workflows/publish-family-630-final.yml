@@ -1,0 +1,125 @@
+name: Publish OurFamily 6.0.30 final
+
+on:
+  push:
+    branches: [family-stable-6]
+    paths:
+      - '.github/workflows/publish-family-630-final.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: family-stable-6
+          fetch-depth: 1
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+
+      - name: Reconstruct staged 6.0.30 and verify exact SHA
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, base64, hashlib, re, zipfile
+
+          manifest = json.loads(Path('updates/candidates/630.json').read_text(encoding='utf-8'))
+          assert manifest['versionCode'] == 6030
+          assert manifest['versionName'] == '6.0.30'
+          expected = manifest['sha256'].lower()
+          urls = manifest['apkBase64Parts']
+          assert len(urls) == 9, f'expected 9 published chunks, got {len(urls)}'
+
+          chunks = []
+          for url in urls:
+              name = url.rsplit('/', 1)[-1]
+              p = Path('updates/parts') / name
+              assert p.is_file(), f'missing {p}'
+              chunks.append(re.sub(r'\s+', '', p.read_text(encoding='ascii')))
+
+          joined = ''.join(chunks)
+          apk = base64.b64decode(joined, validate=True)
+          got = hashlib.sha256(apk).hexdigest()
+          print('base64 chars:', len(joined))
+          print('apk bytes:', len(apk))
+          print('sha256:', got)
+          assert got == expected, f'SHA mismatch: {got} != {expected}'
+          assert apk[:4] == b'PK\x03\x04', 'not an APK/ZIP'
+
+          out = Path('/tmp/OurFamily_6_0_30_Stable.apk')
+          out.write_bytes(apk)
+          with zipfile.ZipFile(out) as z:
+              bad = z.testzip()
+              assert bad is None, f'broken zip entry: {bad}'
+          PY
+
+      - name: Verify package, version and signing certificate
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          NEW=/tmp/OurFamily_6_0_30_Stable.apk
+          OLD=updates/downloads/OurFamily_6_0_29_Stable.apk
+          test -s "$NEW"
+          test -s "$OLD"
+          "$BT/aapt" dump badging "$NEW" | tee /tmp/badging.txt
+          grep -q "package: name='com.sergey.ourfamily'" /tmp/badging.txt
+          grep -q "versionCode='6030'" /tmp/badging.txt
+          grep -q "versionName='6.0.30'" /tmp/badging.txt
+          "$BT/apksigner" verify --verbose --print-certs "$NEW" | tee /tmp/new-sign.txt
+          "$BT/apksigner" verify --verbose --print-certs "$OLD" | tee /tmp/old-sign.txt
+          NEW_CERT=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/new-sign.txt | sed 's/.*: //')
+          OLD_CERT=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/old-sign.txt | sed 's/.*: //')
+          echo "6.0.30 cert: $NEW_CERT"
+          echo "6.0.29 cert: $OLD_CERT"
+          test -n "$NEW_CERT"
+          test "$NEW_CERT" = "$OLD_CERT"
+
+      - name: Verify updater reconstruction exactly as the app does
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, base64, hashlib, re
+          m=json.loads(Path('updates/candidates/630.json').read_text(encoding='utf-8'))
+          s=''
+          for u in m['apkBase64Parts']:
+              p=Path('updates/parts')/u.rsplit('/',1)[-1]
+              s += p.read_text(encoding='ascii')
+          clean=s.replace('\r','').replace('\n','').strip()
+          apk=base64.b64decode(clean)
+          assert hashlib.sha256(apk).hexdigest()==m['sha256'].lower()
+          assert apk==Path('/tmp/OurFamily_6_0_30_Stable.apk').read_bytes()
+          print('updater reconstruction: OK')
+          PY
+
+      - name: Publish 6.0.30 atomically
+        run: |
+          set -euo pipefail
+          cp /tmp/OurFamily_6_0_30_Stable.apk updates/downloads/OurFamily_6_0_30_Stable.apk
+          cp updates/candidates/630.json updates/latest.json
+          git config user.name 'ourfamily-release-bot'
+          git config user.email 'ourfamily-release-bot@users.noreply.github.com'
+          git add updates/downloads/OurFamily_6_0_30_Stable.apk updates/latest.json
+          if git diff --cached --quiet; then
+            echo '6.0.30 already published'
+          else
+            git commit -m 'Release OurFamily 6.0.30 stable'
+            git push origin HEAD:family-stable-6
+          fi
+
+      - name: Final release manifest check
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('updates/latest.json').read_text(encoding='utf-8'))
+          assert m['versionCode']==6030 and m['versionName']=='6.0.30'
+          assert m['sha256']=='6663c18a9cc71f00f6eaf13e03981525587650f36a6f7c86bcdab9f4c379c735'
+          print('latest.json -> 6.0.30 OK')
+          PY
