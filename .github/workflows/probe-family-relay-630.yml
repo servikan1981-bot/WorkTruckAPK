@@ -1,0 +1,71 @@
+name: Probe OurFamily live relay latency
+
+on:
+  push:
+    branches: [ family-630-game-fix ]
+    paths:
+      - '.github/workflows/probe-family-relay-630.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Measure health, publish, batch and long-poll wake
+        shell: bash
+        env:
+          RELAY: https://family.familysergey.netcraze.pro
+        run: |
+          set -euo pipefail
+          echo '=== HEALTH x8 ==='
+          for i in $(seq 1 8); do
+            curl --connect-timeout 8 --max-time 15 -sS -o /tmp/health.json \
+              -w "health $i connect=%{time_connect}s tls=%{time_appconnect}s first=%{time_starttransfer}s total=%{time_total}s http=%{http_code}\n" \
+              "$RELAY/health"
+          done
+
+          TOPIC="probe630$(date +%s)$RANDOM"
+          echo "topic=$TOPIC"
+          echo '=== SINGLE POST x5 ==='
+          for i in $(seq 1 5); do
+            BODY=$(printf '{"topic":"%s","message":"of5|probe|target|direct_accept|-|g|0|1|signal-%s","priority":5}' "$TOPIC" "$i")
+            curl --connect-timeout 8 --max-time 15 -sS -o /tmp/post.json \
+              -H 'Content-Type: application/json' -d "$BODY" \
+              -w "single $i connect=%{time_connect}s tls=%{time_appconnect}s first=%{time_starttransfer}s total=%{time_total}s http=%{http_code}\n" \
+              "$RELAY/"
+          done
+
+          echo '=== REALISTIC SDP BATCH x5 (6 chunks x ~1750 bytes) ==='
+          python3 - <<'PY' > /tmp/batch.json
+          import json, os
+          topic=os.environ['TOPIC_ENV']
+          pad='A'*1680
+          messages=[f'of5|probe|target|direct_offer|call|grp|{i}|6|{pad}{i}' for i in range(6)]
+          print(json.dumps({'topic':topic,'messages':messages,'priority':5}))
+          PY
+          for i in $(seq 1 5); do
+            curl --connect-timeout 8 --max-time 20 -sS -o /tmp/batch-result.json \
+              -H 'Content-Type: application/json' --data-binary @/tmp/batch.json \
+              -w "batch $i connect=%{time_connect}s tls=%{time_appconnect}s first=%{time_starttransfer}s total=%{time_total}s http=%{http_code}\n" \
+              "$RELAY/"
+          done
+
+          echo '=== LONG POLL WAKE x5 ==='
+          for i in $(seq 1 5); do
+            T="${TOPIC}wake${i}"
+            (curl --connect-timeout 8 --max-time 8 -sS -o "/tmp/wake-$i.json" \
+              -w "wake $i connect=%{time_connect}s tls=%{time_appconnect}s first=%{time_starttransfer}s total=%{time_total}s http=%{http_code}\n" \
+              "$RELAY/$T/json?since=10m&after=0&wait=2" > "/tmp/wake-$i.time") &
+            PID=$!
+            sleep 0.35
+            BODY=$(printf '{"topic":"%s","message":"of5|probe|target|direct_offer|call|g|0|1|wake-%s","priority":5}' "$T" "$i")
+            curl --connect-timeout 8 --max-time 15 -sS -o /dev/null -H 'Content-Type: application/json' -d "$BODY" "$RELAY/"
+            wait "$PID"
+            cat "/tmp/wake-$i.time"
+          done
+        env:
+          TOPIC_ENV: probe630-static-batch
