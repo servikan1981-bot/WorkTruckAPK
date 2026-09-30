@@ -41,6 +41,8 @@ jobs:
           done
           tr -d '\r\n' < /tmp/v629.b64 | base64 -d > /tmp/OurFamily_6_0_29_Stable.apk
           tr -d '\r\n' < /tmp/v630.b64 | base64 -d > /tmp/OurFamily_6_0_30_Stable.apk
+          echo "SHA629=$(sha256sum /tmp/OurFamily_6_0_29_Stable.apk | awk '{print $1}')"
+          echo "SHA630=$(sha256sum /tmp/OurFamily_6_0_30_Stable.apk | awk '{print $1}')"
           test "$(sha256sum /tmp/OurFamily_6_0_29_Stable.apk | awk '{print $1}')" = \
             "170f1f37842f824e996b2ba69d50b4dae416cc4fc061ed8a1557c514cdac417d"
           test "$(sha256sum /tmp/OurFamily_6_0_30_Stable.apk | awk '{print $1}')" = \
@@ -55,15 +57,15 @@ jobs:
           set -euo pipefail
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
           SIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          "$AAPT" dump badging /tmp/OurFamily_6_0_29_Stable.apk | \
-            grep -q "package: name='com.sergey.ourfamily' versionCode='6029' versionName='6.0.29'"
-          "$AAPT" dump badging /tmp/OurFamily_6_0_30_Stable.apk | \
-            grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'"
+          "$AAPT" dump badging /tmp/OurFamily_6_0_29_Stable.apk | grep -q "package: name='com.sergey.ourfamily' versionCode='6029' versionName='6.0.29'"
+          "$AAPT" dump badging /tmp/OurFamily_6_0_30_Stable.apk | grep -q "package: name='com.sergey.ourfamily' versionCode='6030' versionName='6.0.30'"
           "$SIGNER" verify --verbose --print-certs /tmp/OurFamily_6_0_29_Stable.apk > /tmp/cert629.txt
           "$SIGNER" verify --verbose --print-certs /tmp/OurFamily_6_0_30_Stable.apk > /tmp/cert630.txt
           CERT629=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert629.txt | awk '{print $NF}' | tr '[:upper:]' '[:lower:]')
           CERT630=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert630.txt | awk '{print $NF}' | tr '[:upper:]' '[:lower:]')
           EXPECTED='237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83'
+          echo "CERT629=$CERT629"
+          echo "CERT630=$CERT630"
           test "$CERT629" = "$EXPECTED"
           test "$CERT630" = "$EXPECTED"
           test "$CERT629" = "$CERT630"
@@ -89,7 +91,6 @@ jobs:
             adb shell am start -W -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
             sleep 2
             adb shell pidof com.sergey.ourfamily | grep -q '[0-9]'
-
             adb logcat -c
             adb install -r /tmp/OurFamily_6_0_30_Stable.apk
             adb shell dumpsys package com.sergey.ourfamily | grep -m1 'versionCode=6030'
@@ -102,7 +103,6 @@ jobs:
               exit 1
             fi
             grep -q '[0-9]' /tmp/pid630-production.txt
-
             adb shell am force-stop com.sergey.ourfamily
             adb shell am start -W -n com.sergey.ourfamily/com.sergey.duochat.MainActivity
             sleep 2
