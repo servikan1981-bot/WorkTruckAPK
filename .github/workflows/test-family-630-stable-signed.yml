@@ -23,13 +23,39 @@ jobs:
       - name: Reconstruct real stable APKs and verify signers
         run: |
           git fetch origin family-stable-6:refs/remotes/origin/family-stable-6
-          : > /tmp/OurFamily_6_0_29.apk
-          : > /tmp/OurFamily_6_0_30.apk
-          for n in {0..9}; do
-            i=$(printf '%02d' "$n")
-            git show origin/family-stable-6:updates/parts/v629_${i}.b64 | tr -d '\r\n ' | base64 -d >> /tmp/OurFamily_6_0_29.apk
-            git show origin/family-stable-6:updates/parts/v630_${i}.b64 | tr -d '\r\n ' | base64 -d >> /tmp/OurFamily_6_0_30.apk
-          done
+          python3 - <<'PY'
+          import base64, re, subprocess, pathlib
+
+          def reconstruct(prefix, out_path):
+              parts=[]
+              for n in range(10):
+                  name=f"updates/parts/{prefix}_{n:02d}.b64"
+                  raw=subprocess.check_output(["git","show",f"origin/family-stable-6:{name}"], text=True)
+                  s=re.sub(r"\s+", "", raw)
+                  print(f"{prefix}_{n:02d}: chars={len(s)} mod4={len(s)%4} tail={s[-12:]!r}")
+                  parts.append(s)
+              joined=''.join(parts)
+              padded=joined + ('=' * ((4-len(joined)%4)%4))
+              try:
+                  data=base64.b64decode(padded, validate=True)
+                  if not data.startswith(b'PK\x03\x04'):
+                      raise ValueError('decoded joined data is not an APK/ZIP')
+                  print(f"{prefix}: joined Base64 decode OK, bytes={len(data)}")
+              except Exception as e:
+                  print(f"{prefix}: joined decode failed: {e}; trying independently padded parts")
+                  chunks=[]
+                  for idx,s in enumerate(parts):
+                      p=s + ('=' * ((4-len(s)%4)%4))
+                      chunks.append(base64.b64decode(p, validate=True))
+                  data=b''.join(chunks)
+                  if not data.startswith(b'PK\x03\x04'):
+                      raise ValueError('part-wise decoded data is not an APK/ZIP')
+                  print(f"{prefix}: part-wise Base64 decode OK, bytes={len(data)}")
+              pathlib.Path(out_path).write_bytes(data)
+
+          reconstruct('v629','/tmp/OurFamily_6_0_29.apk')
+          reconstruct('v630','/tmp/OurFamily_6_0_30.apk')
+          PY
           echo 'Stable APK hashes:'
           sha256sum /tmp/OurFamily_6_0_29.apk /tmp/OurFamily_6_0_30.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_29.apk > /tmp/cert629.txt
