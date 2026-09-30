@@ -1,0 +1,17 @@
+{
+  "versionCode": 6030,
+  "versionName": "6.0.30",
+  "apkBase64Parts": [
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_06.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_07.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v630_08.b64"
+  ],
+  "sha256": "6663c18a9cc71f00f6eaf13e03981525587650f36a6f7c86bcdab9f4c379c735",
+  "notes": "Игры: приглашения и уведомления о ходе работают в фоне, игровые события отправляются строго по порядку, переход хода ускорен и стал надежнее. Сохранены исправления видеозвонков версии 6.0.29."
+}
