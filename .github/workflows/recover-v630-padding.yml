@@ -1,0 +1,93 @@
+name: Recover 6.0.30 signing-block padding
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths: ['.github/workflows/recover-v630-padding.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover and inspect signing block
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --retry 4 -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/11077063654/zip" -o /tmp/base.zip
+          mkdir /tmp/base && unzip -q /tmp/base.zip -d /tmp/base
+          BASE=$(find /tmp/base -type f -name '*.apk' | head -1)
+          cp "$BASE" /tmp/base.apk
+          python3 - <<'PY'
+          import base64,hashlib,json,struct
+          from pathlib import Path
+          base=Path('/tmp/base.apk').read_bytes()
+          d=json.loads(Path('updates/candidates/sign630.delta.json').read_text())
+          out=bytearray()
+          for op in d['ops']:
+              if op[0]=='c':
+                  s,n=int(op[1]),int(op[2]); out.extend(base[s:s+n])
+              else:
+                  out.extend(base64.b64decode(op[1]))
+          b=bytes(out); target=int(d['target_size']); need=target-len(b); targetsha=d['target_sha256']
+          print('CURRENT',len(b),hashlib.sha256(b).hexdigest(),'NEED',need,'TARGET',target,targetsha)
+          eocd=b.rfind(b'PK\x05\x06')
+          cd=b.rfind(b'PK\x01\x02',0,eocd)
+          print('EOCD',eocd,'LAST_CD_SIG',cd)
+          if eocd>=0:
+              cd_size=struct.unpack_from('<I',b,eocd+12)[0]; cd_off=struct.unpack_from('<I',b,eocd+16)[0]
+              print('EOCD_CD_SIZE',cd_size,'EOCD_CD_OFF',cd_off,'ACTUAL_CD_START_EST',eocd-cd_size,'OFFSET_DELTA',cd_off-(eocd-cd_size))
+              actual_cd=eocd-cd_size
+          else: actual_cd=cd
+          magic=b'APK Sig Block 42'
+          m=b.rfind(magic,0,actual_cd if actual_cd>0 else len(b))
+          print('SIG_MAGIC',m)
+          if m>=0:
+              footer_size_pos=m-8
+              footer_size=struct.unpack_from('<Q',b,footer_size_pos)[0]
+              footer_end=m+len(magic)
+              block_start=footer_end-(footer_size+8)
+              print('FOOTER_SIZE',footer_size,'FOOTER_POS',footer_size_pos,'FOOTER_END',footer_end,'DECLARED_BLOCK_START',block_start,'ACTUAL_CD',actual_cd,'GAP',actual_cd-footer_end)
+              if 0 <= block_start <= footer_size_pos:
+                  head_size=struct.unpack_from('<Q',b,block_start)[0]
+                  print('HEAD_SIZE',head_size,'HEAD_MATCH',head_size==footer_size)
+          candidates=[]
+          def test(label,pos):
+              if pos is None or pos<0 or pos>len(b): return
+              c=b[:pos]+b'\0'*need+b[pos:]
+              h=hashlib.sha256(c).hexdigest(); print('TRY',label,'POS',pos,'LEN',len(c),'SHA',h,'MATCH',h==targetsha)
+              if h==targetsha: Path('/tmp/recovered.apk').write_bytes(c)
+          test('before_actual_cd',actual_cd)
+          if m>=0:
+              test('before_footer_size',m-8)
+              test('before_magic',m)
+              test('after_magic',m+len(magic))
+              # Search insertion among zero runs in last 20KB before signing footer.
+              lo=max(0,m-20000)
+              starts=[]; i=lo
+              while i<m:
+                  if b[i]==0:
+                      j=i+1
+                      while j<m and b[j]==0: j+=1
+                      if j-i>=8: starts.extend([i,j])
+                      i=j
+                  else:i+=1
+              print('ZERO_BOUNDARIES',len(starts))
+              for p in starts:
+                  c=b[:p]+b'\0'*need+b[p:]
+                  if hashlib.sha256(c).hexdigest()==targetsha:
+                      print('FOUND_ZERO_BOUNDARY',p)
+                      Path('/tmp/recovered.apk').write_bytes(c); break
+          if Path('/tmp/recovered.apk').exists(): print('RECOVERED_OK',Path('/tmp/recovered.apk').stat().st_size,hashlib.sha256(Path('/tmp/recovered.apk').read_bytes()).hexdigest())
+          else: print('RECOVERED_NOT_FOUND')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: recovered-v630-padding
+          path: /tmp/recovered.apk
+          if-no-files-found: ignore
