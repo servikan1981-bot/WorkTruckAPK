@@ -1,0 +1,30 @@
+name: Inspect final 6.0.30 patched code
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths:
+      - '.github/workflows/inspect-family-630-final-code.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply 6.0.30 patches and print exact markers
+        run: |
+          set -euo pipefail
+          python3 tools/patch_family_630.py
+          python3 tools/patch_family_630_call.py
+          python3 tools/patch_family_630_fastrelay.py
+          H=duoapp/src/main/assets/index.html
+          T=duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
+          echo '=== MAKE OFFER ==='
+          grep -n -C 8 'offer отправлен\|async function makeOffer\|offer TURN' "$H" || true
+          echo '=== ANSWER OFFER ==='
+          grep -n -C 8 'answer отправлен\|async function answerOffer\|answer TURN' "$H" || true
+          echo '=== TRANSPORT POST ==='
+          grep -n -C 12 'public static String post(Context\|isCallWire\|mirrorSingleToHome' "$T" || true
+          echo '=== TRANSPORT TIMEOUTS ==='
+          grep -n -C 4 'setConnectTimeout\|setReadTimeout' "$T" || true
