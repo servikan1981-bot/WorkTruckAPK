@@ -18,12 +18,15 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
       - name: Reconstruct real stable APKs and verify signers
         run: |
           git fetch origin family-stable-6:refs/remotes/origin/family-stable-6
           : > /tmp/v629.b64
           : > /tmp/v630.b64
-          for i in $(seq -w 0 9); do
+          for n in {0..9}; do
+            i=$(printf '%02d' "$n")
             git show origin/family-stable-6:updates/parts/v629_${i}.b64 >> /tmp/v629.b64
             git show origin/family-stable-6:updates/parts/v630_${i}.b64 >> /tmp/v630.b64
           done
