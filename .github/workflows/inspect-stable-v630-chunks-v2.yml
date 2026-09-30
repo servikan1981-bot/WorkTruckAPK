@@ -1,0 +1,56 @@
+name: Diagnose existing stable 6.0.30 chunk encoding
+
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths:
+      - '.github/workflows/inspect-stable-v630-chunks-v2.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Test both chunk reconstruction formats
+        run: |
+          set -euo pipefail
+          git fetch origin family-stable-6
+          mkdir -p /tmp/p
+          for i in 00 01 02 03 04 05 06 07 08 09; do
+            git show origin/family-stable-6:updates/parts/v630_${i}.b64 > /tmp/p/$i
+            echo "PART $i bytes=$(wc -c < /tmp/p/$i) chars=$(tr -d '\r\n' < /tmp/p/$i | wc -c)"
+            python3 - "$i" <<'PY'
+          import sys,base64,re
+          from pathlib import Path
+          i=sys.argv[1]; s=Path('/tmp/p/'+i).read_text().replace('\r','').replace('\n','')
+          bad=sorted(set(re.sub(r'[A-Za-z0-9+/=]','',s)))
+          print('PART',i,'mod4',len(s)%4,'badchars',repr(''.join(bad)))
+          try:
+            b=base64.b64decode(s,validate=True); print('PART',i,'decoded',len(b),'prefix',b[:4].hex())
+          except Exception as e: print('PART',i,'DECODE_ERR',repr(e))
+          PY
+          done
+          python3 - <<'PY'
+          import base64,hashlib,zipfile,io
+          from pathlib import Path
+          ss=[Path('/tmp/p/'+i).read_text().replace('\r','').replace('\n','') for i in ['00','01','02','03','04','05','06','07','08','09']]
+          try:
+            a=base64.b64decode(''.join(ss),validate=True)
+            print('CONCAT_TEXT_OK',len(a),hashlib.sha256(a).hexdigest(),a[:4].hex())
+          except Exception as e: print('CONCAT_TEXT_ERR',repr(e))
+          out=b''
+          ok=True
+          for i,s in enumerate(ss):
+            try: out += base64.b64decode(s,validate=True)
+            except Exception as e: print('PER_PART_ERR',i,repr(e)); ok=False; break
+          if ok:
+            print('PER_PART_OK',len(out),hashlib.sha256(out).hexdigest(),out[:4].hex())
+            try:
+              z=zipfile.ZipFile(io.BytesIO(out)); bad=z.testzip(); print('ZIP_OK',bad is None,'entries',len(z.namelist()))
+            except Exception as e: print('ZIP_ERR',repr(e))
+          PY
