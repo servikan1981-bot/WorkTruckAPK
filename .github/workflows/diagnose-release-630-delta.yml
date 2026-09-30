@@ -1,0 +1,46 @@
+name: Diagnose OurFamily 6.0.30 signing delta
+
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths:
+      - '.github/workflows/diagnose-release-630-delta.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download base APK and inspect delta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/base630
+          curl -fsSL -H "Authorization: Bearer ${GH_TOKEN}" -H "X-GitHub-Api-Version: 2022-11-28" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/11077063654/zip" -o /tmp/base630.zip
+          unzip -q /tmp/base630.zip -d /tmp/base630
+          BASE=$(find /tmp/base630 -type f -name '*.apk' | head -1)
+          python3 - "$BASE" <<'PY'
+          import sys,base64,hashlib,json
+          from pathlib import Path
+          base=Path(sys.argv[1]).read_bytes()
+          d=json.loads(Path('updates/candidates/sign630.delta.json').read_text())
+          out=bytearray(); copies=data_bytes=0
+          for op in d['ops']:
+              if op[0]=='c':
+                  start,length=int(op[1]),int(op[2]); chunk=base[start:start+length]; copies += len(chunk); out.extend(chunk)
+              elif op[0]=='d':
+                  chunk=base64.b64decode(op[1]); data_bytes += len(chunk); out.extend(chunk)
+          print('BASE_LEN',len(base))
+          print('BASE_SHA',hashlib.sha256(base).hexdigest())
+          print('DELTA_TARGET_SIZE',d['target_size'])
+          print('DELTA_TARGET_SHA',d['target_sha256'])
+          print('OPS',len(d['ops']),'COPY_BYTES',copies,'DATA_BYTES',data_bytes)
+          print('OUT_LEN',len(out))
+          print('OUT_SHA',hashlib.sha256(out).hexdigest())
+          print('PREFIX',bytes(out[:4]).hex())
+          PY
