@@ -31,16 +31,16 @@ replace_once('duoapp/build.gradle', "versionCode 6029", "versionCode 6030")
 replace_once('duoapp/build.gradle', "versionName '6.0.29'", "versionName '6.0.30'")
 sub_once('duoapp/src/main/AndroidManifest.xml', r'android:label="Наша семья 6\.0\.[0-9]+"', 'android:label="Наша семья 6.0.30"')
 
-# Keep all visible/internal web version markers consistent and make the 1s poll only a fallback.
+# Keep all visible/internal web version markers consistent and make polling only a fast fallback.
 index = 'duoapp/src/main/assets/index.html'
 text = read(index)
 text = text.replace('6.0.29', '6.0.30')
 text, n = re.subn(r"var APP_VERSION='6\.0\.[0-9]+'", "var APP_VERSION='6.0.30'", text, count=1)
 if n != 1:
     raise SystemExit(f'{index}: APP_VERSION marker not found')
-text, n = re.subn(r'setInterval\(poll\s*,\s*1000\)', 'setInterval(poll,350)', text, count=1)
+text, n = re.subn(r'setInterval\(pollInbox\s*,\s*1000\)', 'setInterval(pollInbox,350)', text, count=1)
 if n != 1:
-    raise SystemExit(f'{index}: 1000ms polling marker not found')
+    raise SystemExit(f'{index}: pollInbox 1000ms marker not found')
 write(index, text)
 
 # Critical game traffic must retain order. The old four-worker pool could deliver move N+1
