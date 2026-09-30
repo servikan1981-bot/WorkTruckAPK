@@ -3,7 +3,7 @@ name: Export Android Signing Tools
 on:
   workflow_dispatch:
   push:
-    branches: [ family-stable-6 ]
+    branches: [ family-630-game-fix ]
     paths:
       - '.github/workflows/export-android-signing-tools.yml'
 
