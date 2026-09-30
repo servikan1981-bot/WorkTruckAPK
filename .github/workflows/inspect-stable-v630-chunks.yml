@@ -1,0 +1,33 @@
+name: Inspect existing stable 6.0.30 chunks
+
+on:
+  push:
+    branches: [family-630-game-fix]
+    paths:
+      - '.github/workflows/inspect-stable-v630-chunks.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+      - name: Reconstruct and inspect existing v630 chunks
+        run: |
+          set -euo pipefail
+          git fetch origin family-stable-6
+          git show origin/family-stable-6:updates/parts/v630_00.b64 > /tmp/p00
+          for i in 01 02 03 04 05 06 07 08 09; do git show origin/family-stable-6:updates/parts/v630_${i}.b64 > /tmp/p${i}; done
+          cat /tmp/p00 /tmp/p01 /tmp/p02 /tmp/p03 /tmp/p04 /tmp/p05 /tmp/p06 /tmp/p07 /tmp/p08 /tmp/p09 | tr -d '\r\n' | base64 -d > /tmp/v630.apk
+          echo "SIZE=$(stat -c%s /tmp/v630.apk)"
+          echo "SHA256=$(sha256sum /tmp/v630.apk | awk '{print $1}')"
+          unzip -t /tmp/v630.apk >/dev/null && echo ZIP_OK
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/v630.apk | head -3
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/v630.apk | grep -E 'Verified using v[123] scheme|Signer #1 certificate SHA-256 digest'
