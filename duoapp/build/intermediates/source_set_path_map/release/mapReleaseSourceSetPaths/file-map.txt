@@ -1,7 +1,0 @@
-com.sergey.duochat.duoapp-pngs-0 /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/build/generated/res/pngs/release
-com.sergey.duochat.duoapp-resValues-1 /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/build/generated/res/resValues/release
-com.sergey.duochat.duoapp-packageReleaseResources-2 /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/build/intermediates/incremental/release/packageReleaseResources/merged.dir
-com.sergey.duochat.duoapp-packageReleaseResources-3 /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/build/intermediates/incremental/release/packageReleaseResources/stripped.dir
-com.sergey.duochat.duoapp-release-4 /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/build/intermediates/merged_res/release/mergeReleaseResources
-com.sergey.duochat.duoapp-main-5 /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/res
-com.sergey.duochat.duoapp-release-6 /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/release/res
