@@ -1,0 +1,2 @@
+com.sergey.ourfamily:style/AppTheme = 0x7f020000
+com.sergey.ourfamily:drawable/ic_launcher = 0x7f010000
