@@ -18,9 +18,10 @@ public final class NativeRelayTransport {
         String first = postAttempt(context, topic, message, priority);
         if ("OK".equals(first)) return first;
 
-        if (first.startsWith("ERR:http:5") || first.startsWith("ERR:Socket") ||
-                first.startsWith("ERR:Connect") || first.startsWith("ERR:UnknownHost")) {
-            sleepQuietly(900L);
+        if (isRetryable(first)) {
+            // Calls/signaling must fail over quickly instead of freezing the setup
+            // behind a 10-20 second HTTPS stall.
+            sleepQuietly(priority >= 4 ? 180L : 600L);
             return postAttempt(context, topic, message, priority);
         }
         return first;
@@ -40,8 +41,9 @@ public final class NativeRelayTransport {
             }
             final String[] result = {"ERR:timeout"};
             Thread t = new Thread(() -> result[0] = postBatch(context, topic, messages, priority), "OurFamilyRelayBatch");
-            t.start();t.join(65000L);
-            if (t.isAlive()) { t.interrupt();return "ERR:timeout"; }
+            t.start();
+            t.join(priority >= 4 ? 14000L : 30000L);
+            if (t.isAlive()) { t.interrupt(); return "ERR:timeout"; }
             return result[0];
         } catch (Exception e) { return "ERR:batch"; }
     }
@@ -61,9 +63,8 @@ public final class NativeRelayTransport {
     private static String postBatch(Context context, String topic, JSONArray messages, int priority) {
         String first = postBatchAttempt(context, topic, messages, priority);
         if ("OK".equals(first)) return first;
-        if (first.startsWith("ERR:http:5") || first.startsWith("ERR:Socket") ||
-                first.startsWith("ERR:Connect") || first.startsWith("ERR:UnknownHost")) {
-            sleepQuietly(450L);
+        if (isRetryable(first)) {
+            sleepQuietly(priority >= 4 ? 180L : 450L);
             return postBatchAttempt(context, topic, messages, priority);
         }
         return first;
@@ -75,16 +76,20 @@ public final class NativeRelayTransport {
         if (relay == null || !relay.startsWith("https://")) relay = SecureStore.DEFAULT_RELAY;
         HttpURLConnection c = null;
         try {
-            JSONObject body = new JSONObject();body.put("topic", topic);body.put("messages", messages);
+            JSONObject body = new JSONObject();
+            body.put("topic", topic);
+            body.put("messages", messages);
             body.put("priority", Math.max(1, Math.min(5, priority)));
             c = (HttpURLConnection) new URL(relay.replaceAll("/+$", "") + "/").openConnection();
-            c.setConnectTimeout(10000);c.setReadTimeout(12000);c.setUseCaches(false);
-            c.setDoOutput(true);c.setRequestMethod("POST");
+            applyTimeouts(c, priority);
+            c.setUseCaches(false);
+            c.setDoOutput(true);
+            c.setRequestMethod("POST");
             c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             c.setRequestProperty("Accept", "application/json");
-            c.setRequestProperty("User-Agent", "OurFamily/6.0.27 Android");
+            c.setRequestProperty("User-Agent", "OurFamily/6.0.31 Android");
             byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
-            try (OutputStream out = c.getOutputStream()) { out.write(bytes);out.flush(); }
+            try (OutputStream out = c.getOutputStream()) { out.write(bytes); out.flush(); }
             int status = c.getResponseCode();
             return status >= 200 && status < 300 ? "OK" : "ERR:http:" + status;
         } catch (Exception e) { return "ERR:" + e.getClass().getSimpleName(); }
@@ -120,14 +125,13 @@ public final class NativeRelayTransport {
             body.put("priority", priority);
 
             c = (HttpURLConnection) new URL(relay + "/").openConnection();
-            c.setConnectTimeout(10000);
-            c.setReadTimeout(12000);
+            applyTimeouts(c, priority);
             c.setUseCaches(false);
             c.setDoOutput(true);
             c.setRequestMethod("POST");
             c.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             c.setRequestProperty("Accept", "application/json");
-            c.setRequestProperty("User-Agent", "OurFamily/6.0.27 Android");
+            c.setRequestProperty("User-Agent", "OurFamily/6.0.31 Android");
 
             byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
             try (OutputStream out = c.getOutputStream()) {
@@ -145,6 +149,24 @@ public final class NativeRelayTransport {
         }
     }
 
+    private static void applyTimeouts(HttpURLConnection c, int priority) {
+        // Critical call signaling gets short deadlines. Normal chat/news traffic can
+        // tolerate a little more time without stalling call establishment.
+        if (priority >= 4) {
+            c.setConnectTimeout(3500);
+            c.setReadTimeout(5000);
+        } else {
+            c.setConnectTimeout(8000);
+            c.setReadTimeout(10000);
+        }
+    }
+
+    private static boolean isRetryable(String result) {
+        return result != null && (result.startsWith("ERR:http:5") ||
+                result.startsWith("ERR:Socket") || result.startsWith("ERR:Connect") ||
+                result.startsWith("ERR:UnknownHost"));
+    }
+
     private static void sleepQuietly(long ms) {
         try { Thread.sleep(ms); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
     }
@@ -154,7 +176,7 @@ public final class NativeRelayTransport {
         Thread t = new Thread(() -> result[0] = post(context, topic, message, priority), "OurFamilyRelayPost");
         t.start();
         try {
-            t.join(65000L);
+            t.join(priority >= 4 ? 14000L : 30000L);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return "ERR:interrupted";

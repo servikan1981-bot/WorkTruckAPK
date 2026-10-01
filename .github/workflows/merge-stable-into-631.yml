@@ -1,0 +1,48 @@
+name: Merge current stable into 6.0.31 release
+
+on:
+  push:
+    branches: ['fix/family-6.0.31-signaling']
+    paths:
+      - '.github/workflows/merge-stable-into-631.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  merge-stable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/family-6.0.31-signaling
+          fetch-depth: 0
+      - name: Merge stable history without replacing 6.0.31 release files
+        run: |
+          set -euo pipefail
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git fetch origin family-stable-6 fix/family-6.0.31-signaling
+          git merge origin/family-stable-6 --no-edit -X ours
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, hashlib
+          m=json.loads(Path('updates/latest.json').read_text(encoding='utf-8'))
+          assert m['versionCode']==6031, m
+          assert m['versionName']=='6.0.31', m
+          apk=Path('updates/downloads/OurFamily_6_0_31_Stable.apk')
+          assert apk.exists()
+          assert hashlib.sha256(apk.read_bytes()).hexdigest()==m['sha256']
+          assert m['sha256']=='cc023b0cfbbdf2d12b474b2ff93aab0df42acd2c3a8cdd28e47a837a160fa9ae'
+          parts=sorted(Path('updates/parts').glob('v631_[0-9][0-9].b64'))
+          assert len(parts)==10, [p.name for p in parts]
+          print('6.0.31 release preserved')
+          PY
+
+          grep -q "versionCode 6031" duoapp/build.gradle
+          grep -q "versionName '6.0.31'" duoapp/build.gradle
+          grep -q 'PermissionGateActivity' duoapp/src/main/AndroidManifest.xml
+          git push origin HEAD:fix/family-6.0.31-signaling
