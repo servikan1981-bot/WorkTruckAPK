@@ -78,3 +78,5 @@ jobs:
             git commit -m 'Fix Family Race launch in OurFamily 6.0.34'
             git push origin HEAD:fix/family-6.0.34-ludo-launch
           fi
+
+# trigger: 2
