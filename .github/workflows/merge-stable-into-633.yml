@@ -1,0 +1,44 @@
+name: Merge current stable into 6.0.33 release
+
+on:
+  push:
+    branches: ['feature/family-6.0.33-ludo']
+    paths: ['.github/workflows/merge-stable-into-633.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  merge-stable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/family-6.0.33-ludo
+          fetch-depth: 0
+      - name: Merge stable history and preserve verified 6.0.33
+        run: |
+          set -euo pipefail
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git fetch origin family-stable-6 feature/family-6.0.33-ludo
+          git merge origin/family-stable-6 --no-edit -X ours
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          m=json.loads(Path('updates/latest.json').read_text(encoding='utf-8'))
+          assert m['versionCode']==6033 and m['versionName']=='6.0.33',m
+          apk=Path('updates/downloads/OurFamily_6_0_33_Stable.apk')
+          assert apk.exists() and hashlib.sha256(apk.read_bytes()).hexdigest()==m['sha256']
+          assert m['sha256']=='47265a153bcba25892e4c365f6cccaf38d04c6e82bcba8f32ed472b8a472a53a'
+          parts=sorted(Path('updates/parts').glob('v633_[0-9][0-9].b64'))
+          assert len(parts)==11,[p.name for p in parts]
+          h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8')
+          assert "APP_VERSION='6.0.33'" in h and 'hubLudoBtn' in h and 'receiveLudo' in h
+          assert 'micBtn' in h and 'captureChatVideoBtn' in h and 'hubCheckersBtn' in h and 'hubDurakBtn' in h
+          print('Verified 6.0.33 preserved across stable-history merge')
+          PY
+          grep -q "versionCode 6033" duoapp/build.gradle
+          grep -q "versionName '6.0.33'" duoapp/build.gradle
+          git push origin HEAD:feature/family-6.0.33-ludo
