@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.33</title>
+<title>Наша семья 6.0.34</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -38,7 +38,7 @@ h1{font-size:27px;margin:0 0 7px}.sub{color:var(--muted);line-height:1.4;margin:
 .urgent-overlay{position:fixed;inset:0;z-index:240;background:rgba(8,12,22,.84);display:grid;place-items:center;padding:20px}.urgent-card{position:relative;width:min(520px,100%);background:var(--card);color:var(--ink);border-radius:24px;padding:27px 21px 22px;box-shadow:0 24px 70px rgba(0,0,0,.38);border:3px solid var(--red)}.urgent-close{position:absolute;right:10px;top:8px;width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:var(--ink);font-size:30px;line-height:36px}.urgent-badge{display:inline-block;background:var(--red);color:#fff;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:950;letter-spacing:.08em}.urgent-title{font-size:22px;font-weight:950;margin:15px 0 10px}.urgent-text{font-size:18px;line-height:1.45;white-space:pre-wrap;word-break:break-word}.urgent-time{font-size:12px;color:var(--muted);margin-top:16px}
 
 
-/* v6.0.33 — Семейная гонка (Ludo) */
+/* v6.0.34 — Семейная гонка (Ludo) */
 .ludo-card{grid-column:1/-1;background:linear-gradient(135deg,#fff0f0 0%,#effdf5 34%,#eef5ff 68%,#fff7df 100%)!important;border:1px solid #dce5f2!important}.ludo-card .emoji{font-size:37px!important}
 #ludo{display:flex;flex-direction:column;background:linear-gradient(160deg,#e8f2ff,#fff9e8 45%,#ecfff4)}.ludo-body{flex:1;overflow:auto;padding:10px 9px 18px;text-align:center}.ludo-players{display:flex;gap:7px;overflow:auto;padding:3px 1px 8px}.ludo-player-chip{min-width:102px;border-radius:14px;padding:8px 9px;background:var(--card);box-shadow:0 4px 12px rgba(25,40,70,.08);font-size:12px;font-weight:850;border:2px solid transparent}.ludo-player-chip.current{box-shadow:0 0 0 3px rgba(47,111,237,.16)}.ludo-player-chip.out{opacity:.45;text-decoration:line-through}.ludo-dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:-1px}.ludo-board-wrap{width:min(100%,560px);margin:3px auto 8px;background:rgba(255,255,255,.83);border-radius:26px;padding:7px;box-shadow:0 15px 34px rgba(30,55,90,.16);border:1px solid rgba(255,255,255,.9)}.ludo-board-wrap svg{display:block;width:100%;height:auto;border-radius:20px}.ludo-token{cursor:default}.ludo-token.legal{cursor:pointer;animation:ludoPulse 1s infinite ease-in-out}.ludo-token.legal circle:first-child{stroke:#fff;stroke-width:6}.ludo-controls{display:flex;align-items:center;justify-content:center;gap:10px;max-width:560px;margin:8px auto}.ludo-dice{width:76px;height:76px;border:0;border-radius:22px;background:linear-gradient(145deg,#fff,#eaf0fa);box-shadow:0 10px 22px rgba(30,50,80,.18);font-size:45px;line-height:1}.ludo-dice:disabled{opacity:.46}.ludo-dice.rolling{animation:ludoRoll .38s ease}.ludo-side-btn{border:0;border-radius:15px;padding:13px 15px;background:var(--card);color:var(--ink);font-weight:850;box-shadow:0 5px 14px rgba(30,50,80,.10)}.ludo-side-btn.danger{color:#c93642}.ludo-hint{min-height:42px;font-weight:800;line-height:1.35;padding:3px 10px}.ludo-picklist{display:grid;gap:8px;margin:11px 0}.ludo-pickrow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--card);border-radius:13px;padding:10px 11px;font-weight:800}.ludo-pickrow input{width:21px;height:21px}.ludo-choice{grid-column:1/-1;background:linear-gradient(120deg,#e24a4a,#2f6fed)!important}.ludo-confetti{font-size:24px;letter-spacing:7px;margin:4px 0}
 @keyframes ludoPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}@keyframes ludoRoll{0%{transform:rotate(0) scale(1)}35%{transform:rotate(22deg) scale(1.12)}70%{transform:rotate(-18deg) scale(.96)}100%{transform:rotate(0) scale(1)}}
@@ -111,7 +111,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья 6.0.33</h1>
+    <h1>Наша семья 6.0.34</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -133,7 +133,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v6.0.33</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.34</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
   </div>
   <div class="body">
     <div id="permissionBanner" class="permission hidden"><strong>Настройка звонков и уведомлений</strong><div id="notificationPermissionRow" class="hidden">Уведомления о сообщениях и звонках<br><button id="notificationPermissionBtn">Включить уведомления</button></div><div id="fullScreenPermissionRow" class="hidden">Кнопка «Принять» поверх экрана блокировки<br><button id="fullScreenPermissionBtn">Разрешить полноэкранный звонок</button></div><div id="backgroundPermissionRow" class="hidden">Работа в фоне для получения звонков и сообщений<br><button id="backgroundPermissionBtn">Открыть настройки батареи</button></div><div id="callChannelGuideRow" class="hidden">Проверьте канал <strong>«Семейные звонки»</strong>: Настройки → Приложения → Наша семья → Уведомления → Семейные звонки. Включите все доступные пункты: уведомления, всплывающий показ, экран блокировки, звук и вибрацию.<br><button id="callChannelGuideBtn">Открыть уведомления</button> <button id="callChannelGuideDoneBtn">Уже включено</button></div><div class="hint">В настройках батареи выберите для приложения «Без ограничений». Названия пунктов зависят от телефона.</div></div>
@@ -241,7 +241,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 
 <div id="ludoPicker" class="game-request hidden">
   <strong>🎲 Семейная гонка</strong>
-  <div class="muted">Выберите от 1 до 3 участников. Вместе с вами получится 2–4 игрока.</div>
+  <div id="ludoPickerHint" class="muted">Выберите от 1 до 3 участников. Вместе с вами получится 2–4 игрока.</div>
   <div id="ludoPlayerList" class="ludo-picklist"></div>
   <div class="incoming-actions"><button id="ludoPickerCancel" class="decline">Отмена</button><button id="ludoStartBtn" class="accept">Пригласить</button></div>
 </div>
@@ -328,7 +328,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   <div class="modal-card">
     <div class="about-logo">👨‍👩‍👧‍👦</div>
     <div class="modal-title">Наша семья</div>
-    <div id="aboutVersion" class="about-version">v6.0.33</div>
+    <div id="aboutVersion" class="about-version">v6.0.34</div>
     <div class="about-copy">Семейный мессенджер: личные и групповые чаты, аудио- и видеозвонки, семейные новости, фото, видео и файлы.</div>
     <button id="closeAboutBtn" class="primary wide" style="margin-top:16px">Готово</button>
   </div>
@@ -425,7 +425,7 @@ var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteS
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.33',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
+var APP_VERSION='6.0.34',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
 var games={},activeGameId='',pendingGameAcceptId='',gameSending=false,checkersDrag=null,suppressCheckersClick=0;
 var durakGames={},activeDurakId='',pendingDurakAcceptId='',durakSending=false,gamePickKind='',gamePickPeer='';
 var ludoGames={},activeLudoId='',pendingLudoAcceptId='',ludoSending=false;
@@ -824,13 +824,13 @@ function lastMsg(arr){return arr.length?arr.slice().sort(function(a,b){return a.
 
 function hideTransientPanels(){
  var changed=false;
- ['attachMenu','emojiPanel','newsCaptureMenu','relayModal','turnModal','aboutModal','videoLayoutModal','themeModal','reactionPicker','photoViewer'].forEach(function(id){
+ ['attachMenu','emojiPanel','newsCaptureMenu','relayModal','turnModal','aboutModal','videoLayoutModal','themeModal','reactionPicker','photoViewer','ludoPicker','gameChoice','opponentChoice'].forEach(function(id){
    var el=$(id);if(el&&!el.classList.contains('hidden')){el.classList.add('hidden');changed=true;}
  });
  return changed;
 }
 function showScreen(id){
- ['setup','home','picker','chat','news','more','adminArchive','adminChat','checkers','gamesHub','durak'].forEach(function(x){$(x).classList.toggle('hidden',x!==id);});
+ ['setup','home','picker','chat','news','more','adminArchive','adminChat','checkers','gamesHub','durak','ludo'].forEach(function(x){$(x).classList.toggle('hidden',x!==id);});
  var bn=$('bottomNav');if(bn)bn.classList.toggle('hidden',!['home','gamesHub','news','more'].includes(id));
  if(bn){['navFamily','navGames','navNews','navMore'].forEach(function(n){$(n).classList.remove('active');});if(id==='home')$('navFamily').classList.add('active');if(id==='gamesHub')$('navGames').classList.add('active');if(id==='news')$('navNews').classList.add('active');if(id==='more')$('navMore').classList.add('active');}
  hideTransientPanels();
@@ -2228,6 +2228,7 @@ window.__ourFamilyHandleBack=function(){
    if(ae.blur)ae.blur();
    return true;
  }
+ if(!$('ludo').classList.contains('hidden')){activeLudoId='';openGamesHub();return true;}
  if(!$('picker').classList.contains('hidden')){showScreen(currentThread?'chat':'home');return true;}
  if(!$('news').classList.contains('hidden')){showScreen('home');renderHome();return true;}
  if(!$('chat').classList.contains('hidden')){currentThread=null;showScreen('home');renderHome();return true;}
@@ -2338,7 +2339,20 @@ function ludoPeers(g){return g.players.filter(function(x){return x!==role;});}
 function ludoAllAccepted(g){return g.players.every(function(p){return g.accepted&&g.accepted[p]===true;});}
 function ludoDie(d){return ['🎲','⚀','⚁','⚂','⚃','⚄','⚅'][Number(d)||0]||'🎲';}
 function ludoRandomDie(){try{var a=new Uint32Array(1);crypto.getRandomValues(a);return (a[0]%6)+1;}catch(e){return Math.floor(Math.random()*6)+1;}}
-function openLudoPicker(seedPeer){$('gameChoice').classList.add('hidden');$('opponentChoice').classList.add('hidden');var box=$('ludoPlayerList');box.innerHTML='';MEMBERS.filter(function(m){return m.id!==role;}).forEach(function(m){var row=document.createElement('label');row.className='ludo-pickrow';var cb=document.createElement('input');cb.type='checkbox';cb.dataset.peer=m.id;cb.checked=!!seedPeer&&m.id===seedPeer;var text=document.createElement('span');text.textContent=(onlineNow(m.id)?'🟢 ':'⚪ ')+NAMES[m.id];row.appendChild(cb);row.appendChild(text);box.appendChild(row);});$('ludoPicker').classList.remove('hidden');}
+function openLudoPicker(seedPeer){
+ $('gameChoice').classList.add('hidden');$('opponentChoice').classList.add('hidden');
+ var box=$('ludoPlayerList');box.innerHTML='';
+ function selectedCount(){return box.querySelectorAll('input[type=checkbox]:checked').length;}
+ function updateHint(){var n=selectedCount(),hint=$('ludoPickerHint');if(hint)hint.textContent=n?'Выбрано: '+n+' из 3. Вместе с вами: '+(n+1)+' игрока.':'Выберите от 1 до 3 участников. Вместе с вами получится 2–4 игрока.';}
+ MEMBERS.filter(function(m){return m.id!==role;}).forEach(function(m){
+   var row=document.createElement('label');row.className='ludo-pickrow';
+   var cb=document.createElement('input');cb.type='checkbox';cb.dataset.peer=m.id;cb.checked=!!seedPeer&&m.id===seedPeer;
+   cb.addEventListener('change',function(){if(cb.checked&&selectedCount()>3){cb.checked=false;toast('Для Семейной гонки можно выбрать максимум 3 участников');}updateHint();});
+   var text=document.createElement('span');text.textContent=(onlineNow(m.id)?'🟢 ':'⚪ ')+NAMES[m.id];
+   row.appendChild(cb);row.appendChild(text);box.appendChild(row);
+ });
+ updateHint();$('ludoPicker').classList.remove('hidden');
+}
 async function inviteLudo(peers){peers=Array.from(new Set((peers||[]).filter(function(p){return p&&p!==role&&NAMES[p];}))).slice(0,3);if(!peers.length){toast('Выберите хотя бы одного участника');return;}var players=[role].concat(peers),same=Object.values(ludoGames).find(function(g){return (g.status==='active'||g.status==='invited')&&g.players.slice().sort().join('|')===players.slice().sort().join('|')&&g.state.winner===null;});if(same){$('ludoPicker').classList.add('hidden');openLudo(same.id);if(same.status==='invited'&&same.inviter===role)sendLudoInvites(same);return;}var id=randomId(),accepted={};players.forEach(function(p){accepted[p]=p===role;});var g={id:id,players:players,inviter:role,status:'invited',accepted:accepted,updated:Date.now(),state:LudoRules.initial(players.length)};ludoGames[id]=g;saveLudoGames();$('ludoPicker').classList.add('hidden');openLudo(id);await sendLudoInvites(g);}
 async function sendLudoInvites(g){var data={gameType:'ludo',gameId:g.id,players:g.players,accepted:g.accepted,state:g.state};var pending=g.players.filter(function(p){return p!==role&&!(g.accepted&&g.accepted[p]);});if(!pending.length)pending=ludoPeers(g);await Promise.allSettled(pending.map(function(peer){return publishEnvelope(peer,'game_invite',data,5,'ludo_invite',g.id+'_'+peer,true);}));toast('Приглашение в Семейную гонку отправлено');if(activeLudoId===g.id)renderLudo();}
 function showLudoRequest(){var waiting=Object.values(ludoGames).filter(function(g){return g.status==='invited'&&g.inviter!==role&&g.players.includes(role)&&!(g.accepted&&g.accepted[role])&&Date.now()-g.updated<86400000;}).sort(function(a,b){return b.updated-a.updated;})[0];pendingLudoAcceptId=waiting?waiting.id:'';if(!waiting)return;$('checkersRequestText').textContent=NAMES[waiting.inviter]+' приглашает в Семейную гонку · '+waiting.players.length+' игрока';$('checkersRequest').classList.remove('hidden');}
@@ -2426,7 +2440,15 @@ async function resignDurak(){var g=durakGames[activeDurakId];if(!g||g.status!=='
 renderGameProfile();
 $('navFamily').addEventListener('click',function(){showScreen('home');renderHome();});$('navGames').addEventListener('click',openGamesHub);$('navNews').addEventListener('click',openNews);$('navMore').addEventListener('click',function(){renderHome();showScreen('more');});
 $('gamesBackBtn').addEventListener('click',function(){showScreen('home');renderHome();});$('hubCheckersBtn').addEventListener('click',function(){openOpponentChoice('checkers');});$('hubDurakBtn').addEventListener('click',function(){openOpponentChoice('durak');});$('hubLudoBtn').addEventListener('click',function(){openLudoPicker('');});
-$('pickCheckersBtn').addEventListener('click',function(){var p=gamePickPeer;$('gameChoice').classList.add('hidden');if(p)launchGame('checkers',p);else openOpponentChoice('checkers');});$('pickDurakBtn').addEventListener('click',function(){var p=gamePickPeer;$('gameChoice').classList.add('hidden');if(p)launchGame('durak',p);else openOpponentChoice('durak');});$('pickLudoBtn').addEventListener('click',function(){var p=gamePickPeer;$('gameChoice').classList.add('hidden');openLudoPicker(p);});$('gameChoiceCancel').addEventListener('click',function(){$('gameChoice').classList.add('hidden');});$('opponentCancel').addEventListener('click',function(){$('opponentChoice').classList.add('hidden');});$('ludoPickerCancel').addEventListener('click',function(){$('ludoPicker').classList.add('hidden');});$('ludoStartBtn').addEventListener('click',function(){var peers=Array.from($('ludoPlayerList').querySelectorAll('input[type=checkbox]:checked')).map(function(x){return x.dataset.peer;});inviteLudo(peers);});
+$('pickCheckersBtn').addEventListener('click',function(){var p=gamePickPeer;$('gameChoice').classList.add('hidden');if(p)launchGame('checkers',p);else openOpponentChoice('checkers');});$('pickDurakBtn').addEventListener('click',function(){var p=gamePickPeer;$('gameChoice').classList.add('hidden');if(p)launchGame('durak',p);else openOpponentChoice('durak');});$('pickLudoBtn').addEventListener('click',function(){var p=gamePickPeer;$('gameChoice').classList.add('hidden');openLudoPicker(p);});$('gameChoiceCancel').addEventListener('click',function(){$('gameChoice').classList.add('hidden');});$('opponentCancel').addEventListener('click',function(){$('opponentChoice').classList.add('hidden');});$('ludoPickerCancel').addEventListener('click',function(){$('ludoPicker').classList.add('hidden');});$('ludoStartBtn').addEventListener('click',async function(e){
+ e.preventDefault();e.stopPropagation();
+ var btn=this,peers=Array.from($('ludoPlayerList').querySelectorAll('input[type=checkbox]:checked')).map(function(x){return x.dataset.peer;});
+ if(!peers.length){toast('Выберите хотя бы одного участника');return;}
+ if(peers.length>3){toast('Для Семейной гонки можно выбрать максимум 3 участников');return;}
+ btn.disabled=true;btn.textContent='Запускаем…';
+ try{await inviteLudo(peers);}catch(err){console.error('Ludo start failed',err);toast('Не удалось запустить Семейную гонку. Повторите ещё раз.');}
+ finally{btn.disabled=false;btn.textContent='Пригласить';}
+});
 $('ludoBackBtn').addEventListener('click',function(){activeLudoId='';openGamesHub();});$('ludoDiceBtn').addEventListener('click',ludoRoll);$('ludoResignBtn').addEventListener('click',resignLudo);$('ludoRetryInviteBtn').addEventListener('click',function(){var g=ludoGames[activeLudoId];if(g&&g.status==='invited'&&g.inviter===role)sendLudoInvites(g);});
 $('durakBackBtn').addEventListener('click',function(){activeDurakId='';openGamesHub();});$('durakTakeBtn').addEventListener('click',durakTake);$('durakBitoBtn').addEventListener('click',durakBito);$('durakResignBtn').addEventListener('click',resignDurak);$('durakRetryInviteBtn').addEventListener('click',function(){var g=durakGames[activeDurakId];if(g&&g.status==='invited'&&g.inviter===role)sendDurakInvite(g);});
 
