@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.31</title>
+<title>Наша семья 6.0.32</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -91,13 +91,20 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 .game-choice,.opponent-choice{position:fixed;inset:0;z-index:90;background:#07111fcc;display:flex;align-items:flex-end;justify-content:center;padding:18px}.game-choice-card{width:min(520px,100%);background:#fff;border-radius:22px;padding:18px;box-shadow:0 18px 44px #0007}.game-choice-title{font-size:20px;font-weight:800;margin-bottom:12px}.game-choice-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.game-choice-actions button,.opponent-list button{border:0;border-radius:14px;padding:15px;font-size:16px;font-weight:750;background:#edf3f8;color:#17314b}.game-choice-actions .durak-pick{background:#147447;color:#fff}.opponent-list{display:flex;flex-direction:column;gap:8px;max-height:58vh;overflow:auto}.opponent-list button{text-align:left}
 .durak-body{flex:1;min-height:0;display:flex;flex-direction:column;background:radial-gradient(circle at 50% 42%,#218753 0,#126d40 44%,#0a4e2e 100%);color:#fff;padding:10px 8px 12px;overflow:hidden}.durak-info{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:13px;margin:2px 4px 8px}.durak-opponent{text-align:center;font-weight:800;margin:2px 0 6px}.durak-opponent-cards{display:flex;justify-content:center;height:54px}.durak-back{width:34px;height:48px;border-radius:6px;background:repeating-linear-gradient(45deg,#173e8c,#173e8c 4px,#fff 4px,#fff 6px);border:2px solid #fff;margin-left:-20px;box-shadow:0 2px 5px #0005}.durak-table{flex:1;min-height:150px;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:12px;padding:8px}.durak-pair{position:relative;width:74px;height:112px;border-radius:10px}.durak-pair.target{outline:3px solid #ffd43b;outline-offset:4px}.playing-card{width:66px;height:96px;border:1px solid #ccd3da;border-radius:9px;background:#fff;color:#111;box-shadow:0 5px 10px #0004;display:flex;flex-direction:column;justify-content:space-between;padding:6px;font-weight:800;font-size:18px;user-select:none}.playing-card.red{color:#c92731}.playing-card .suit{font-size:24px;align-self:center}.durak-pair .defense{position:absolute;left:20px;top:15px;transform:rotate(9deg)}.durak-hand{display:flex;overflow-x:auto;overflow-y:hidden;justify-content:center;padding:8px 4px 2px;min-height:112px}.durak-hand .playing-card{flex:0 0 62px;margin-left:-18px;transition:transform .12s}.durak-hand .playing-card:first-child{margin-left:0}.durak-hand .playing-card:active{transform:translateY(-8px)}.durak-controls{display:flex;justify-content:center;gap:8px;margin-top:6px}.durak-controls button{border:0;border-radius:13px;padding:11px 16px;font-weight:800}.durak-controls .take{background:#ffdf75;color:#543d00}.durak-controls .bito{background:#e8fff1;color:#075c35}.durak-controls .resign{background:#8d2631;color:#fff}.durak-status{text-align:center;font-weight:800;min-height:22px}.hidden.bottom-nav{display:none!important}
 
+
+.voice-recording{display:flex;align-items:center;gap:9px;background:var(--card);border-top:1px solid var(--line);padding:8px 10px;color:var(--ink)}
+.voice-recording .voice-dot{width:10px;height:10px;border-radius:50%;background:var(--red);box-shadow:0 0 0 5px color-mix(in srgb,var(--red) 18%,transparent);animation:voicePulse 1.15s infinite}
+.voice-recording .voice-time{flex:1;font-weight:900;font-variant-numeric:tabular-nums}.voice-recording button{border:0;border-radius:12px;padding:9px 11px;font-weight:850}.voice-cancel{background:color-mix(in srgb,var(--card) 80%,var(--red) 20%);color:var(--red)}.voice-send{background:var(--blue);color:#fff}
+#micBtn.recording{background:color-mix(in srgb,var(--card) 72%,var(--red) 28%);color:var(--red)}
+.attachment-audio{display:block;width:min(290px,72vw);height:42px}.composer button:disabled,.composer textarea:disabled{opacity:.48}
+@keyframes voicePulse{0%,100%{transform:scale(.82);opacity:.72}50%{transform:scale(1.08);opacity:1}}
 </style>
 </head>
 <body>
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья 6.0.31</h1>
+    <h1>Наша семья 6.0.32</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -119,7 +126,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v6.0.31</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.32</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
   </div>
   <div class="body">
     <div id="permissionBanner" class="permission hidden"><strong>Настройка звонков и уведомлений</strong><div id="notificationPermissionRow" class="hidden">Уведомления о сообщениях и звонках<br><button id="notificationPermissionBtn">Включить уведомления</button></div><div id="fullScreenPermissionRow" class="hidden">Кнопка «Принять» поверх экрана блокировки<br><button id="fullScreenPermissionBtn">Разрешить полноэкранный звонок</button></div><div id="backgroundPermissionRow" class="hidden">Работа в фоне для получения звонков и сообщений<br><button id="backgroundPermissionBtn">Открыть настройки батареи</button></div><div id="callChannelGuideRow" class="hidden">Проверьте канал <strong>«Семейные звонки»</strong>: Настройки → Приложения → Наша семья → Уведомления → Семейные звонки. Включите все доступные пункты: уведомления, всплывающий показ, экран блокировки, звук и вибрацию.<br><button id="callChannelGuideBtn">Открыть уведомления</button> <button id="callChannelGuideDoneBtn">Уже включено</button></div><div class="hint">В настройках батареи выберите для приложения «Без ограничений». Названия пунктов зависят от телефона.</div></div>
@@ -163,18 +170,26 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   <button id="inviteCheckersBtn" class="game-invite hidden">🎮 Пригласить в игру</button>
   <div id="messages"></div>
   <div id="replyDraft" class="reply-draft hidden"><div id="replyDraftText" class="reply-reference"></div><button id="cancelReplyBtn" aria-label="Отменить ответ">×</button></div>
+  <div id="voiceRecordingBar" class="voice-recording hidden">
+    <span class="voice-dot"></span><span id="voiceTimer" class="voice-time">00:00</span>
+    <button id="cancelVoiceBtn" class="voice-cancel">Отмена</button>
+    <button id="sendVoiceBtn" class="voice-send">Отправить</button>
+  </div>
   <div class="composer">
     <button id="attachBtn" class="mini" aria-label="Вложение">＋</button>
     <button id="emojiBtn" class="mini" aria-label="Смайлы">😊</button>
     <textarea id="messageInput" rows="1" placeholder="Сообщение…"></textarea>
+    <button id="micBtn" class="mini" aria-label="Голосовое сообщение">🎤</button>
     <button id="sendBtn" class="send">➤</button>
   </div>
   <input id="photoInput" type="file" accept="image/*" class="hidden">
   <input id="videoInput" type="file" accept="video/*" class="hidden">
+  <input id="chatCaptureVideoInput" type="file" accept="video/*" capture="environment" class="hidden">
   <input id="fileInput" type="file" class="hidden">
   <div id="attachMenu" class="attach-menu hidden">
     <button id="pickPhotoBtn">🖼️ Фото из галереи</button>
-    <button id="pickVideoBtn">🎬 Видео с телефона</button>
+    <button id="captureChatVideoBtn">🎥 Снять видео сейчас</button>
+    <button id="pickVideoBtn">🎬 Видео из галереи</button>
     <button id="pickFileBtn">📎 Файл с телефона</button>
   </div>
   <div id="emojiPanel" class="emoji-panel hidden"></div>
@@ -287,7 +302,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   <div class="modal-card">
     <div class="about-logo">👨‍👩‍👧‍👦</div>
     <div class="modal-title">Наша семья</div>
-    <div id="aboutVersion" class="about-version">v6.0.31</div>
+    <div id="aboutVersion" class="about-version">v6.0.32</div>
     <div class="about-copy">Семейный мессенджер: личные и групповые чаты, аудио- и видеозвонки, семейные новости, фото, видео и файлы.</div>
     <button id="closeAboutBtn" class="primary wide" style="margin-top:16px">Готово</button>
   </div>
@@ -383,11 +398,13 @@ var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteS
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.31',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
+var APP_VERSION='6.0.32',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
 var games={},activeGameId='',pendingGameAcceptId='',gameSending=false,checkersDrag=null,suppressCheckersClick=0;
 var durakGames={},activeDurakId='',pendingDurakAcceptId='',durakSending=false,gamePickKind='',gamePickPeer='';
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
 var uiSettings={theme:'ocean',videoLayout:'pip'},attachmentKeys={},attachmentDbPromise=null;
+var voiceRecorder=null,voiceStream=null,voiceChunks=[],voiceStartedAt=0,voiceTimerHandle=null,voiceSendOnStop=false,voiceContext='';
+var VOICE_MAX_MS=300000;
 var newsDraftFile=null,newsDraftIsPhoto=false;
 var EMOJIS="😀 😃 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥳 🤩 🥺 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥱 😤 😡 😠 🤬 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 😴 🤤 😪 😵 🤐 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👻 💀 ☠️ 👽 🤖 🎃 😺 😸 😹 😻 😼 😽 🙀 😿 😾 ❤️".split(' ');
 
@@ -553,6 +570,9 @@ async function renderAttachmentInto(parent,att){
    }else if((att.mime||'').startsWith('video/')){
      var video=document.createElement('video');video.className='attachment-video';video.src=url;video.controls=true;video.playsInline=true;video.preload='metadata';
      video.addEventListener('loadedmetadata',function(){scrollChatToBottom();});card.appendChild(video);
+   }else if((att.mime||'').startsWith('audio/')){
+     var audio=document.createElement('audio');audio.className='attachment-audio';audio.src=url;audio.controls=true;audio.preload='metadata';
+     audio.addEventListener('loadedmetadata',function(){scrollChatToBottom();});card.appendChild(audio);
    }else{
      var a=document.createElement('a');a.className='attachment-file';a.href=url;a.download=att.name||'file';a.textContent='📎 '+(att.name||'Файл');card.appendChild(a);
    }
@@ -824,7 +844,7 @@ function renderHome(){
  $('newsNavBadge').textContent=unreadNews>99?'99+':String(unreadNews);$('newsNavBadge').classList.toggle('hidden',!unreadNews);
 }
 function escapeText(t){return String(t||'').replace(/[<>&]/g,function(c){return {'<':'‹','>':'›','&':'＆'}[c];});}
-function messagePreview(m){if(!m)return '';if(m.text)return m.text;if(m.attachment)return ((m.attachment.mime||'').startsWith('video/')?'🎬 ':'📎 ')+(m.attachment.name||'Вложение');return 'Сообщение';}
+function messagePreview(m){if(!m)return '';if(m.text)return m.text;if(m.attachment){var mt=m.attachment.mime||'';if(mt.startsWith('audio/'))return '🎤 Голосовое сообщение';if(mt.startsWith('video/'))return '🎬 '+(m.attachment.name||'Видео');return '📎 '+(m.attachment.name||'Вложение');}return 'Сообщение';}
 function refreshAutoNews(){
  try{
    var raw=AndroidBridge.loadAutoNews(),arr=JSON.parse(raw||'[]');
@@ -1543,11 +1563,67 @@ async function prepareAttachment(file,isPhoto,context){
  };
 }
 
+
+function voiceMimeType(){
+ if(!window.MediaRecorder)return '';
+ var candidates=['audio/webm;codecs=opus','audio/webm','audio/mp4'];
+ for(var i=0;i<candidates.length;i++)try{if(MediaRecorder.isTypeSupported(candidates[i]))return candidates[i];}catch(e){}
+ return '';
+}
+function setVoiceUi(active){
+ $('voiceRecordingBar').classList.toggle('hidden',!active);$('micBtn').classList.toggle('recording',active);
+ ['attachBtn','emojiBtn','messageInput','sendBtn'].forEach(function(id){$(id).disabled=!!active;});
+}
+function stopVoiceTracks(){
+ if(voiceStream)try{voiceStream.getTracks().forEach(function(t){t.stop();});}catch(e){}
+ voiceStream=null;
+}
+function cleanupVoiceUi(){
+ clearInterval(voiceTimerHandle);voiceTimerHandle=null;stopVoiceTracks();setVoiceUi(false);voiceRecorder=null;voiceChunks=[];voiceStartedAt=0;voiceSendOnStop=false;voiceContext='';
+}
+function updateVoiceTimer(){
+ if(!voiceStartedAt)return;
+ var elapsed=Math.max(0,Date.now()-voiceStartedAt),sec=Math.floor(elapsed/1000),mm=String(Math.floor(sec/60)).padStart(2,'0'),ss=String(sec%60).padStart(2,'0');
+ $('voiceTimer').textContent=mm+':'+ss+' / 05:00';
+ if(elapsed>=VOICE_MAX_MS)stopVoiceRecording(true);
+}
+async function startVoiceRecording(){
+ if(!currentThread)return;
+ if(voiceRecorder)return;
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){toast('На этом телефоне запись голосовых не поддерживается');return;}
+ try{
+   $('attachMenu').classList.add('hidden');$('emojiPanel').classList.add('hidden');
+   var stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+   var mime=voiceMimeType(),opts={audioBitsPerSecond:32000};if(mime)opts.mimeType=mime;
+   var rec;try{rec=new MediaRecorder(stream,opts);}catch(e){rec=new MediaRecorder(stream);}
+   voiceStream=stream;voiceRecorder=rec;voiceChunks=[];voiceContext=attachmentContextForThread(currentThread);voiceSendOnStop=false;
+   rec.ondataavailable=function(e){if(e.data&&e.data.size)voiceChunks.push(e.data);};
+   rec.onerror=function(){toast('Ошибка записи голосового сообщения');stopVoiceRecording(false);};
+   rec.onstop=function(){
+     var chunks=voiceChunks.slice(),send=voiceSendOnStop,ctx=voiceContext,type=rec.mimeType||mime||'audio/webm';
+     clearInterval(voiceTimerHandle);voiceTimerHandle=null;stopVoiceTracks();setVoiceUi(false);voiceRecorder=null;voiceChunks=[];voiceStartedAt=0;voiceSendOnStop=false;voiceContext='';
+     if(!send||!chunks.length)return;
+     if(!currentThread||attachmentContextForThread(currentThread)!==ctx){toast('Голосовое отменено: открыт другой чат');return;}
+     try{
+       var ext=type.indexOf('mp4')>=0?'m4a':'webm',blob=new Blob(chunks,{type:type}),file=new File([blob],'voice-'+Date.now()+'.'+ext,{type:type,lastModified:Date.now()});
+       sendAttachment(file,false);
+     }catch(e){toast('Не удалось подготовить голосовое сообщение');}
+   };
+   rec.start(250);voiceStartedAt=Date.now();setVoiceUi(true);updateVoiceTimer();voiceTimerHandle=setInterval(updateVoiceTimer,500);
+ }catch(e){cleanupVoiceUi();toast('Нет доступа к микрофону. Разрешите микрофон для «Наша семья»');}
+}
+function stopVoiceRecording(send){
+ if(!voiceRecorder)return;
+ voiceSendOnStop=!!send;
+ try{if(voiceRecorder.state==='inactive'){var f=voiceRecorder.onstop;if(f)f();}else voiceRecorder.stop();}catch(e){cleanupVoiceUi();}
+}
+
 async function sendAttachment(file,isPhoto){
  if(!currentThread||!file)return;
  $('attachMenu').classList.add('hidden');$('emojiPanel').classList.add('hidden');
  try{
-   toast('Подготавливаю '+(isPhoto?'фото':((file.type||'').startsWith('video/')?'видео':'файл'))+'…');
+   var ft=file.type||'',kindLabel=isPhoto?'фото':(ft.startsWith('audio/')?'голосовое сообщение':(ft.startsWith('video/')?'видео':'файл'));
+   toast('Подготавливаю '+kindLabel+'…');
    var context=attachmentContextForThread(currentThread),att=await prepareAttachment(file,isPhoto,context),id=att.id,ts=Date.now(),replyTo=replyDraft;clearReply();
 
    if(currentThread.type==='direct'){
@@ -2400,11 +2476,16 @@ $('themeModal').addEventListener('click',function(e){if(e.target===$('themeModal
 $('attachBtn').addEventListener('click',function(){$('attachMenu').classList.toggle('hidden');$('emojiPanel').classList.add('hidden');});
 $('emojiBtn').addEventListener('click',function(){$('emojiPanel').classList.toggle('hidden');$('attachMenu').classList.add('hidden');});
 $('pickPhotoBtn').addEventListener('click',function(){$('attachMenu').classList.add('hidden');$('photoInput').click();});
+$('captureChatVideoBtn').addEventListener('click',function(){$('attachMenu').classList.add('hidden');$('chatCaptureVideoInput').click();});
 $('pickVideoBtn').addEventListener('click',function(){$('attachMenu').classList.add('hidden');$('videoInput').click();});
 $('pickFileBtn').addEventListener('click',function(){$('attachMenu').classList.add('hidden');$('fileInput').click();});
 $('photoInput').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(f)sendAttachment(f,true);});
+$('chatCaptureVideoInput').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(f)sendAttachment(f,false);});
 $('videoInput').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(f)sendAttachment(f,false);});
 $('fileInput').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(f)sendAttachment(f,false);});
+$('micBtn').addEventListener('click',function(){if(voiceRecorder)stopVoiceRecording(true);else startVoiceRecording();});
+$('cancelVoiceBtn').addEventListener('click',function(){stopVoiceRecording(false);});
+$('sendVoiceBtn').addEventListener('click',function(){stopVoiceRecording(true);});
 
 $('newsPhotoBtn').addEventListener('click',function(){$('newsPhotoInput').click();});
 $('newsVideoBtn').addEventListener('click',function(){$('newsVideoInput').click();});
