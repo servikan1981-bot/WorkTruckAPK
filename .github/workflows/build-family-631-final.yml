@@ -88,20 +88,39 @@ jobs:
 
       - name: Validate source identity and safety-critical call setup
         run: |
-          set -euo pipefail
-          grep -q "versionCode 6031" duoapp/build.gradle
-          grep -q "versionName '6.0.31'" duoapp/build.gradle
-          grep -q 'android:label="Наша семья 6.0.31"' duoapp/src/main/AndroidManifest.xml
-          grep -q 'android:name=".PermissionGateActivity"' duoapp/src/main/AndroidManifest.xml
-          grep -q 'call_settings_guide_v6031_seen' duoapp/src/main/java/com/sergey/duochat/PermissionGateActivity.java
-          grep -q 'canUseFullScreenIntent' duoapp/src/main/java/com/sergey/duochat/PermissionGateActivity.java
-          grep -q 'ACTION_CHANNEL_NOTIFICATION_SETTINGS' duoapp/src/main/java/com/sergey/duochat/PermissionGateActivity.java
-          grep -q 'public static final String CH_CALLS' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
-          grep -q 'https://our-family-relay.family-860c7981b2d4.workers.dev' duoapp/src/main/java/com/sergey/duochat/SecureStore.java
-          grep -q "APP_VERSION='6.0.31'" duoapp/src/main/assets/index.html
-          grep -q 'callChannelGuideRow' duoapp/src/main/assets/index.html
-          grep -q 'callNotificationsMenuBtn' duoapp/src/main/assets/index.html
-          ! grep -q 'https://family.familysergey.netcraze.pro' duoapp/src/main/assets/index.html
+          python3 - <<'PY'
+          from pathlib import Path
+
+          files={
+            'gradle':Path('duoapp/build.gradle').read_text(encoding='utf-8'),
+            'manifest':Path('duoapp/src/main/AndroidManifest.xml').read_text(encoding='utf-8'),
+            'gate':Path('duoapp/src/main/java/com/sergey/duochat/PermissionGateActivity.java').read_text(encoding='utf-8'),
+            'service':Path('duoapp/src/main/java/com/sergey/duochat/MessagingService.java').read_text(encoding='utf-8'),
+            'store':Path('duoapp/src/main/java/com/sergey/duochat/SecureStore.java').read_text(encoding='utf-8'),
+            'html':Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8'),
+          }
+          checks=[
+            ('versionCode 6031','versionCode 6031' in files['gradle']),
+            ('versionName 6.0.31',"versionName '6.0.31'" in files['gradle']),
+            ('manifest label','android:label="Наша семья 6.0.31"' in files['manifest']),
+            ('PermissionGate launcher','android:name=".PermissionGateActivity"' in files['manifest']),
+            ('guide preference','call_settings_guide_v6031_seen' in files['gate']),
+            ('full-screen permission check','canUseFullScreenIntent' in files['gate']),
+            ('channel settings intent','ACTION_CHANNEL_NOTIFICATION_SETTINGS' in files['gate']),
+            ('calls channel exported','CH_CALLS' in files['service'] and 'public static final String' in files['service']),
+            ('worker relay in SecureStore','https://our-family-relay.family-860c7981b2d4.workers.dev' in files['store']),
+            ('APP_VERSION 6.0.31',"APP_VERSION='6.0.31'" in files['html']),
+            ('channel guide row','callChannelGuideRow' in files['html']),
+            ('channel guide menu','callNotificationsMenuBtn' in files['html']),
+            ('old messaging relay absent','https://family.familysergey.netcraze.pro' not in files['html']),
+          ]
+          failed=[]
+          for name,ok in checks:
+              print(('OK   ' if ok else 'FAIL ')+name)
+              if not ok: failed.append(name)
+          if failed:
+              raise SystemExit('Failed checks: '+', '.join(failed))
+          PY
 
       - name: Run app logic tests and JavaScript syntax check
         run: |
@@ -127,10 +146,12 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee /tmp/631-badging.txt
           grep -q "package: name='com.sergey.ourfamily' versionCode='6031' versionName='6.0.31'" /tmp/631-badging.txt
           grep -q "launchable-activity: name='com.sergey.duochat.PermissionGateActivity'" /tmp/631-badging.txt
-          unzip -p "$APK" assets/index.html | grep -q "APP_VERSION='6.0.31'"
-          unzip -p "$APK" assets/index.html | grep -q 'callChannelGuideRow'
-          unzip -p "$APK" classes.dex | strings | grep -q 'PermissionGateActivity'
-          unzip -p "$APK" classes.dex | strings | grep -q 'our-family-relay.family-860c7981b2d4.workers.dev'
+          unzip -p "$APK" assets/index.html > /tmp/631-index.html
+          grep -q "APP_VERSION='6.0.31'" /tmp/631-index.html
+          grep -q 'callChannelGuideRow' /tmp/631-index.html
+          unzip -p "$APK" classes.dex | strings > /tmp/631-dexstrings.txt
+          grep -q 'PermissionGateActivity' /tmp/631-dexstrings.txt
+          grep -q 'our-family-relay.family-860c7981b2d4.workers.dev' /tmp/631-dexstrings.txt
           sha256sum "$APK" | tee /tmp/631-unsigned.sha256
 
       - name: Stage exact unsigned payload for local Stable signing
