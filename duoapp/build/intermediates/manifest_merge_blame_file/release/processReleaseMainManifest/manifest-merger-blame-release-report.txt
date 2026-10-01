@@ -1,8 +1,8 @@
 1<?xml version="1.0" encoding="utf-8"?>
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 3    package="com.sergey.ourfamily"
-4    android:versionCode="6033"
-5    android:versionName="6.0.33" >
+4    android:versionCode="6035"
+5    android:versionName="6.0.35" >
 6
 7    <uses-sdk
 8        android:minSdkVersion="24"
@@ -65,7 +65,7 @@
 33        android:extractNativeLibs="false"
 34        android:icon="@drawable/ic_launcher"
 34-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:23:9-45
-35        android:label="Наша семья 6.0.33"
+35        android:label="Наша семья 6.0.35"
 35-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:20:9-42
 36        android:roundIcon="@drawable/ic_launcher"
 36-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:24:9-50
