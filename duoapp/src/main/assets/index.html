@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.29</title>
+<title>Наша семья 6.0.31</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -97,7 +97,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья 6.0.29</h1>
+    <h1>Наша семья 6.0.31</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -106,7 +106,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
     <button id="generateBtn" class="role wide" style="margin-top:9px">Сгенерировать безопасный код</button>
     <details style="margin-top:13px">
       <summary style="font-weight:800">Свой сервер (необязательно)</summary>
-      <div class="label">Сервер сообщений</div><input id="relayBase" class="code" value="https://family.familysergey.netcraze.pro">
+      <div class="label">Сервер сообщений</div><input id="relayBase" class="code" value="https://our-family-relay.family-860c7981b2d4.workers.dev">
       <div class="label">TURN URL</div><input id="turnUrl" class="code" placeholder="turns:turn.example.com:5349">
       <div class="label">TURN логин</div><input id="turnUser" class="code">
       <div class="label">TURN пароль</div><input id="turnPass" class="code" type="password">
@@ -119,10 +119,10 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v6.0.20</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.31</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
   </div>
   <div class="body">
-    <div id="permissionBanner" class="permission hidden"><strong>Настройка звонков и уведомлений</strong><div id="notificationPermissionRow" class="hidden">Уведомления о сообщениях и звонках<br><button id="notificationPermissionBtn">Включить уведомления</button></div><div id="fullScreenPermissionRow" class="hidden">Кнопка «Принять» поверх экрана блокировки<br><button id="fullScreenPermissionBtn">Разрешить полноэкранный звонок</button></div><div id="backgroundPermissionRow" class="hidden">Работа в фоне для получения звонков и сообщений<br><button id="backgroundPermissionBtn">Открыть настройки батареи</button></div><div class="hint">В настройках батареи выберите для приложения «Без ограничений». Названия пунктов зависят от телефона.</div></div>
+    <div id="permissionBanner" class="permission hidden"><strong>Настройка звонков и уведомлений</strong><div id="notificationPermissionRow" class="hidden">Уведомления о сообщениях и звонках<br><button id="notificationPermissionBtn">Включить уведомления</button></div><div id="fullScreenPermissionRow" class="hidden">Кнопка «Принять» поверх экрана блокировки<br><button id="fullScreenPermissionBtn">Разрешить полноэкранный звонок</button></div><div id="backgroundPermissionRow" class="hidden">Работа в фоне для получения звонков и сообщений<br><button id="backgroundPermissionBtn">Открыть настройки батареи</button></div><div id="callChannelGuideRow" class="hidden">Проверьте канал <strong>«Семейные звонки»</strong>: Настройки → Приложения → Наша семья → Уведомления → Семейные звонки. Включите все доступные пункты: уведомления, всплывающий показ, экран блокировки, звук и вибрацию.<br><button id="callChannelGuideBtn">Открыть уведомления</button> <button id="callChannelGuideDoneBtn">Уже включено</button></div><div class="hint">В настройках батареи выберите для приложения «Без ограничений». Названия пунктов зависят от телефона.</div></div>
     <div id="dailyQuote" class="daily-quote hidden" aria-live="polite"><div class="quote-label">ЦИТАТА ДНЯ</div><div id="quoteText" class="quote-text">Загружаем цитату дня…</div><div id="quoteCredit" class="quote-credit hidden"></div></div>
     <div class="actionbar">
       <button id="newChatBtn" class="action blue">✚ Новый чат</button>
@@ -251,6 +251,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   <button id="relayMenuBtn">🌐 Сервер сообщений</button>
   <button id="turnMenuBtn">📹 Сервер видеозвонков (TURN)</button>
   <button id="systemCallMenuBtn">📞 Системные входящие звонки</button>
+  <button id="callNotificationsMenuBtn">🔔 Семейные звонки — настройки</button>
   <button id="videoLayoutMenuBtn">🎥 Варианты видео</button>
   <button id="themeMenuBtn">🎨 Тема</button>
   <button id="fullScreenMenuBtn">Разрешение экрана звонка</button>
@@ -286,7 +287,7 @@ body[data-theme="ocean"] .news-action{background:linear-gradient(135deg,#d7f1f0,
   <div class="modal-card">
     <div class="about-logo">👨‍👩‍👧‍👦</div>
     <div class="modal-title">Наша семья</div>
-    <div id="aboutVersion" class="about-version">v6.0.27</div>
+    <div id="aboutVersion" class="about-version">v6.0.31</div>
     <div class="about-copy">Семейный мессенджер: личные и групповые чаты, аудио- и видеозвонки, семейные новости, фото, видео и файлы.</div>
     <button id="closeAboutBtn" class="primary wide" style="margin-top:16px">Готово</button>
   </div>
@@ -373,7 +374,7 @@ var MEMBERS=[
 ];
 var NAMES={};MEMBERS.forEach(function(m){NAMES[m.id]=m.name;});
 
-var role='',code='',relayBase='https://family.familysergey.netcraze.pro',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='',presenceTopic='';
+var role='',code='',relayBase='https://our-family-relay.family-860c7981b2d4.workers.dev',turnUrl='',turnUser='',turnPass='',ownTopic='',ownTag='',presenceTopic='';
 var roleTags={},cryptoKeys={},packetChunks={},processedPayloads=new Set(),rawInFlight=new Set();
 var relayRequests=new Map();
 var messages=[],currentThread=null,pickerMode='new',pickerSelected=new Set(),pollBusy=false,pollTimer=null;
@@ -382,7 +383,7 @@ var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteS
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.27',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
+var APP_VERSION='6.0.31',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
 var games={},activeGameId='',pendingGameAcceptId='',gameSending=false,checkersDrag=null,suppressCheckersClick=0;
 var durakGames={},activeDurakId='',pendingDurakAcceptId='',durakSending=false,gamePickKind='',gamePickPeer='';
 var REACTIONS=['👍','👎','❤️','😂','😮','😢','😡','👏','🔥','🎉'];
@@ -2160,10 +2161,12 @@ function checkFullScreenPermission(){
  try{full=!!AndroidBridge.canUseFullScreenCall();}catch(e){}
  try{notifications=!!AndroidBridge.notificationsAllowed();}catch(e){}
  try{background=!!AndroidBridge.backgroundAllowed();}catch(e){}
+ var channelGuideDone=localStorage.getItem('of5_call_channel_guide_6031')==='1';
  $('notificationPermissionRow').classList.toggle('hidden',notifications);
  $('fullScreenPermissionRow').classList.toggle('hidden',full);
  $('backgroundPermissionRow').classList.toggle('hidden',background);
- $('permissionBanner').classList.toggle('hidden',full&&notifications&&background);
+ $('callChannelGuideRow').classList.toggle('hidden',channelGuideDone);
+ $('permissionBanner').classList.toggle('hidden',full&&notifications&&background&&channelGuideDone);
  $('fullScreenMenuBtn').classList.toggle('hidden',full);
  $('dailyQuote').classList.toggle('hidden',!full);
  if(full)renderDailyQuote();
@@ -2188,7 +2191,7 @@ async function enter(){
 function loadProfile(){
  try{
    var raw=AndroidBridge.loadProfile();if(!raw)return false;var p=JSON.parse(raw);
-   role=p.role||'';code=p.code||'';relayBase=p.relay||'https://family.familysergey.netcraze.pro';turnUrl=p.turnUrl||'';turnUser=p.turnUser||'';turnPass=p.turnPass||'';
+   role=p.role||'';code=p.code||'';relayBase=p.relay||'https://our-family-relay.family-860c7981b2d4.workers.dev';turnUrl=p.turnUrl||'';turnUser=p.turnUser||'';turnPass=p.turnPass||'';
    return !!(NAMES[role]&&code.length>=14);
  }catch(e){return false;}
 }
@@ -2200,7 +2203,7 @@ function populateSetup(){
 
 $('generateBtn').addEventListener('click',function(){var a=crypto.getRandomValues(new Uint8Array(16));$('familyCode').value='Family-'+Array.from(a).map(function(x){return x.toString(16).padStart(2,'0');}).join('');});
 $('startBtn').addEventListener('click',async function(){
- var c=$('familyCode').value.trim(),rb=$('relayBase').value.trim().replace(/\/+$/,'')||'https://family.familysergey.netcraze.pro';
+ var c=$('familyCode').value.trim(),rb=$('relayBase').value.trim().replace(/\/+$/,'')||'https://our-family-relay.family-860c7981b2d4.workers.dev';
  if(!NAMES[role]){toast('Выберите своё имя');return;}if(c.length<14){toast('Код минимум 14 символов');return;}if(!/^https:\/\//.test(rb)){toast('Relay должен начинаться с https://');return;}
  code=c;relayBase=rb;turnUrl=$('turnUrl').value.trim();turnUser=$('turnUser').value.trim();turnPass=$('turnPass').value;
  try{if(!AndroidBridge.saveProfile(role,code,relayBase,turnUrl,turnUser,turnPass)){toast('Не удалось сохранить профиль');return;}}catch(e){toast('Ошибка безопасного хранилища');return;}
@@ -2417,6 +2420,9 @@ $('newsSendBtn').addEventListener('click',sendNewsPost);
 $('fullScreenMenuBtn').addEventListener('click',function(){requestFullScreen();});
 $('fullScreenPermissionBtn').addEventListener('click',requestFullScreen);
 $('notificationPermissionBtn').addEventListener('click',function(){try{AndroidBridge.requestNotifications();}catch(e){}});
+$('callChannelGuideBtn').addEventListener('click',function(){try{AndroidBridge.requestNotifications();}catch(e){}});
+$('callNotificationsMenuBtn').addEventListener('click',function(){try{AndroidBridge.requestNotifications();}catch(e){}});
+$('callChannelGuideDoneBtn').addEventListener('click',function(){localStorage.setItem('of5_call_channel_guide_6031','1');checkFullScreenPermission();toast('Настройки «Семейные звонки» отмечены как проверенные');});
 $('backgroundPermissionBtn').addEventListener('click',function(){try{AndroidBridge.openBackgroundSettings();}catch(e){}});
 $('resetBtn').addEventListener('click',function(){if(confirm('Сменить профиль и очистить локальную историю?')){try{AndroidBridge.clearProfile();}catch(e){}location.reload();}});
 $('adminArchiveBtn').addEventListener('click',openAdminArchiveScreen);
