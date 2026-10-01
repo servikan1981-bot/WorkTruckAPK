@@ -37,8 +37,8 @@ jobs:
           assert apk.exists()
           assert hashlib.sha256(apk.read_bytes()).hexdigest()==m['sha256']
           assert m['sha256']=='cc023b0cfbbdf2d12b474b2ff93aab0df42acd2c3a8cdd28e47a837a160fa9ae'
-          parts=sorted(Path('updates/parts').glob('v631_*.b64'))
-          assert len(parts)==10, len(parts)
+          parts=sorted(Path('updates/parts').glob('v631_[0-9][0-9].b64'))
+          assert len(parts)==10, [p.name for p in parts]
           print('6.0.31 release preserved')
           PY
 
