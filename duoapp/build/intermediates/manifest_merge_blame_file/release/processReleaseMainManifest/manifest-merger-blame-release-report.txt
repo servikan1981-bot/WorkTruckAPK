@@ -1,0 +1,188 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.sergey.ourfamily"
+4    android:versionCode="6032"
+5    android:versionName="6.0.32" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="24"
+9        android:targetSdkVersion="35" />
+10
+11    <uses-permission android:name="android.permission.INTERNET" />
+11-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:2:5-67
+11-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:2:22-64
+12    <uses-permission android:name="android.permission.CAMERA" />
+12-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:3:5-65
+12-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:3:22-62
+13    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+13-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:4:5-71
+13-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:4:22-68
+14    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+14-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:5:5-80
+14-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:5:22-77
+15    <uses-permission android:name="android.permission.WAKE_LOCK" />
+15-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:6:5-68
+15-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:6:22-65
+16    <uses-permission android:name="android.permission.VIBRATE" />
+16-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:7:5-66
+16-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:7:22-63
+17    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+17-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:8:5-77
+17-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:8:22-74
+18    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+18-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:9:5-77
+18-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:9:22-74
+19    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
+19-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:10:5-94
+19-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:10:22-91
+20    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+20-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:11:5-81
+20-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:11:22-78
+21    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+21-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:12:5-81
+21-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:12:22-78
+22    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+22-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:13:5-83
+22-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:13:22-80
+23
+24    <uses-feature
+24-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:15:5-85
+25        android:name="android.hardware.camera"
+25-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:15:19-57
+26        android:required="false" />
+26-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:15:58-82
+27    <uses-feature
+27-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:16:5-89
+28        android:name="android.hardware.microphone"
+28-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:16:19-61
+29        android:required="false" />
+29-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:16:62-86
+30
+31    <application
+31-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:18:5-87:19
+32        android:allowBackup="false"
+32-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:19:9-36
+33        android:extractNativeLibs="false"
+34        android:icon="@drawable/ic_launcher"
+34-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:23:9-45
+35        android:label="Наша семья 6.0.32"
+35-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:20:9-42
+36        android:roundIcon="@drawable/ic_launcher"
+36-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:24:9-50
+37        android:theme="@style/AppTheme"
+37-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:21:9-40
+38        android:usesCleartextTraffic="false" >
+38-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:22:9-45
+39        <service
+39-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:26:9-30:63
+40            android:name="com.sergey.duochat.MessagingService"
+40-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:27:13-45
+41            android:exported="false"
+41-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:28:13-37
+42            android:foregroundServiceType="remoteMessaging"
+42-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:30:13-60
+43            android:stopWithTask="false" />
+43-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:29:13-41
+44        <service
+44-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:32:9-40:19
+45            android:name="com.sergey.duochat.FamilyConnectionService"
+45-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:33:13-52
+46            android:exported="true"
+46-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:36:13-36
+47            android:label="Наша семья"
+47-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:34:13-39
+48            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE" >
+48-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:35:13-84
+49            <intent-filter>
+49-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:37:13-39:29
+50                <action android:name="android.telecom.ConnectionService" />
+50-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:38:17-76
+50-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:38:25-73
+51            </intent-filter>
+52        </service>
+53
+54        <receiver
+54-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:42:9-50:20
+55            android:name="com.sergey.duochat.BootReceiver"
+55-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:43:13-41
+56            android:enabled="true"
+56-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:44:13-35
+57            android:exported="true" >
+57-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:45:13-36
+58            <intent-filter>
+58-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:46:13-49:29
+59                <action android:name="android.intent.action.BOOT_COMPLETED" />
+59-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:47:17-79
+59-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:47:25-76
+60                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+60-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:48:17-84
+60-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:48:25-81
+61            </intent-filter>
+62        </receiver>
+63        <receiver
+63-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:52:9-54:40
+64            android:name="com.sergey.duochat.CallActionReceiver"
+64-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:53:13-47
+65            android:exported="false" />
+65-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:54:13-37
+66
+67        <provider
+68            android:name="com.sergey.duochat.UpdateFileProvider"
+68-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:57:13-47
+69            android:authorities="com.sergey.ourfamily.updateprovider"
+69-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:58:13-66
+70            android:exported="false"
+70-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:59:13-37
+71            android:grantUriPermissions="true" />
+71-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:60:13-47
+72
+73        <activity
+73-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:62:9-69:40
+74            android:name="com.sergey.duochat.IncomingCallActivity"
+74-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:63:13-49
+75            android:excludeFromRecents="true"
+75-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:64:13-46
+76            android:exported="false"
+76-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:69:13-37
+77            android:launchMode="singleTop"
+77-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:65:13-43
+78            android:screenOrientation="portrait"
+78-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:66:13-49
+79            android:showWhenLocked="true"
+79-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:67:13-42
+80            android:turnScreenOn="true" />
+80-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:68:13-40
+81        <activity
+81-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:71:9-80:20
+82            android:name="com.sergey.duochat.PermissionGateActivity"
+82-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:72:13-51
+83            android:exported="true"
+83-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:75:13-36
+84            android:launchMode="singleTop"
+84-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:74:13-43
+85            android:screenOrientation="portrait" >
+85-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:73:13-49
+86            <intent-filter>
+86-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:76:13-79:29
+87                <action android:name="android.intent.action.MAIN" />
+87-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:77:17-69
+87-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:77:25-66
+88
+89                <category android:name="android.intent.category.LAUNCHER" />
+89-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:78:17-77
+89-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:78:27-74
+90            </intent-filter>
+91        </activity>
+92        <activity
+92-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:82:9-86:39
+93            android:name="com.sergey.duochat.MainActivity"
+93-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:83:13-41
+94            android:exported="true"
+94-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:86:13-36
+95            android:launchMode="singleTop"
+95-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:85:13-43
+96            android:screenOrientation="portrait" />
+96-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:84:13-49
+97    </application>
+98
+99</manifest>
