@@ -1,0 +1,6 @@
+{
+  "baseCommit": "d938e1161415079f4fac62ed0a6f524e76fb9415",
+  "base64Chars": 152851,
+  "fatal": "Error('Invalid base64-encoded string: number of data characters (152849) cannot be 1 more than a multiple of 4')",
+  "trace": "Traceback (most recent call last):\n  File \"<stdin>\", line 12, in <module>\n  File \"/usr/lib/python3.12/base64.py\", line 88, in b64decode\n    return binascii.a2b_base64(s, strict_mode=validate)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nbinascii.Error: Invalid base64-encoded string: number of data characters (152849) cannot be 1 more than a multiple of 4\n"
+}
