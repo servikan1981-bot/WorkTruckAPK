@@ -46,7 +46,7 @@ LUDO_SCREEN=r'''
 '''
 rep('<section id="durak" class="screen hidden">',LUDO_SCREEN+'\n<section id="durak" class="screen hidden">','ludo screen')
 
-rep('<button id="pickDurakBtn" class="accept">Дурак</button>','<button id="pickDurakBtn" class="accept">Дурак</button><button id="pickLudoBtn" class="accept ludo-choice">🎲 Семейная гонка</button>','game choice ludo')
+rep('<button id="pickDurakBtn" class="durak-pick">🃏 Дурак</button>','<button id="pickDurakBtn" class="durak-pick">🃏 Дурак</button><button id="pickLudoBtn" class="ludo-choice">🎲 Семейная гонка</button>','game choice ludo')
 
 LUDO_PICKER=r'''
 <div id="ludoPicker" class="game-request hidden">
