@@ -64,6 +64,7 @@ jobs:
           grep -q 'prepareLocalMedia' "$H"
           grep -q 'captureChatVideoBtn' "$H"
           git diff origin/family-stable-6 --exit-code -- duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          git diff origin/family-stable-6 --exit-code -- duoapp/src/main/assets/ludo.js
 
       - name: Validate asset JavaScript syntax
         run: |
@@ -72,6 +73,7 @@ jobs:
           node --check duoapp/src/main/assets/billiards.js
           node --check duoapp/src/main/assets/checkers.js
           node --check duoapp/src/main/assets/durak.js
+          node --check duoapp/src/main/assets/ludo.js
 
       - name: Validate inline JavaScript syntax
         run: |
@@ -87,8 +89,8 @@ jobs:
         run: node tools/test_billiards.cjs
       - name: Test async messaging regression
         run: node tools/test_family_624_async.cjs
-      - name: Test Ludo regression
-        run: node tools/test_ludo.cjs
+      - name: Validate legacy Ludo unchanged
+        run: git diff origin/family-stable-6 --exit-code -- duoapp/src/main/assets/ludo.js tools/test_ludo.cjs
       - name: Test TURN SDP regression
         run: node tools/test_turn_sdp_627.cjs
 
