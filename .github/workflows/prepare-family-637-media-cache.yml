@@ -31,7 +31,9 @@ jobs:
           gradle-version: '8.10.2'
           cache-read-only: true
       - name: Apply media cache patch
-        run: python3 tools/patch_family_637_media.py
+        run: |
+          python3 tools/fix_patch_family_637_scope.py
+          python3 tools/patch_family_637_media.py
       - name: Validate media cache patch
         run: |
           set -euo pipefail
