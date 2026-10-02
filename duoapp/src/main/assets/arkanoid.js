@@ -3,7 +3,7 @@
 
 var doc=root.document;
 var W=960,H=540;
-var state={level:1,score:0,lives:3,high:0,running:false,paused:false,started:false,fullscreen:false,lastTs:0,raf:0,paddle:null,balls:[],bricks:[],bonuses:[],particles:[],wideUntil:0,message:'',messageUntil:0};
+var state={level:1,score:0,lives:3,high:0,running:false,paused:false,started:false,fullscreen:false,lastTs:0,raf:0,paddle:null,balls:[],bricks:[],bonuses:[],particles:[],wideUntil:0,message:'',messageUntil:0,joyAxis:0,joyPointer:null};
 var canvas=null,ctx=null,audioCtx=null;
 
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
@@ -30,7 +30,11 @@ function ensureStyle(){
 .ark-hud{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;max-width:960px;width:100%;margin:0 auto}.ark-stat{background:rgba(3,8,24,.78);border:1px solid rgba(130,160,255,.28);border-radius:12px;padding:7px 9px;text-align:center;font-weight:850;font-size:13px}.ark-stat strong{display:block;color:#ffd85e;font-size:18px;margin-top:1px}\
 .ark-shell{position:relative;width:min(100%,960px);aspect-ratio:16/9;margin:0 auto;border-radius:16px;overflow:hidden;border:1px solid rgba(122,159,255,.45);box-shadow:0 12px 36px rgba(0,0,0,.45);background:#02040d}.ark-shell canvas{width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}.ark-overlay{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}.ark-overlay span{background:rgba(2,6,20,.72);border:1px solid rgba(255,255,255,.18);padding:12px 18px;border-radius:16px;font-weight:900;font-size:18px;text-align:center;max-width:80%}\
 .ark-controls{display:flex;gap:8px;max-width:960px;width:100%;margin:0 auto}.ark-controls button{flex:1;border:0;border-radius:13px;padding:11px 8px;font-weight:900}.ark-start{background:#25a66a;color:#fff}.ark-pause{background:#e9eefc;color:#1a2850}.ark-full{background:#355ff0;color:#fff}.ark-hint{text-align:center;color:#b9c7ec;font-size:12px;max-width:960px;margin:0 auto}.arkanoid-fullscreen-mode #arkanoid{position:fixed;inset:0;z-index:230;min-height:100dvh}.arkanoid-fullscreen-mode #arkanoid .topbar,.arkanoid-fullscreen-mode #bottomNav{display:none!important}.arkanoid-fullscreen-mode .ark-body{padding:4px}.arkanoid-fullscreen-mode .ark-hud{grid-template-columns:repeat(4,1fr);gap:4px}.arkanoid-fullscreen-mode .ark-stat{padding:4px 6px;font-size:11px}.arkanoid-fullscreen-mode .ark-stat strong{display:inline;font-size:14px;margin-left:4px}.arkanoid-fullscreen-mode .ark-shell{width:min(100vw,calc(100vh * 16 / 9));max-height:calc(100vh - 82px)}.arkanoid-fullscreen-mode .ark-controls{max-width:min(100vw,960px)}\
-';doc.head.appendChild(s);
+';doc.head.appendChild(s);var js=doc.createElement('style');js.id='arkanoid-joystick-style';js.textContent='\
+.ark-stage{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;max-width:960px;margin:0 auto;min-height:0}\
+.ark-joystick{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;flex:0 0 auto}.ark-joystick-title{font-size:11px;font-weight:900;letter-spacing:.08em;color:#91a8dc;white-space:nowrap}.ark-joystick-track{position:relative;width:min(72vw,520px);height:58px;border-radius:30px;border:1px solid rgba(123,157,255,.48);background:linear-gradient(180deg,rgba(25,47,99,.92),rgba(8,18,48,.96));box-shadow:inset 0 4px 15px rgba(0,0,0,.38),0 6px 18px rgba(0,0,0,.25);touch-action:none;user-select:none;-webkit-user-select:none;overflow:hidden}.ark-joystick-track:before{content:"◀";position:absolute;left:17px;top:50%;transform:translateY(-50%);font-size:20px;color:#89a8ff}.ark-joystick-track:after{content:"▶";position:absolute;right:17px;top:50%;transform:translateY(-50%);font-size:20px;color:#89a8ff}.ark-joystick-knob{position:absolute;left:50%;top:50%;width:50px;height:50px;border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(circle at 35% 28%,#e9f4ff 0,#75bcff 28%,#326df2 63%,#17317e 100%);border:2px solid rgba(255,255,255,.72);box-shadow:0 5px 18px rgba(19,77,220,.55),inset 0 2px 5px rgba(255,255,255,.5);pointer-events:none;transition:left .08s ease}.ark-joystick.active .ark-joystick-knob{transition:none;box-shadow:0 4px 22px rgba(80,145,255,.8),inset 0 2px 5px rgba(255,255,255,.5)}\
+.arkanoid-fullscreen-mode .ark-stage{flex:1;flex-direction:row;justify-content:center;align-items:center;gap:8px;max-width:100vw}.arkanoid-fullscreen-mode .ark-shell{width:min(calc(100vw - 142px),calc((100vh - 92px) * 16 / 9));max-width:calc(100vw - 142px);max-height:calc(100vh - 92px);flex:0 1 auto}.arkanoid-fullscreen-mode .ark-joystick{width:126px;height:126px;flex:0 0 126px;flex-direction:column;gap:4px}.arkanoid-fullscreen-mode .ark-joystick-title{font-size:10px}.arkanoid-fullscreen-mode .ark-joystick-track{width:112px;height:112px;border-radius:56px}.arkanoid-fullscreen-mode .ark-joystick-track:before{left:9px;font-size:17px}.arkanoid-fullscreen-mode .ark-joystick-track:after{right:9px;font-size:17px}.arkanoid-fullscreen-mode .ark-joystick-knob{width:52px;height:52px}\
+@media(max-width:520px){.ark-body{gap:6px}.ark-hud{gap:4px}.ark-stat{padding:5px 4px;font-size:11px}.ark-stat strong{font-size:16px}.ark-joystick{gap:5px}.ark-joystick-title{font-size:9px}.ark-joystick-track{height:54px;width:min(76vw,390px)}.ark-joystick-knob{width:46px;height:46px}.ark-controls button{padding:9px 5px;font-size:12px}}';doc.head.appendChild(js);
 }
 
 function ensureUi(){
@@ -46,9 +50,9 @@ function ensureUi(){
 <div class="topbar"><button id="arkBackBtn" class="iconbtn">‹</button><div class="who"><div class="name">Арканоид</div><div id="arkTopStatus" class="status">Одиночная игра</div></div><button id="arkFullscreenBtn" class="iconbtn" type="button" title="На весь экран">⛶</button></div>\
 <div class="ark-body">\
  <div class="ark-hud"><div class="ark-stat">Уровень<strong id="arkLevel">1</strong></div><div class="ark-stat">Очки<strong id="arkScore">0</strong></div><div class="ark-stat">Жизни<strong id="arkLives">3</strong></div><div class="ark-stat">Рекорд<strong id="arkHigh">0</strong></div></div>\
- <div class="ark-shell"><canvas id="arkCanvas" width="960" height="540" aria-label="Арканоид"></canvas><div id="arkOverlay" class="ark-overlay"><span>Нажмите «Старт»</span></div></div>\
+ <div class="ark-stage"><div class="ark-shell"><canvas id="arkCanvas" width="960" height="540" aria-label="Арканоид"></canvas><div id="arkOverlay" class="ark-overlay"><span>Нажмите «Старт»</span></div></div><div id="arkJoystick" class="ark-joystick"><span class="ark-joystick-title">УПРАВЛЕНИЕ</span><div id="arkJoystickTrack" class="ark-joystick-track" role="slider" aria-label="Управление платформой" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><div id="arkJoystickKnob" class="ark-joystick-knob"></div></div></div></div>\
  <div class="ark-controls"><button id="arkStartBtn" class="ark-start">▶ Старт</button><button id="arkPauseBtn" class="ark-pause">⏸ Пауза</button><button id="arkFullBtn" class="ark-full">⛶ Полный экран</button></div>\
- <div class="ark-hint">Ведите пальцем по игровому полю, чтобы двигать платформу. Коснитесь поля, чтобы запустить шар.</div>\
+ <div class="ark-hint">Управляйте платформой джойстиком. Игровое поле остаётся свободным; коснитесь его только для запуска шара.</div>\
 </div>';
   var nav=doc.getElementById('bottomNav');if(nav&&nav.parentNode)nav.parentNode.insertBefore(section,nav);else doc.body.appendChild(section);
   bindUi();
@@ -65,9 +69,9 @@ function bindUi(){
  if(start)start.addEventListener('click',function(){unlockAudio();if(!state.started||state.lives<=0)newGame();else if(state.balls.some(function(b){return b.stuck;}))launchStuckBalls();else newGame();updateUi();});
  if(pause)pause.addEventListener('click',togglePause);
  if(canvas){
-  canvas.addEventListener('pointerdown',function(e){unlockAudio();movePaddle(e);if(state.started&&state.balls.some(function(b){return b.stuck;}))launchStuckBalls();try{canvas.setPointerCapture(e.pointerId);}catch(_e){};});
-  canvas.addEventListener('pointermove',function(e){if(e.buttons||e.pointerType==='touch'||e.pointerType==='pen')movePaddle(e);});
+  canvas.addEventListener('pointerdown',function(){unlockAudio();if(state.started&&state.balls.some(function(b){return b.stuck;}))launchStuckBalls();});
  }
+ bindJoystick();
  try{state.high=Number(root.localStorage.getItem('ourfamily_arkanoid_high')||0)||0;}catch(e){}
  initScene();draw();updateUi();
 }
@@ -80,14 +84,18 @@ function makeBall(stuck){var s=speedForLevel(state.level);return {x:W/2,y:H-60,r
 function newGame(){state.level=1;state.score=0;state.lives=3;state.started=true;state.running=true;state.paused=false;state.lastTs=0;state.wideUntil=0;initScene();state.message='Коснитесь поля или нажмите «Старт»';state.messageUntil=performance.now()+1600;draw();updateUi();loop();}
 function nextLevel(){state.level++;state.running=true;state.paused=false;state.lastTs=0;state.wideUntil=0;initScene();state.message='Уровень '+state.level;state.messageUntil=performance.now()+1500;sound('clear',1);updateUi();loop();}
 function launchStuckBalls(){var speed=speedForLevel(state.level);state.balls.forEach(function(b,i){if(!b.stuck)return;b.stuck=false;var a=(-Math.PI/2)+((i%3)-1)*.18;b.vx=Math.cos(a)*speed;b.vy=Math.sin(a)*speed;});state.running=true;state.paused=false;state.lastTs=0;sound('paddle',.55);loop();updateUi();}
-function movePaddle(e){if(!canvas||!state.paddle)return;var r=canvas.getBoundingClientRect();var x=(e.clientX-r.left)/Math.max(1,r.width)*W;state.paddle.x=clamp(x-state.paddle.w/2,8,W-state.paddle.w-8);state.balls.forEach(function(b){if(b.stuck)b.x=state.paddle.x+state.paddle.w/2;});if(!state.running)draw();}
+function joystickAxisFromClientX(clientX,left,width){var raw=((clientX-left)/Math.max(1,width)-.5)*2;raw=clamp(raw,-1,1);var a=Math.abs(raw);if(a<.08)return 0;return Math.sign(raw)*((a-.08)/.92);}
+function syncStuckBalls(){if(!state.paddle)return;state.balls.forEach(function(b){if(b.stuck)b.x=state.paddle.x+state.paddle.w/2;});}
+function updateJoystickVisual(){if(!doc)return;var knob=doc.getElementById('arkJoystickKnob'),track=doc.getElementById('arkJoystickTrack');if(knob)knob.style.left=(50+state.joyAxis*31)+'%';if(track)track.setAttribute('aria-valuenow',String(Math.round(state.joyAxis*100)));}
+function resetJoystick(){state.joyAxis=0;state.joyPointer=null;if(doc){var box=doc.getElementById('arkJoystick');if(box)box.classList.remove('active');}updateJoystickVisual();}
+function bindJoystick(){if(!doc)return;var track=doc.getElementById('arkJoystickTrack');if(!track||track.dataset.bound==='1')return;track.dataset.bound='1';function apply(e){var r=track.getBoundingClientRect();state.joyAxis=joystickAxisFromClientX(e.clientX,r.left,r.width);updateJoystickVisual();}function end(e){if(state.joyPointer!==null&&e&&e.pointerId!==state.joyPointer)return;resetJoystick();}track.addEventListener('pointerdown',function(e){unlockAudio();state.joyPointer=e.pointerId;var box=doc.getElementById('arkJoystick');if(box)box.classList.add('active');try{track.setPointerCapture(e.pointerId);}catch(_e){}apply(e);e.preventDefault();});track.addEventListener('pointermove',function(e){if(state.joyPointer===e.pointerId){apply(e);e.preventDefault();}});track.addEventListener('pointerup',end);track.addEventListener('pointercancel',end);track.addEventListener('lostpointercapture',function(){resetJoystick();});updateJoystickVisual();}
 function togglePause(){if(!state.started)return;state.paused=!state.paused;state.running=!state.paused;state.lastTs=0;if(state.running)loop();updateUi();}
 
 function circleRectHit(b,r){var nx=clamp(b.x,r.x,r.x+r.w),ny=clamp(b.y,r.y,r.y+r.h);var dx=b.x-nx,dy=b.y-ny;return dx*dx+dy*dy<=b.r*b.r;}
 function normalizeBall(b,target){var s=Math.hypot(b.vx,b.vy)||target;b.vx=b.vx/s*target;b.vy=b.vy/s*target;}
 function update(dt,now){
  if(state.wideUntil&&now>state.wideUntil){state.paddle.w=140;state.wideUntil=0;}
- var p=state.paddle;
+ var p=state.paddle;if(p&&Math.abs(state.joyAxis)>.001){var paddleSpeed=820;p.x=clamp(p.x+state.joyAxis*paddleSpeed*dt,8,W-p.w-8);syncStuckBalls();}
  for(var bi=state.balls.length-1;bi>=0;bi--){var b=state.balls[bi];if(b.stuck){b.x=p.x+p.w/2;b.y=p.y-b.r-2;continue;}var prevX=b.x,prevY=b.y;b.x+=b.vx*dt;b.y+=b.vy*dt;
   b.trail.push({x:b.x,y:b.y,a:1});if(b.trail.length>7)b.trail.shift();
   if(b.x-b.r<0){b.x=b.r;b.vx=Math.abs(b.vx);sound('wall',.25);}else if(b.x+b.r>W){b.x=W-b.r;b.vx=-Math.abs(b.vx);sound('wall',.25);}if(b.y-b.r<0){b.y=b.r;b.vy=Math.abs(b.vy);sound('wall',.25);}
@@ -137,12 +145,12 @@ function sound(kind,strength){var p=clamp(Number(strength)||.5,.1,1),c=audio();i
 
 function setFullscreen(on){state.fullscreen=!!on;if(doc)doc.body.classList.toggle('arkanoid-fullscreen-mode',state.fullscreen);var b=doc&&doc.getElementById('arkFullscreenBtn'),b2=doc&&doc.getElementById('arkFullBtn');if(b)b.textContent=state.fullscreen?'✕':'⛶';if(b2)b2.textContent=state.fullscreen?'✕ Выйти из полного экрана':'⛶ Полный экран';var nativeDone=false;try{if(root.AndroidBridge&&root.AndroidBridge.setPoolGameFullscreen){root.AndroidBridge.setPoolGameFullscreen(state.fullscreen);nativeDone=true;}if(root.AndroidBridge&&root.AndroidBridge.setPoolGameActive)root.AndroidBridge.setPoolGameActive(state.fullscreen||!(doc.getElementById('arkanoid').classList.contains('hidden')));if(state.fullscreen&&root.AndroidBridge&&root.AndroidBridge.requestPoolLandscape)root.AndroidBridge.requestPoolLandscape();}catch(e){}
  if(!nativeDone){try{if(state.fullscreen){var el=doc.documentElement;if(el.requestFullscreen)el.requestFullscreen().catch(function(){});}else if(doc.fullscreenElement&&doc.exitFullscreen)doc.exitFullscreen().catch(function(){});}catch(e){}}
- setTimeout(draw,220);
+ resetJoystick();setTimeout(function(){updateJoystickVisual();draw();},220);
 }
 function openGame(){if(!ensureUi())return;try{if(typeof root.showScreen==='function')root.showScreen('arkanoid');else{doc.querySelectorAll('.screen').forEach(function(x){x.classList.add('hidden');});doc.getElementById('arkanoid').classList.remove('hidden');}}catch(e){}try{if(root.AndroidBridge&&root.AndroidBridge.setPoolGameActive)root.AndroidBridge.setPoolGameActive(true);}catch(e){}if(!state.started)newGame();else{state.paused=false;state.running=true;state.lastTs=0;loop();updateUi();draw();}}
 function closeGame(){state.paused=true;state.running=false;cancelLoop();setFullscreen(false);try{if(root.AndroidBridge&&root.AndroidBridge.setPoolGameActive)root.AndroidBridge.setPoolGameActive(false);}catch(e){}try{if(typeof root.showScreen==='function')root.showScreen('gamesHub');else{doc.getElementById('arkanoid').classList.add('hidden');doc.getElementById('gamesHub').classList.remove('hidden');}}catch(e){}}
 
-root.ArkanoidGame={speedForLevel:speedForLevel,brickRowsForLevel:brickRowsForLevel,buildLevel:buildLevel,open:openGame,newGame:newGame};
+root.ArkanoidGame={speedForLevel:speedForLevel,brickRowsForLevel:brickRowsForLevel,buildLevel:buildLevel,joystickAxisFromClientX:joystickAxisFromClientX,open:openGame,newGame:newGame};
 if(doc){if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',function(){ensureUi();});else ensureUi();['pointerdown','touchstart','keydown'].forEach(function(n){doc.addEventListener(n,unlockAudio,true);});}
 
 })(typeof window!=='undefined'?window:globalThis);
