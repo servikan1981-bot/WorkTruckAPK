@@ -17,7 +17,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="Наша семья 6.0.39"
+        android:label="Наша семья 6.0.40"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false"
         android:icon="@drawable/ic_launcher"
@@ -82,6 +82,7 @@
         <activity
             android:name=".MainActivity"
             android:screenOrientation="portrait"
+            android:configChanges="orientation|screenSize|keyboardHidden"
             android:launchMode="singleTop"
             android:exported="true" />
     </application>

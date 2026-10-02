@@ -30,8 +30,8 @@ function simulate(state,angle,power,keepFrames){
  var s=clone(state),balls=s.balls.map(function(b){return {n:b.n,x:b.x,y:b.y,pocketed:!!b.pocketed,vx:0,vy:0};});
  var cue=balls.find(function(b){return b.n===0;});if(!cue||cue.pocketed)return {balls:balls,pocketed:[],firstContact:null,frames:[]};
  power=Math.max(0.08,Math.min(1,Number(power)||0.5));angle=Number(angle)||0;var speed=14+power*28;cue.vx=Math.cos(angle)*speed;cue.vy=Math.sin(angle)*speed;
- var frames=[],pocketed=[],firstContact=null,lastFrame=-9;
- function snap(){if(!keepFrames)return;frames.push(balls.map(function(b){return {n:b.n,x:+b.x.toFixed(2),y:+b.y.toFixed(2),pocketed:b.pocketed};}));}
+ var frames=[],pocketed=[],firstContact=null,lastFrame=-9,pendingSound=0;
+ function snap(){if(!keepFrames)return;var fr=balls.map(function(b){return {n:b.n,x:+b.x.toFixed(2),y:+b.y.toFixed(2),pocketed:b.pocketed};});if(pendingSound>0){fr._sound=Math.min(1,pendingSound);pendingSound=0;}frames.push(fr);}
  snap();
  for(var step=0;step<1900;step++){
   var moving=false;
@@ -44,15 +44,15 @@ function simulate(state,angle,power,keepFrames){
     if(Math.hypot(b.x-pk[0],b.y-pk[1])<pr){b.pocketed=true;b.vx=b.vy=0;pocketed.push(b.n);break;}
    }
    if(b.pocketed)continue;
-   if(b.x-R<LEFT){b.x=LEFT+R;b.vx=Math.abs(b.vx)*.91;}else if(b.x+R>RIGHT){b.x=RIGHT-R;b.vx=-Math.abs(b.vx)*.91;}
-   if(b.y-R<TOP){b.y=TOP+R;b.vy=Math.abs(b.vy)*.91;}else if(b.y+R>BOTTOM){b.y=BOTTOM-R;b.vy=-Math.abs(b.vy)*.91;}
+   if(b.x-R<LEFT){b.x=LEFT+R;b.vx=Math.abs(b.vx)*.94;}else if(b.x+R>RIGHT){b.x=RIGHT-R;b.vx=-Math.abs(b.vx)*.94;}
+   if(b.y-R<TOP){b.y=TOP+R;b.vy=Math.abs(b.vy)*.94;}else if(b.y+R>BOTTOM){b.y=BOTTOM-R;b.vy=-Math.abs(b.vy)*.94;}
   }
   for(var a=0;a<balls.length;a++)for(var j=a+1;j<balls.length;j++){
    var A=balls[a],B=balls[j];if(A.pocketed||B.pocketed)continue;var dx=B.x-A.x,dy=B.y-A.y,d2=dx*dx+dy*dy,min=R*2;if(d2<=0||d2>=min*min)continue;
    var d=Math.sqrt(d2),nx=dx/d,ny=dy/d,over=min-d;A.x-=nx*over/2;A.y-=ny*over/2;B.x+=nx*over/2;B.y+=ny*over/2;
-   var rvx=B.vx-A.vx,rvy=B.vy-A.vy,sep=rvx*nx+rvy*ny;if(sep<0){var imp=-(1.92)*sep/2;A.vx-=imp*nx;A.vy-=imp*ny;B.vx+=imp*nx;B.vy+=imp*ny;if(firstContact===null&&(A.n===0||B.n===0))firstContact=A.n===0?B.n:A.n;}
+   var rvx=B.vx-A.vx,rvy=B.vy-A.vy,sep=rvx*nx+rvy*ny;if(sep<0){var hitStrength=Math.min(1,Math.abs(sep)/22);if(hitStrength>.055)pendingSound=Math.max(pendingSound,hitStrength);var imp=-(1.92)*sep/2;A.vx-=imp*nx;A.vy-=imp*ny;B.vx+=imp*nx;B.vy+=imp*ny;if(firstContact===null&&(A.n===0||B.n===0))firstContact=A.n===0?B.n:A.n;}
   }
-  for(var q=0;q<balls.length;q++){var bb=balls[q];if(bb.pocketed)continue;bb.vx*=.987;bb.vy*=.987;if(Math.abs(bb.vx)<.018)bb.vx=0;if(Math.abs(bb.vy)<.018)bb.vy=0;}
+  for(var q=0;q<balls.length;q++){var bb=balls[q];if(bb.pocketed)continue;bb.vx*=.993;bb.vy*=.993;if(Math.abs(bb.vx)<.010)bb.vx=0;if(Math.abs(bb.vy)<.010)bb.vy=0;}
   if(keepFrames&&step-lastFrame>=7){snap();lastFrame=step;}
   if(!moving&&step>8)break;
  }
