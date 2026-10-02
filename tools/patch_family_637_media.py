@@ -149,10 +149,14 @@ h = once(
     "function renderMessages(){\n var box=$('messages'),keptAttachments={};Array.from(box.querySelectorAll('.attachment-card[data-attachment-key]')).forEach(function(node){var k=node.dataset.attachmentKey;if(k&&!keptAttachments[k]){keptAttachments[k]=node;node.remove();}});box.innerHTML='';if(!currentThread)return;",
     "renderMessages preserve start",
 )
-h = once(
-    h,
+start = h.index("function renderMessages(){")
+end = h.index("function openPicker(", start)
+block = h[start:end]
+block = once(
+    block,
     "   if(m.attachment)renderAttachmentInto(b,m.attachment);",
     "   if(m.attachment){var attachmentKey=attachmentCacheKey(m.attachment),kept=keptAttachments[attachmentKey];if(kept){b.appendChild(kept);delete keptAttachments[attachmentKey];}else renderAttachmentInto(b,m.attachment);}",
     "renderMessages attachment reuse",
 )
+h = h[:start] + block + h[end:]
 p.write_text(h, encoding="utf-8")
