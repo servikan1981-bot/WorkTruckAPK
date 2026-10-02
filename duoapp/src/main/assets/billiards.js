@@ -122,7 +122,7 @@ function simulate(state,angle,power,keepFrames){
  var s=clone(state),balls=s.balls.map(function(b){return {n:b.n,x:b.x,y:b.y,pocketed:!!b.pocketed,vx:0,vy:0};});
  var cue=balls.find(function(b){return b.n===0;});if(!cue||cue.pocketed)return {balls:balls,pocketed:[],firstContact:null,frames:[]};
  power=Math.max(0.08,Math.min(1,Number(power)||0.5));angle=Number(angle)||0;var speed=8+power*16;cue.vx=Math.cos(angle)*speed;cue.vy=Math.sin(angle)*speed;
- var frames=[],pocketed=[],firstContact=null,lastFrame=-6,pendingSound=0,pendingSoundKind='ball';
+ var frames=[],pocketed=[],firstContact=null,lastFrame=-7,pendingSound=0,pendingSoundKind='ball';
  function queueImpact(kind,strength){var v=Math.max(0,Math.min(1,Number(strength)||0));if(v>pendingSound){pendingSound=v;pendingSoundKind=kind;}}
  function snap(){
   if(!keepFrames)return;
@@ -161,7 +161,7 @@ function simulate(state,angle,power,keepFrames){
    bb.vx*=.9965;bb.vy*=.9965;
    if(Math.hypot(bb.vx,bb.vy)<.008){bb.vx=0;bb.vy=0;}
   }
-  if(keepFrames&&step-lastFrame>=5){snap();lastFrame=step;}
+  if(keepFrames&&step-lastFrame>=6){snap();lastFrame=step;}
   if(!moving&&step>8)break;
  }
  if(keepFrames)snap();
