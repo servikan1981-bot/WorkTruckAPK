@@ -19,16 +19,13 @@ jobs:
         with:
           ref: release/family-6.0.46-polish
           fetch-depth: 0
-
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
       - uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
-
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
@@ -37,29 +34,41 @@ jobs:
       - name: Apply polish patch
         run: python3 tools/apply_family_646.py
 
-      - name: Validate source and regressions
+      - name: Validate version
         run: |
           set -euo pipefail
-          H=duoapp/src/main/assets/index.html
-          A=duoapp/src/main/assets/arkanoid.js
           grep -q 'versionCode 6046' duoapp/build.gradle
           grep -q "versionName '6.0.46'" duoapp/build.gradle
           grep -q '6.0.46' duoapp/src/main/AndroidManifest.xml
-          grep -q "APP_VERSION='6.0.46'" "$H"
+          grep -q "APP_VERSION='6.0.46'" duoapp/src/main/assets/index.html
+
+      - name: Validate redesigned games hub
+        run: |
+          set -euo pipefail
+          H=duoapp/src/main/assets/index.html
           grep -q 'id="design646"' "$H"
           test "$(grep -o 'id="hubCheckersBtn"' "$H" | wc -l)" -eq 1
           test "$(grep -o 'id="hubDurakBtn"' "$H" | wc -l)" -eq 1
           test "$(grep -o 'id="hubPoolBtn"' "$H" | wc -l)" -eq 1
           test "$(grep -o 'id="hubArkanoidBtn"' "$H" | wc -l)" -eq 1
           grep -q 'grid-template-columns:repeat(2,minmax(0,1fr))' "$H"
-          grep -q 'hub.dataset.arkanoidBound' "$A"
+          grep -q 'hub.dataset.arkanoidBound' duoapp/src/main/assets/arkanoid.js
+
+      - name: Validate optimization and video safety
+        run: |
+          set -euo pipefail
+          H=duoapp/src/main/assets/index.html
           grep -q 'function photoUploadTargetSize()' "$H"
           grep -q 'var chatScrollGeneration=0' "$H"
           grep -q 'RTCPeerConnection' "$H"
           grep -q 'prepareLocalMedia' "$H"
           grep -q 'captureChatVideoBtn' "$H"
           git diff origin/family-stable-6 --exit-code -- duoapp/src/main/java/com/sergey/duochat/MainActivity.java
-          node --check "$A"
+
+      - name: Validate JavaScript and game tests
+        run: |
+          set -euo pipefail
+          node --check duoapp/src/main/assets/arkanoid.js
           node --check duoapp/src/main/assets/billiards.js
           node --check duoapp/src/main/assets/checkers.js
           node --check duoapp/src/main/assets/durak.js
