@@ -1,0 +1,30 @@
+name: Export OurFamily 6.0.45 APK
+
+on:
+  push:
+    branches:
+      - export/family-6.0.45-apk
+    paths:
+      - .github/workflows/export-apk-645.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: export/family-6.0.45-apk
+      - name: Verify APK
+        run: |
+          test -s updates/downloads/OurFamily_6_0_45_Stable.apk
+          echo '986d9f7335ad7736a565ac6ad0675749eddd09f99f698184d33f5a32405a55ab  updates/downloads/OurFamily_6_0_45_Stable.apk' | sha256sum -c -
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_45_Stable
+          path: updates/downloads/OurFamily_6_0_45_Stable.apk
+          if-no-files-found: error
+          compression-level: 0
