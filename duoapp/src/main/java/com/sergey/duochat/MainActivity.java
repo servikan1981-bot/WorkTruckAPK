@@ -265,7 +265,7 @@ public class MainActivity extends Activity {
             int n;
             while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
             String html = new String(out.toByteArray(), StandardCharsets.UTF_8);
-            String[] gameRuleAssets = {"checkers.js", "durak.js", "billiards.js"};
+            String[] gameRuleAssets = {"checkers.js", "durak.js", "billiards.js", "arkanoid.js"};
             for (String assetName : gameRuleAssets) {
                 try (InputStream game = getAssets().open(assetName)) {
                     ByteArrayOutputStream rules = new ByteArrayOutputStream();

@@ -61,7 +61,7 @@ function bindUi(){
  if(back)back.addEventListener('click',closeGame);
  if(fs)fs.addEventListener('click',function(){setFullscreen(!state.fullscreen);});
  if(fs2)fs2.addEventListener('click',function(){setFullscreen(!state.fullscreen);});
- if(start)start.addEventListener('click',function(){unlockAudio();if(!state.started||state.lives<=0)newGame();else if(state.balls.some(function(b){return b.stuck;}))launchStuckBalls();else{state.running=true;state.paused=false;state.lastTs=0;loop();}updateUi();});
+ if(start)start.addEventListener('click',function(){unlockAudio();if(!state.started||state.lives<=0)newGame();else if(state.balls.some(function(b){return b.stuck;}))launchStuckBalls();else newGame();updateUi();});
  if(pause)pause.addEventListener('click',togglePause);
  if(canvas){
   canvas.addEventListener('pointerdown',function(e){unlockAudio();movePaddle(e);if(state.started&&state.balls.some(function(b){return b.stuck;}))launchStuckBalls();try{canvas.setPointerCapture(e.pointerId);}catch(_e){};});
