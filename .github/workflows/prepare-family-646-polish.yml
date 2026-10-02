@@ -64,16 +64,15 @@ jobs:
           grep -q 'prepareLocalMedia' "$H"
           grep -q 'captureChatVideoBtn' "$H"
           git diff origin/family-stable-6 --exit-code -- duoapp/src/main/java/com/sergey/duochat/MainActivity.java
-          git diff origin/family-stable-6 --exit-code -- duoapp/src/main/assets/ludo.js
+          git diff origin/family-stable-6 --exit-code -- duoapp/src/main/assets/ludo.js tools/test_ludo.cjs
 
-      - name: Validate asset JavaScript syntax
+      - name: Validate active game JavaScript syntax
         run: |
           set -euo pipefail
           node --check duoapp/src/main/assets/arkanoid.js
           node --check duoapp/src/main/assets/billiards.js
           node --check duoapp/src/main/assets/checkers.js
           node --check duoapp/src/main/assets/durak.js
-          node --check duoapp/src/main/assets/ludo.js
 
       - name: Validate inline JavaScript syntax
         run: |
@@ -87,6 +86,18 @@ jobs:
         run: node tools/test_durak.cjs
       - name: Test billiards
         run: node tools/test_billiards.cjs
+      - name: Test Arkanoid API
+        run: |
+          node - <<'NODE'
+          require('./duoapp/src/main/assets/arkanoid.js');
+          const a=global.ArkanoidGame;
+          if(!a) throw new Error('Arkanoid API missing');
+          if(a.speedForLevel(1)!==320) throw new Error('Unexpected level 1 speed');
+          const b1=a.buildLevel(1),b6=a.buildLevel(6);
+          if(b1.length<45||b1.length>55) throw new Error('Level 1 brick count invalid');
+          if(b6.length<=b1.length) throw new Error('Higher level should be denser');
+          console.log('ARKANOID_OK',b1.length,b6.length);
+          NODE
       - name: Test async messaging regression
         run: node tools/test_family_624_async.cjs
       - name: Validate legacy Ludo unchanged
