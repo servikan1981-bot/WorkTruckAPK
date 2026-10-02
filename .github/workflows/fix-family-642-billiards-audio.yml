@@ -1,0 +1,130 @@
+name: Fix OurFamily 6.0.42 billiards audio
+
+on:
+  push:
+    branches:
+      - release/family-6.0.42-billiards-audio
+    paths:
+      - .github/workflows/fix-family-642-billiards-audio.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/family-6.0.42-billiards-audio
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+
+      - name: Patch only billiards audio and 6.0.42 identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Version identity. Do not touch communication/media code.
+          p=Path('duoapp/build.gradle')
+          s=p.read_text()
+          assert 'versionCode 6041' in s and "versionName '6.0.41'" in s
+          s=s.replace('versionCode 6041','versionCode 6042',1).replace("versionName '6.0.41'","versionName '6.0.42'",1)
+          p.write_text(s)
+
+          p=Path('duoapp/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          assert 'Наша семья 6.0.41' in s
+          p.write_text(s.replace('Наша семья 6.0.41','Наша семья 6.0.42',1))
+
+          p=Path('duoapp/src/main/assets/index.html')
+          s=p.read_text()
+          assert '6.0.41' in s
+          p.write_text(s.replace('6.0.41','6.0.42'))
+
+          # Make cushion impacts participate in the existing frame-synchronised clack stream.
+          p=Path('duoapp/src/main/assets/billiards.js')
+          s=p.read_text()
+          old="""if(b.x-R<LEFT){b.x=LEFT+R;b.vx=Math.abs(b.vx)*.94;}else if(b.x+R>RIGHT){b.x=RIGHT-R;b.vx=-Math.abs(b.vx)*.94;}\n   if(b.y-R<TOP){b.y=TOP+R;b.vy=Math.abs(b.vy)*.94;}else if(b.y+R>BOTTOM){b.y=BOTTOM-R;b.vy=-Math.abs(b.vy)*.94;}"""
+          new="""if(b.x-R<LEFT){var sx=Math.abs(b.vx);b.x=LEFT+R;b.vx=sx*.94;if(sx>1.2)pendingSound=Math.max(pendingSound,Math.min(.82,sx/24));}else if(b.x+R>RIGHT){var sx2=Math.abs(b.vx);b.x=RIGHT-R;b.vx=-sx2*.94;if(sx2>1.2)pendingSound=Math.max(pendingSound,Math.min(.82,sx2/24));}\n   if(b.y-R<TOP){var sy=Math.abs(b.vy);b.y=TOP+R;b.vy=sy*.94;if(sy>1.2)pendingSound=Math.max(pendingSound,Math.min(.82,sy/24));}else if(b.y+R>BOTTOM){var sy2=Math.abs(b.vy);b.y=BOTTOM-R;b.vy=-sy2*.94;if(sy2>1.2)pendingSound=Math.max(pendingSound,Math.min(.82,sy2/24));}"""
+          assert old in s, 'billiards rail physics anchor missing'
+          s=s.replace(old,new,1)
+          p.write_text(s)
+
+          # Android audio: use GAME/SONIFICATION attributes, allow overlapping clacks,
+          # and inline billiards rules just like the other game engines.
+          p=Path('duoapp/src/main/java/com/sergey/duochat/MainActivity.java')
+          s=p.read_text()
+          if 'import android.media.AudioAttributes;' not in s:
+              s=s.replace('import android.media.AudioDeviceInfo;\n','import android.media.AudioDeviceInfo;\nimport android.media.AudioAttributes;\n',1)
+          s=s.replace('''private static final ThreadPoolExecutor GAME_AUDIO = new ThreadPoolExecutor(\n            1, 2, 1L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(10), r -> {\n                Thread t = new Thread(r, "OurFamilyGameAudio");\n                t.setDaemon(true);\n                return t;\n            }, new ThreadPoolExecutor.DiscardOldestPolicy());''','''private static final ThreadPoolExecutor GAME_AUDIO = new ThreadPoolExecutor(\n            4, 4, 1L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(24), r -> {\n                Thread t = new Thread(r, "OurFamilyGameAudio");\n                t.setDaemon(true);\n                return t;\n            }, new ThreadPoolExecutor.DiscardOldestPolicy());''',1)
+          assert 'String[] gameRuleAssets = {"checkers.js", "durak.js"};' in s
+          s=s.replace('String[] gameRuleAssets = {"checkers.js", "durak.js"};','String[] gameRuleAssets = {"checkers.js", "durak.js", "billiards.js"};',1)
+
+          pattern=r'''    private void playPoolSoundNative\(String kind, int strengthPercent\) \{.*?\n    \}\n\n    public class AndroidBridge \{'''
+          m=re.search(pattern,s,flags=re.S)
+          assert m, 'native pool audio method anchor missing'
+          method='''    private void playPoolSoundNative(String kind, int strengthPercent) {\n        final boolean cue = "cue".equals(kind);\n        final boolean rail = "rail".equals(kind);\n        final float strength = Math.max(0.12f, Math.min(1f, strengthPercent / 100f));\n        try {\n            GAME_AUDIO.execute(() -> {\n                AudioTrack track = null;\n                try {\n                    final int sampleRate = 32000;\n                    final int durationMs = cue ? 92 : (rail ? 52 : 46);\n                    final int count = sampleRate * durationMs / 1000;\n                    short[] pcm = new short[count];\n                    long seed = System.nanoTime() ^ (cue ? 0x4f11L : (rail ? 0x70a1L : 0x91a7L));\n                    for (int i = 0; i < count; i++) {\n                        double t = i / (double) sampleRate;\n                        double x = i / (double) Math.max(1, count - 1);\n                        double env = Math.pow(1.0 - x, cue ? 2.15 : (rail ? 4.0 : 3.25));\n                        seed = seed * 6364136223846793005L + 1442695040888963407L;\n                        double noise = (((seed >>> 33) & 0x7fffffffL) / 1073741824.0) - 1.0;\n                        double f1 = cue ? (315.0 - 125.0 * x) : (rail ? (760.0 - 170.0 * x) : (2260.0 - 720.0 * x));\n                        double f2 = cue ? 128.0 : (rail ? 330.0 : 1280.0);\n                        double tone = Math.sin(2.0 * Math.PI * f1 * t);\n                        double second = Math.sin(2.0 * Math.PI * f2 * t);\n                        double sample;\n                        if (cue) sample = env * (0.48 * tone + 0.28 * second + 0.24 * noise);\n                        else if (rail) sample = env * (0.44 * tone + 0.18 * second + 0.38 * noise);\n                        else sample = env * (0.70 * tone + 0.18 * second + 0.12 * noise);\n                        double amp = cue ? (0.62 + 0.34 * strength) : (0.54 + 0.42 * strength);\n                        pcm[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, sample * 32767.0 * amp));\n                    }\n\n                    AudioAttributes attrs = new AudioAttributes.Builder()\n                            .setUsage(AudioAttributes.USAGE_GAME)\n                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)\n                            .build();\n                    AudioFormat format = new AudioFormat.Builder()\n                            .setSampleRate(sampleRate)\n                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)\n                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)\n                            .build();\n                    int min = AudioTrack.getMinBufferSize(sampleRate,\n                            AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);\n                    int bytes = Math.max(Math.max(min, pcm.length * 2), 4096);\n                    track = new AudioTrack.Builder()\n                            .setAudioAttributes(attrs)\n                            .setAudioFormat(format)\n                            .setBufferSizeInBytes(bytes)\n                            .setTransferMode(AudioTrack.MODE_STATIC)\n                            .build();\n                    if (track.getState() != AudioTrack.STATE_INITIALIZED) throw new IllegalStateException("pool audio not initialized");\n                    int written = track.write(pcm, 0, pcm.length, AudioTrack.WRITE_BLOCKING);\n                    if (written <= 0) throw new IllegalStateException("pool audio write failed: " + written);\n                    track.setVolume(1f);\n                    track.play();\n                    Thread.sleep(durationMs + 28L);\n                } catch (Exception ignored) {\n                } finally {\n                    if (track != null) {\n                        try { track.stop(); } catch (Exception ignored) {}\n                        try { track.flush(); } catch (Exception ignored) {}\n                        try { track.release(); } catch (Exception ignored) {}\n                    }\n                }\n            });\n        } catch (RejectedExecutionException ignored) {}\n    }\n\n    public class AndroidBridge {'''
+          s=s[:m.start()]+method+s[m.end():]
+          p.write_text(s)
+          PY
+
+      - name: Validate billiards audio hotfix
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "versionCode 6042" duoapp/build.gradle
+          grep -q "versionName '6.0.42'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.42"' duoapp/src/main/AndroidManifest.xml
+          grep -q 'String\[\] gameRuleAssets = {"checkers.js", "durak.js", "billiards.js"};' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'AudioAttributes.USAGE_GAME' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'AudioTrack.WRITE_BLOCKING' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'pendingSound=Math.max' duoapp/src/main/assets/billiards.js
+          grep -q 'poolPlayCueSound' duoapp/src/main/assets/index.html
+          grep -q 'poolPlayBallSound' duoapp/src/main/assets/index.html
+          node --check duoapp/src/main/assets/billiards.js
+          node --check duoapp/src/main/assets/durak.js
+          node tools/test_billiards.cjs
+
+      - name: Build unsigned 6.0.42 smoke APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Verify APK contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/index.html | grep -q '6.0.42'
+          unzip -p "$APK" assets/billiards.js | grep -q 'pendingSound=Math.max'
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionCode='6042'"
+
+      - name: Commit tested hotfix source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html duoapp/src/main/assets/billiards.js duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          git diff --cached --quiet && { echo 'No source changes'; exit 1; }
+          git commit -m 'Fix billiards sounds in OurFamily 6.0.42'
+          git push origin HEAD:release/family-6.0.42-billiards-audio
