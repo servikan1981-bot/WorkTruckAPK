@@ -1,0 +1,243 @@
+name: Secure publish final OurFamily 6.0.48
+
+on:
+  push:
+    branches: [release/family-6.0.48-secure-publish]
+    paths: [.github/workflows/secure-publish-family-648.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/family-6.0.48-secure-publish
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+
+      - name: Validate final 6.0.48 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          H=duoapp/src/main/assets/index.html
+          J=duoapp/src/main/assets/arkanoid_joystick.js
+          grep -q 'versionCode 6048' duoapp/build.gradle
+          grep -q "versionName '6.0.48'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.48"' duoapp/src/main/AndroidManifest.xml
+          grep -q "APP_VERSION='6.0.48'" "$H"
+          grep -q '<script src="arkanoid_joystick.js"></script>' "$H"
+          test -s "$J"
+          grep -q '__ourFamilyArkanoidJoystickV2=true' "$J"
+          grep -q 'arkJoyDock' "$J"
+          grep -q 'arkanoid-fullscreen-mode .ark-joy-dock' "$J"
+          grep -q 'if(hint&&hint.textContent!==text)' "$J"
+          grep -q 'scheduleSync' "$J"
+          node --check "$J"
+          node --check duoapp/src/main/assets/arkanoid.js
+          node --check duoapp/src/main/assets/billiards.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          node tools/test_billiards.cjs
+          node tools/test_family_624_async.cjs
+          node tools/test_turn_sdp_627.cjs
+
+      - name: Publish one-time encryption certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /tmp/ourfamily648.key >/dev/null 2>&1
+          openssl req -new -x509 -sha256 -key /tmp/ourfamily648.key -out /tmp/ourfamily648.crt -days 1 -subj '/CN=OurFamily-6.0.48-Final-One-Time/'
+          mkdir -p updates/candidates/signed648
+          cp /tmp/ourfamily648.crt updates/candidates/signed648/ephemeral_cert.pem
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add updates/candidates/signed648/ephemeral_cert.pem
+          git commit -m 'Publish one-time final 6.0.48 signing certificate'
+          git push origin HEAD:release/family-6.0.48-secure-publish
+
+      - name: Wait for encrypted signing payload parts
+        shell: bash
+        run: |
+          set -euo pipefail
+          FOUND=0
+          for i in $(seq 1 150); do
+            git fetch origin release/family-6.0.48-secure-publish
+            OK=1
+            for p in 0 1 2 3; do
+              git cat-file -e "origin/release/family-6.0.48-secure-publish:updates/candidates/signed648/encrypted_payload.part${p}" 2>/dev/null || OK=0
+            done
+            if [ "$OK" = 1 ]; then
+              : > /tmp/encrypted_payload.b64
+              for p in 0 1 2 3; do
+                git show "origin/release/family-6.0.48-secure-publish:updates/candidates/signed648/encrypted_payload.part${p}" >> /tmp/encrypted_payload.b64
+              done
+              git reset --hard origin/release/family-6.0.48-secure-publish
+              FOUND=1
+              break
+            fi
+            sleep 4
+          done
+          test "$FOUND" = 1
+
+      - name: Decrypt signing material in runner only
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d /tmp/encrypted_payload.b64 > /tmp/signing_payload.cms
+          openssl cms -decrypt -binary -inform DER -in /tmp/signing_payload.cms -recip /tmp/ourfamily648.crt -inkey /tmp/ourfamily648.key -out /tmp/signing_payload.tar.gz
+          mkdir -p /tmp/signing648
+          tar -xzf /tmp/signing_payload.tar.gz -C /tmp/signing648
+          test -s /tmp/signing648/OurFamily_Stable6_Signing.p12
+          test -s /tmp/signing648/password.txt
+
+      - name: Build release APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Verify joystick inside unsigned APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          U=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          unzip -l "$U" | grep -q 'assets/arkanoid_joystick.js'
+          unzip -p "$U" assets/index.html > /tmp/index648.html
+          unzip -p "$U" assets/arkanoid_joystick.js > /tmp/joystick648.js
+          grep -q '<script src="arkanoid_joystick.js"></script>' /tmp/index648.html
+          grep -q "APP_VERSION='6.0.48'" /tmp/index648.html
+          grep -q '__ourFamilyArkanoidJoystickV2=true' /tmp/joystick648.js
+          grep -q 'arkJoyDock' /tmp/joystick648.js
+          grep -q 'arkanoid-fullscreen-mode .ark-joy-dock' /tmp/joystick648.js
+          grep -q 'if(hint&&hint.textContent!==text)' /tmp/joystick648.js
+          echo JOYSTICK_V2_PRESENT_IN_UNSIGNED_APK
+
+      - name: Align sign and verify final APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          U=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          A=/tmp/OurFamily_6_0_48_aligned.apk
+          S=/tmp/OurFamily_6_0_48_Stable.apk
+          PASS=$(tr -d '\r\n' < /tmp/signing648/password.txt)
+          "$BT/zipalign" -p -f 4 "$U" "$A"
+          "$BT/zipalign" -c -v 4 "$A" >/dev/null
+          "$BT/apksigner" sign --ks /tmp/signing648/OurFamily_Stable6_Signing.p12 --ks-type PKCS12 --ks-key-alias ourfamily6 --ks-pass "pass:$PASS" --key-pass "pass:$PASS" --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled true --out "$S" "$A"
+          "$BT/apksigner" verify --verbose --print-certs "$S" > /tmp/cert648.txt
+          "$BT/aapt" dump badging "$S" > /tmp/badging648.txt
+          grep -q "package: name='com.sergey.ourfamily'" /tmp/badging648.txt
+          grep -q "versionCode='6048'" /tmp/badging648.txt
+          grep -q "versionName='6.0.48'" /tmp/badging648.txt
+          CERT=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert648.txt | sed 's/.*: //')
+          test "$CERT" = '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83'
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/cert648.txt
+          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' /tmp/cert648.txt
+          unzip -l "$S" | grep -q 'assets/arkanoid_joystick.js'
+          unzip -p "$S" assets/index.html | grep -q '<script src="arkanoid_joystick.js"></script>'
+          unzip -p "$S" assets/arkanoid_joystick.js | grep -q '__ourFamilyArkanoidJoystickV2=true'
+          unzip -p "$S" assets/arkanoid_joystick.js | grep -q 'arkanoid-fullscreen-mode .ark-joy-dock'
+          echo SIGNED_APK_CERT_AND_JOYSTICK_V2_OK
+
+      - name: Upload signed APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_48_Stable_final
+          path: /tmp/OurFamily_6_0_48_Stable.apk
+          if-no-files-found: error
+
+      - name: Build update payload and metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib, json, zipfile
+          apk_path=Path('/tmp/OurFamily_6_0_48_Stable.apk')
+          apk=apk_path.read_bytes()
+          sha=hashlib.sha256(apk).hexdigest()
+          with zipfile.ZipFile(apk_path) as z:
+              assert 'assets/arkanoid_joystick.js' in z.namelist()
+              idx=z.read('assets/index.html').decode('utf-8')
+              joy=z.read('assets/arkanoid_joystick.js').decode('utf-8')
+              assert '<script src="arkanoid_joystick.js"></script>' in idx
+              assert "APP_VERSION='6.0.48'" in idx
+              assert '__ourFamilyArkanoidJoystickV2=true' in joy
+              assert 'arkanoid-fullscreen-mode .ark-joy-dock' in joy
+          b64=base64.b64encode(apk).decode('ascii')
+          chunks=[b64[i:i+16000] for i in range(0,len(b64),16000)]
+          parts=Path('updates/parts'); parts.mkdir(parents=True,exist_ok=True)
+          for p in parts.glob('v648f_*.b64'): p.unlink()
+          base='https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'
+          urls=[]
+          for i,c in enumerate(chunks):
+              name=f'v648f_{i:02d}.b64'
+              (parts/name).write_text(c,encoding='ascii')
+              urls.append(base+name)
+          meta={
+            'versionCode':6048,
+            'versionName':'6.0.48',
+            'apkBase64Parts':urls,
+            'sha256':sha,
+            'notes':'Исправление Арканоида после 6.0.47: джойстик теперь реально включён внутрь APK и его подключение проверено непосредственно в собранном и подписанном пакете. В обычном вертикальном режиме джойстик расположен под игровым полем; в полноэкранном режиме — в отдельной зоне справа. Дополнительно устранён повторный цикл обновления подсказки интерфейса. Палец больше не должен закрывать платформу. Физика Арканоида, видео, чаты и остальные игры не изменялись.'
+          }
+          text=json.dumps(meta,ensure_ascii=False,indent=2)+'\n'
+          Path('updates/candidates').mkdir(parents=True,exist_ok=True)
+          Path('updates/candidates/648.json').write_text(text,encoding='utf-8')
+          Path('updates/latest.json').write_text(text,encoding='utf-8')
+          Path('updates/downloads').mkdir(parents=True,exist_ok=True)
+          Path('updates/downloads/OurFamily_6_0_48_Stable.apk').write_bytes(apk)
+          rebuilt=base64.b64decode(''.join((parts/u.rsplit('/',1)[-1]).read_text(encoding='ascii') for u in urls))
+          assert rebuilt==apk
+          assert hashlib.sha256(rebuilt).hexdigest()==sha
+          print('FINAL_648_READY',len(apk),len(chunks),sha)
+          PY
+
+      - name: Commit final signed release
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf updates/candidates/signed648
+          rm -f updates/parts/v648_00.b64 updates/parts/v648_01.b64 updates/parts/v648_02.b64 updates/parts/v648_03.b64
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add -A updates
+          git commit -m 'Release OurFamily 6.0.48 stable candidate final'
+          git push origin HEAD:release/family-6.0.48-secure-publish
+
+      - name: Final verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, hashlib, base64, zipfile
+          from pathlib import Path
+          m=json.loads(Path('updates/latest.json').read_text(encoding='utf-8'))
+          apk_path=Path('updates/downloads/OurFamily_6_0_48_Stable.apk')
+          apk=apk_path.read_bytes()
+          assert m['versionCode']==6048 and m['versionName']=='6.0.48'
+          assert hashlib.sha256(apk).hexdigest()==m['sha256']
+          assert len(m['apkBase64Parts'])>=10
+          parts=Path('updates/parts')
+          rebuilt=base64.b64decode(''.join((parts[u.rsplit('/',1)[-1]]).read_text(encoding='ascii') for u in m['apkBase64Parts']))
+          assert rebuilt==apk
+          with zipfile.ZipFile(apk_path) as z:
+              assert 'assets/arkanoid_joystick.js' in z.namelist()
+              joy=z.read('assets/arkanoid_joystick.js').decode('utf-8')
+              assert '__ourFamilyArkanoidJoystickV2=true' in joy
+          print('FINAL_VERIFIED_648',m['sha256'])
+          PY
