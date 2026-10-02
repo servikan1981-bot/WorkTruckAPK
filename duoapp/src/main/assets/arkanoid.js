@@ -36,10 +36,11 @@ function ensureStyle(){
 function ensureUi(){
  if(!doc)return false;
  ensureStyle();
- var grid=doc.querySelector('#gamesHub .game-grid');
- if(grid&&!doc.getElementById('hubArkanoidBtn')){
-  var b=doc.createElement('button');b.id='hubArkanoidBtn';b.className='game-card arkanoid-card';b.innerHTML='<span class="emoji">🧱</span><strong>Арканоид</strong><span>Одиночная игра · уровни · бонусы</span>';grid.appendChild(b);b.addEventListener('click',openGame);
+ var grid=doc.querySelector('#gamesHub .game-grid'),hub=doc.getElementById('hubArkanoidBtn');
+ if(grid&&!hub){
+  hub=doc.createElement('button');hub.id='hubArkanoidBtn';hub.className='game-card arkanoid-card';hub.innerHTML='<span class="emoji">🧱</span><strong>Арканоид</strong><span>Одиночная игра · уровни · бонусы</span>';grid.appendChild(hub);
  }
+ if(hub&&hub.dataset.arkanoidBound!=='1'){hub.dataset.arkanoidBound='1';hub.addEventListener('click',openGame);}
  if(!doc.getElementById('arkanoid')){
   var section=doc.createElement('section');section.id='arkanoid';section.className='screen hidden';section.innerHTML='\
 <div class="topbar"><button id="arkBackBtn" class="iconbtn">‹</button><div class="who"><div class="name">Арканоид</div><div id="arkTopStatus" class="status">Одиночная игра</div></div><button id="arkFullscreenBtn" class="iconbtn" type="button" title="На весь экран">⛶</button></div>\
