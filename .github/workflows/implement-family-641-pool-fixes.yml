@@ -1,0 +1,65 @@
+name: Implement OurFamily 6.0.41 pool fixes
+
+on:
+  push:
+    branches:
+      - 'fix/family-6.0.41-pool-visible-fullscreen-physics-audio'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/family-6.0.41-pool-visible-fullscreen-physics-audio
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Apply 6.0.41 repair patch
+        run: python3 tools/patch_family_641.py
+      - name: Validate source and billiards behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'versionCode 6041' duoapp/build.gradle
+          grep -q "versionName '6.0.41'" duoapp/build.gradle
+          grep -q 'Наша семья 6.0.41' duoapp/src/main/AndroidManifest.xml
+          grep -q 'poolFullscreenBigBtn' duoapp/src/main/assets/index.html
+          grep -q 'НА ВЕСЬ ЭКРАН' duoapp/src/main/assets/index.html
+          grep -q 'setPoolGameActive(boolean active)' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'requestPoolLandscape()' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'playPoolSound(String kind, int strengthPercent)' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'bb.vx\*=.9965' duoapp/src/main/assets/billiards.js
+          grep -q 'bb.vx\*=.9965' duoapp/src/main/assets/durak.js
+          node --check duoapp/src/main/assets/billiards.js
+          node --check duoapp/src/main/assets/durak.js
+          node tools/test_billiards.cjs
+      - name: Build release APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+      - name: Commit verified 6.0.41 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add duoapp tools/test_billiards.cjs
+          git diff --cached --quiet && exit 0
+          git commit -m 'Implement OurFamily 6.0.41 billiards fullscreen physics and audio fixes'
+          git push origin HEAD:fix/family-6.0.41-pool-visible-fullscreen-physics-audio
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily-6.0.41-unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error
