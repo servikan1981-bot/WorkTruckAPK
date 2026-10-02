@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict');
+require('../duoapp/src/main/assets/arkanoid.js');
+const a=global.ArkanoidGame;
+assert(a&&typeof a.joystickAxisFromClientX==='function','joystick API missing');
+const f=a.joystickAxisFromClientX;
+assert(Math.abs(f(50,0,100))<0.001,'center must be neutral');
+assert(f(0,0,100)<=-0.99,'left edge must be full left');
+assert(f(100,0,100)>=0.99,'right edge must be full right');
+assert(Math.abs(f(53,0,100))<0.001,'dead zone must suppress tiny movement');
+assert(f(75,0,100)>0.35&&f(75,0,100)<0.6,'axis must be proportional');
+assert.equal(a.speedForLevel(1),320,'Arkanoid speed regression');
+console.log('ARKANOID_JOYSTICK_647_OK',f(0,0,100),f(50,0,100),f(75,0,100),f(100,0,100));
