@@ -11,8 +11,6 @@ on:
 permissions:
   contents: write
 
-tasks: {}
-
 jobs:
   publish:
     runs-on: ubuntu-latest
