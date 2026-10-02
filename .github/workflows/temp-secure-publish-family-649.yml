@@ -1,0 +1,191 @@
+name: Secure publish OurFamily 6.0.49 inline Arkanoid joystick
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/temp-secure-publish-family-649.yml]
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/family-6.0.49-arkanoid-joystick-inline
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+      - name: Apply and validate 6.0.49 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/prepare_649.py
+          A=duoapp/src/main/assets/arkanoid.js; H=duoapp/src/main/assets/index.html
+          grep -q 'versionCode 6049' duoapp/build.gradle
+          grep -q "versionName '6.0.49'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.49"' duoapp/src/main/AndroidManifest.xml
+          grep -q "APP_VERSION='6.0.49'" "$H"
+          grep -q '<script src="arkanoid.js"></script>' "$H"
+          ! grep -q '<script src="arkanoid_joystick.js"></script>' "$H"
+          grep -q 'id="arkJoyDock"' "$A"
+          grep -q 'id="arkJoyTrack"' "$A"
+          grep -q 'bindJoystick();' "$A"
+          grep -q 'function movePaddleDirect' "$A"
+          grep -q '__ourFamilyArkanoidJoystickInline=true' "$A"
+          grep -q 'Управляйте платформой джойстиком' "$A"
+          ! grep -q 'Ведите пальцем по игровому полю' "$A"
+          node --check "$A"
+          node --check duoapp/src/main/assets/billiards.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          node tools/test_billiards.cjs
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html duoapp/src/main/assets/arkanoid.js
+          git commit -m 'Integrate Arkanoid joystick directly for 6.0.49'
+          git push origin HEAD:release/family-6.0.49-arkanoid-joystick-inline
+      - name: Publish one-time encryption certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /tmp/ourfamily649.key >/dev/null 2>&1
+          openssl req -new -x509 -sha256 -key /tmp/ourfamily649.key -out /tmp/ourfamily649.crt -days 1 -subj '/CN=OurFamily-6.0.49-One-Time/'
+          mkdir -p updates/candidates/signed649
+          cp /tmp/ourfamily649.crt updates/candidates/signed649/ephemeral_cert.pem
+          git add updates/candidates/signed649/ephemeral_cert.pem
+          git commit -m 'Publish one-time 6.0.49 signing certificate'
+          git push origin HEAD:release/family-6.0.49-arkanoid-joystick-inline
+      - name: Wait for encrypted signing payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          FOUND=0
+          for i in $(seq 1 150); do
+            git fetch origin release/family-6.0.49-arkanoid-joystick-inline
+            OK=1
+            for p in 0 1 2 3; do
+              git cat-file -e "origin/release/family-6.0.49-arkanoid-joystick-inline:updates/candidates/signed649/encrypted_payload.part${p}" 2>/dev/null || OK=0
+            done
+            if [ "$OK" = 1 ]; then
+              : > /tmp/encrypted_payload.b64
+              for p in 0 1 2 3; do git show "origin/release/family-6.0.49-arkanoid-joystick-inline:updates/candidates/signed649/encrypted_payload.part${p}" >> /tmp/encrypted_payload.b64; done
+              git reset --hard origin/release/family-6.0.49-arkanoid-joystick-inline
+              FOUND=1; break
+            fi
+            sleep 4
+          done
+          test "$FOUND" = 1
+      - name: Decrypt signing material
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d /tmp/encrypted_payload.b64 > /tmp/signing_payload.cms
+          openssl cms -decrypt -binary -inform DER -in /tmp/signing_payload.cms -recip /tmp/ourfamily649.crt -inkey /tmp/ourfamily649.key -out /tmp/signing_payload.tar.gz
+          mkdir -p /tmp/signing649
+          tar -xzf /tmp/signing_payload.tar.gz -C /tmp/signing649
+          test -s /tmp/signing649/OurFamily_Stable6_Signing.p12
+          test -s /tmp/signing649/password.txt
+      - name: Build release APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+      - name: Verify inline joystick in unsigned APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          U=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          unzip -p "$U" assets/arkanoid.js > /tmp/arkanoid649.js
+          unzip -p "$U" assets/index.html > /tmp/index649.html
+          grep -q '__ourFamilyArkanoidJoystickInline=true' /tmp/arkanoid649.js
+          grep -q 'id="arkJoyDock"' /tmp/arkanoid649.js
+          grep -q 'id="arkJoyTrack"' /tmp/arkanoid649.js
+          grep -q 'bindJoystick();' /tmp/arkanoid649.js
+          grep -q 'function movePaddleDirect' /tmp/arkanoid649.js
+          grep -q 'Управляйте платформой джойстиком' /tmp/arkanoid649.js
+          ! grep -q 'Ведите пальцем по игровому полю' /tmp/arkanoid649.js
+          ! grep -q '<script src="arkanoid_joystick.js"></script>' /tmp/index649.html
+      - name: Align sign and verify final APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/35.0.0"; U=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          A=/tmp/OurFamily_6_0_49_aligned.apk; S=/tmp/OurFamily_6_0_49_Stable.apk
+          PASS=$(tr -d '\r\n' < /tmp/signing649/password.txt)
+          "$BT/zipalign" -p -f 4 "$U" "$A"
+          "$BT/apksigner" sign --ks /tmp/signing649/OurFamily_Stable6_Signing.p12 --ks-type PKCS12 --ks-key-alias ourfamily6 --ks-pass "pass:$PASS" --key-pass "pass:$PASS" --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled true --out "$S" "$A"
+          "$BT/apksigner" verify --verbose --print-certs "$S" > /tmp/cert649.txt
+          "$BT/aapt" dump badging "$S" > /tmp/badging649.txt
+          grep -q "package: name='com.sergey.ourfamily'" /tmp/badging649.txt
+          grep -q "versionCode='6049'" /tmp/badging649.txt
+          grep -q "versionName='6.0.49'" /tmp/badging649.txt
+          CERT=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert649.txt | sed 's/.*: //')
+          test "$CERT" = '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83'
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/cert649.txt
+          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' /tmp/cert649.txt
+          unzip -p "$S" assets/arkanoid.js | grep -q '__ourFamilyArkanoidJoystickInline=true'
+          unzip -p "$S" assets/arkanoid.js | grep -q 'id="arkJoyDock"'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_49_Stable
+          path: /tmp/OurFamily_6_0_49_Stable.apk
+          if-no-files-found: error
+      - name: Build update payload and metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,hashlib,json,zipfile
+          ap=Path('/tmp/OurFamily_6_0_49_Stable.apk'); apk=ap.read_bytes(); sha=hashlib.sha256(apk).hexdigest()
+          with zipfile.ZipFile(ap) as z:
+              a=z.read('assets/arkanoid.js').decode(); i=z.read('assets/index.html').decode()
+              assert '__ourFamilyArkanoidJoystickInline=true' in a and 'id="arkJoyDock"' in a and 'function movePaddleDirect' in a
+              assert 'Управляйте платформой джойстиком' in a and 'Ведите пальцем по игровому полю' not in a
+              assert '<script src="arkanoid_joystick.js"></script>' not in i and "APP_VERSION='6.0.49'" in i
+          b64=base64.b64encode(apk).decode('ascii'); chunks=[b64[x:x+16000] for x in range(0,len(b64),16000)]
+          parts=Path('updates/parts'); parts.mkdir(parents=True,exist_ok=True)
+          for p in parts.glob('v649_*.b64'): p.unlink()
+          base='https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'
+          urls=[]
+          for n,c in enumerate(chunks):
+              name=f'v649_{n:02d}.b64'; (parts/name).write_text(c,encoding='ascii'); urls.append(base+name)
+          meta={'versionCode':6049,'versionName':'6.0.49','apkBase64Parts':urls,'sha256':sha,'notes':'Арканоид: джойстик больше не загружается отдельным модулем. Он встроен непосредственно в arkanoid.js и создаётся вместе с игровым экраном. В обычном режиме расположен под игровым полем, в полноэкранном — справа. Джойстик напрямую двигает платформу без имитации касаний canvas. Старая инструкция про ведение пальцем удалена. Остальные функции приложения не изменялись.'}
+          text=json.dumps(meta,ensure_ascii=False,indent=2)+'\n'
+          Path('updates/latest.json').write_text(text,encoding='utf-8'); Path('updates/candidates').mkdir(parents=True,exist_ok=True); Path('updates/candidates/649.json').write_text(text,encoding='utf-8')
+          Path('updates/downloads').mkdir(parents=True,exist_ok=True); Path('updates/downloads/OurFamily_6_0_49_Stable.apk').write_bytes(apk)
+          rebuilt=base64.b64decode(''.join((parts[u.rsplit('/',1)[-1]]).read_text() for u in urls)); assert rebuilt==apk and hashlib.sha256(rebuilt).hexdigest()==sha
+          print('FINAL_649',len(apk),len(chunks),sha)
+          PY
+      - name: Commit 6.0.49 release
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf updates/candidates/signed649
+          rm -f .github/workflows/prepare-family-649-inline-joystick.yml tools/prepare_649.py
+          git add -A updates duoapp .github/workflows/prepare-family-649-inline-joystick.yml tools/prepare_649.py
+          git commit -m 'Release OurFamily 6.0.49 stable inline Arkanoid joystick'
+          git push origin HEAD:release/family-6.0.49-arkanoid-joystick-inline
+      - name: Final verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,hashlib,base64,zipfile
+          from pathlib import Path
+          m=json.loads(Path('updates/latest.json').read_text()); ap=Path('updates/downloads/OurFamily_6_0_49_Stable.apk'); apk=ap.read_bytes()
+          assert m['versionCode']==6049 and m['versionName']=='6.0.49' and hashlib.sha256(apk).hexdigest()==m['sha256']
+          rebuilt=base64.b64decode(''.join(Path('updates/parts',u.rsplit('/',1)[-1]).read_text() for u in m['apkBase64Parts'])); assert rebuilt==apk
+          with zipfile.ZipFile(ap) as z:
+              a=z.read('assets/arkanoid.js').decode(); assert '__ourFamilyArkanoidJoystickInline=true' in a and 'id="arkJoyDock"' in a
+          print('FINAL_VERIFIED_649',m['sha256'])
+          PY
