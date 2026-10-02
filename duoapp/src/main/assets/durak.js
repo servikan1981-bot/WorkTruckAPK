@@ -79,8 +79,8 @@ function simulate(state,angle,power,keepFrames){
  var s=clonePool(state),balls=s.balls.map(function(b){return {n:b.n,x:b.x,y:b.y,pocketed:!!b.pocketed,vx:0,vy:0};});
  var cue=balls.find(function(b){return b.n===0;});if(!cue||cue.pocketed)return {balls:balls,pocketed:[],firstContact:null,frames:[]};
  power=Math.max(0.08,Math.min(1,Number(power)||0.5));angle=Number(angle)||0;var speed=14+power*28;cue.vx=Math.cos(angle)*speed;cue.vy=Math.sin(angle)*speed;
- var frames=[],pocketed=[],firstContact=null,lastFrame=-9;
- function snap(){if(!keepFrames)return;frames.push(balls.map(function(b){return {n:b.n,x:+b.x.toFixed(2),y:+b.y.toFixed(2),pocketed:b.pocketed};}));}
+ var frames=[],pocketed=[],firstContact=null,lastFrame=-9,pendingSound=0;
+ function snap(){if(!keepFrames)return;var fr=balls.map(function(b){return {n:b.n,x:+b.x.toFixed(2),y:+b.y.toFixed(2),pocketed:b.pocketed};});if(pendingSound>0){fr._sound=Math.min(1,pendingSound);pendingSound=0;}frames.push(fr);}
  snap();
  for(var step=0;step<1900;step++){
   var moving=false;
@@ -93,15 +93,15 @@ function simulate(state,angle,power,keepFrames){
     if(Math.hypot(b.x-pk[0],b.y-pk[1])<pr){b.pocketed=true;b.vx=b.vy=0;pocketed.push(b.n);break;}
    }
    if(b.pocketed)continue;
-   if(b.x-R<LEFT){b.x=LEFT+R;b.vx=Math.abs(b.vx)*.91;}else if(b.x+R>RIGHT){b.x=RIGHT-R;b.vx=-Math.abs(b.vx)*.91;}
-   if(b.y-R<TOP){b.y=TOP+R;b.vy=Math.abs(b.vy)*.91;}else if(b.y+R>BOTTOM){b.y=BOTTOM-R;b.vy=-Math.abs(b.vy)*.91;}
+   if(b.x-R<LEFT){b.x=LEFT+R;b.vx=Math.abs(b.vx)*.94;}else if(b.x+R>RIGHT){b.x=RIGHT-R;b.vx=-Math.abs(b.vx)*.94;}
+   if(b.y-R<TOP){b.y=TOP+R;b.vy=Math.abs(b.vy)*.94;}else if(b.y+R>BOTTOM){b.y=BOTTOM-R;b.vy=-Math.abs(b.vy)*.94;}
   }
   for(var a=0;a<balls.length;a++)for(var j=a+1;j<balls.length;j++){
    var A=balls[a],B=balls[j];if(A.pocketed||B.pocketed)continue;var dx=B.x-A.x,dy=B.y-A.y,d2=dx*dx+dy*dy,min=R*2;if(d2<=0||d2>=min*min)continue;
    var d=Math.sqrt(d2),nx=dx/d,ny=dy/d,over=min-d;A.x-=nx*over/2;A.y-=ny*over/2;B.x+=nx*over/2;B.y+=ny*over/2;
-   var rvx=B.vx-A.vx,rvy=B.vy-A.vy,sep=rvx*nx+rvy*ny;if(sep<0){var imp=-(1.92)*sep/2;A.vx-=imp*nx;A.vy-=imp*ny;B.vx+=imp*nx;B.vy+=imp*ny;if(firstContact===null&&(A.n===0||B.n===0))firstContact=A.n===0?B.n:A.n;}
+   var rvx=B.vx-A.vx,rvy=B.vy-A.vy,sep=rvx*nx+rvy*ny;if(sep<0){var hitStrength=Math.min(1,Math.abs(sep)/22);if(hitStrength>.055)pendingSound=Math.max(pendingSound,hitStrength);var imp=-(1.92)*sep/2;A.vx-=imp*nx;A.vy-=imp*ny;B.vx+=imp*nx;B.vy+=imp*ny;if(firstContact===null&&(A.n===0||B.n===0))firstContact=A.n===0?B.n:A.n;}
   }
-  for(var q=0;q<balls.length;q++){var bb=balls[q];if(bb.pocketed)continue;bb.vx*=.987;bb.vy*=.987;if(Math.abs(bb.vx)<.018)bb.vx=0;if(Math.abs(bb.vy)<.018)bb.vy=0;}
+  for(var q=0;q<balls.length;q++){var bb=balls[q];if(bb.pocketed)continue;bb.vx*=.993;bb.vy*=.993;if(Math.abs(bb.vx)<.010)bb.vx=0;if(Math.abs(bb.vy)<.010)bb.vy=0;}
   if(keepFrames&&step-lastFrame>=7){snap();lastFrame=step;}
   if(!moving&&step>8)break;
  }
@@ -168,10 +168,10 @@ function resetSolo(){solo.state=root.PoolRules.initial();solo.state.turn=0;solo.
 function enterSolo(){solo.active=true;var modal=byId('opponentChoice');if(modal)modal.classList.add('hidden');showPoolOnly();resetSolo();}
 function leaveSolo(){if(!solo.active)return;solo.active=false;solo.state=null;solo.animating=false;if(byId('poolResignBtn'))byId('poolResignBtn').textContent='Сдаться';}
 function setAim(ev){if(!solo.active||solo.animating||!solo.state||solo.state.winner!==null)return;var cue=solo.state.balls.find(function(b){return b.n===0&&!b.pocketed;});if(!cue)return;var c=byId('poolCanvas'),r=c.getBoundingClientRect(),x=(ev.clientX-r.left)/r.width*1000,y=(ev.clientY-r.top)/r.height*500;solo.aim=Math.atan2(y-cue.y,x-cue.x);drawTable(solo.state.balls,true);}
-function animate(frames,done){if(!frames||!frames.length){done();return;}var stride=Math.max(1,Math.ceil(frames.length/150)),i=0;function tick(){if(!solo.active){done();return;}drawTable(frames[Math.min(i,frames.length-1)],false);i+=stride;if(i<frames.length)root.requestAnimationFrame(tick);else{drawTable(frames[frames.length-1],false);setTimeout(done,60);}}tick();}
+function animate(frames,done){if(!frames||!frames.length){done();return;}if(root.poolPlayCueSound)root.poolPlayCueSound(solo.power);var stride=Math.max(1,Math.ceil(frames.length/220)),i=0,lastClack=0;function tick(){if(!solo.active){done();return;}var fr=frames[Math.min(i,frames.length-1)];drawTable(fr,false);if(fr&&fr._sound&&root.poolPlayBallSound){var now=Date.now();if(now-lastClack>34){lastClack=now;root.poolPlayBallSound(fr._sound);}}i+=stride;if(i<frames.length)root.requestAnimationFrame(tick);else{drawTable(frames[frames.length-1],false);setTimeout(done,90);}}tick();}
 function shootSolo(){if(!solo.active||solo.animating||!solo.state||solo.state.winner!==null)return;solo.state.turn=0;var result=root.PoolRules.shot(solo.state,0,solo.aim,solo.power);if(!result)return;if(result.state.winner===null)result.state.turn=0;solo.state=result.state;solo.animating=true;renderSolo();animate(result.frames,function(){solo.animating=false;if(solo.active)renderSolo();});}
 function addSoloButton(){var modal=byId('opponentChoice'),box=byId('opponentList');if(!modal||!box||modal.classList.contains('hidden')||box.querySelector('[data-pool-solo]'))return;var b=document.createElement('button');b.type='button';b.setAttribute('data-pool-solo','1');b.textContent='🎯 Играть одному · тренировка';b.style.cssText='font-weight:900;border:2px solid #19936a;background:#e8fff5;color:#076345;margin-bottom:8px';b.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();enterSolo();});box.insertBefore(b,box.firstChild);}
-function refreshVersionLabel(){var el=byId('myName');if(el&&el.textContent.indexOf('Наша семья')>=0)el.textContent='Наша семья · v6.0.39';}
+function refreshVersionLabel(){var el=byId('myName');if(el&&el.textContent.indexOf('Наша семья')>=0)el.textContent='Наша семья · v6.0.40';}
 function install(){
  var hub=byId('hubPoolBtn'),pick=byId('pickPoolBtn');if(hub)hub.addEventListener('click',function(){setTimeout(addSoloButton,0);});if(pick)pick.addEventListener('click',function(){setTimeout(addSoloButton,0);});
  var canvas=byId('poolCanvas');if(canvas){canvas.addEventListener('pointerdown',function(e){if(!solo.active)return;e.preventDefault();e.stopImmediatePropagation();setAim(e);},true);canvas.addEventListener('pointermove',function(e){if(!solo.active||(!e.buttons&&!(e.pressure>0)))return;e.preventDefault();e.stopImmediatePropagation();setAim(e);},true);}
