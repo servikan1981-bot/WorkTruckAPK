@@ -1,185 +1,33 @@
-name: Fix and validate OurFamily 6.0.34 Ludo launch
+name: Export OurFamily 6.0.45 APK
 
 on:
   push:
-    branches: ['fix/family-6.0.34-ludo-launch']
+    branches:
+      - export/family-6.0.45-apk
     paths:
-      - '.github/workflows/fix-family-634-ludo-launch.yml'
+      - .github/workflows/fix-family-634-ludo-launch.yml
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  fix-and-test:
+  export:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: fix/family-6.0.34-ludo-launch
-          fetch-depth: 0
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
-
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.10.2'
-          cache-read-only: true
-
-      - name: Apply 6.0.34 Ludo launch hotfix
+          ref: export/family-6.0.45-apk
+      - name: Verify exact signed APK
+        shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          H=Path('duoapp/src/main/assets/index.html')
-          G=Path('duoapp/build.gradle')
-          M=Path('duoapp/src/main/AndroidManifest.xml')
-          h=H.read_text(encoding='utf-8')
-          g=G.read_text(encoding='utf-8')
-          m=M.read_text(encoding='utf-8')
-
-          if "APP_VERSION='6.0.34'" in h:
-              print('6.0.34 hotfix already applied')
-              raise SystemExit(0)
-
-          # Version bump.
-          g=g.replace('versionCode 6033','versionCode 6034',1).replace("versionName '6.0.33'","versionName '6.0.34'",1)
-          m=m.replace('6.0.33','6.0.34')
-          h=h.replace('6.0.33','6.0.34')
-
-          # Root cause: 6.0.33 never registered the Ludo section as a screen,
-          # therefore showScreen('ludo') could never unhide it.
-          old="['setup','home','picker','chat','news','more','adminArchive','adminChat','checkers','gamesHub','durak'].forEach(function(x){$(x).classList.toggle('hidden',x!==id);});"
-          new="['setup','home','picker','chat','news','more','adminArchive','adminChat','checkers','gamesHub','durak','ludo'].forEach(function(x){$(x).classList.toggle('hidden',x!==id);});"
-          if old not in h: raise SystemExit('showScreen anchor not found')
-          h=h.replace(old,new,1)
-
-          # Close game overlays when navigating away.
-          old="['attachMenu','emojiPanel','newsCaptureMenu','relayModal','turnModal','aboutModal','videoLayoutModal','themeModal','reactionPicker','photoViewer'].forEach(function(id){"
-          new="['attachMenu','emojiPanel','newsCaptureMenu','relayModal','turnModal','aboutModal','videoLayoutModal','themeModal','reactionPicker','photoViewer','ludoPicker','gameChoice','opponentChoice'].forEach(function(id){"
-          if old not in h: raise SystemExit('transient panel anchor not found')
-          h=h.replace(old,new,1)
-
-          # Give the player-count hint an id so the UI can show the live count.
-          old='<div class="muted">Выберите от 1 до 3 участников. Вместе с вами получится 2–4 игрока.</div>'
-          new='<div id="ludoPickerHint" class="muted">Выберите от 1 до 3 участников. Вместе с вами получится 2–4 игрока.</div>'
-          if old not in h: raise SystemExit('Ludo picker hint anchor not found')
-          h=h.replace(old,new,1)
-
-          # Enforce the documented 1–3 invitees instead of silently accepting 4+ checks.
-          picker_re=re.compile(r"function openLudoPicker\(seedPeer\)\{.*?\}\nasync function inviteLudo",re.S)
-          picker_new=r'''function openLudoPicker(seedPeer){
- $('gameChoice').classList.add('hidden');$('opponentChoice').classList.add('hidden');
- var box=$('ludoPlayerList');box.innerHTML='';
- function selectedCount(){return box.querySelectorAll('input[type=checkbox]:checked').length;}
- function updateHint(){var n=selectedCount(),hint=$('ludoPickerHint');if(hint)hint.textContent=n?'Выбрано: '+n+' из 3. Вместе с вами: '+(n+1)+' игрока.':'Выберите от 1 до 3 участников. Вместе с вами получится 2–4 игрока.';}
- MEMBERS.filter(function(m){return m.id!==role;}).forEach(function(m){
-   var row=document.createElement('label');row.className='ludo-pickrow';
-   var cb=document.createElement('input');cb.type='checkbox';cb.dataset.peer=m.id;cb.checked=!!seedPeer&&m.id===seedPeer;
-   cb.addEventListener('change',function(){if(cb.checked&&selectedCount()>3){cb.checked=false;toast('Для Семейной гонки можно выбрать максимум 3 участников');}updateHint();});
-   var text=document.createElement('span');text.textContent=(onlineNow(m.id)?'🟢 ':'⚪ ')+NAMES[m.id];
-   row.appendChild(cb);row.appendChild(text);box.appendChild(row);
- });
- updateHint();$('ludoPicker').classList.remove('hidden');
-}
-async function inviteLudo'''
-          h,n=picker_re.subn(picker_new,h,count=1)
-          if n!=1: raise SystemExit('openLudoPicker replacement failed')
-
-          # Make the Invite button fail visibly rather than appearing dead.
-          start_re=re.compile(r"\$\('ludoStartBtn'\)\.addEventListener\('click',function\(\)\{var peers=.*?inviteLudo\(peers\);\}\);",re.S)
-          start_new=r'''$('ludoStartBtn').addEventListener('click',async function(e){
- e.preventDefault();e.stopPropagation();
- var btn=this,peers=Array.from($('ludoPlayerList').querySelectorAll('input[type=checkbox]:checked')).map(function(x){return x.dataset.peer;});
- if(!peers.length){toast('Выберите хотя бы одного участника');return;}
- if(peers.length>3){toast('Для Семейной гонки можно выбрать максимум 3 участников');return;}
- btn.disabled=true;btn.textContent='Запускаем…';
- try{await inviteLudo(peers);}catch(err){console.error('Ludo start failed',err);toast('Не удалось запустить Семейную гонку. Повторите ещё раз.');}
- finally{btn.disabled=false;btn.textContent='Пригласить';}
-});'''
-          h,n=start_re.subn(start_new,h,count=1)
-          if n!=1: raise SystemExit('Ludo start button replacement failed')
-
-          # Hardware back from the game returns to Games rather than getting stuck.
-          anchor=" if(!$('picker').classList.contains('hidden')){showScreen(currentThread?'chat':'home');return true;}"
-          insert=" if(!$('ludo').classList.contains('hidden')){activeLudoId='';openGamesHub();return true;}\n"+anchor
-          if anchor not in h: raise SystemExit('back navigation anchor not found')
-          h=h.replace(anchor,insert,1)
-
-          H.write_text(h,encoding='utf-8')
-          G.write_text(g,encoding='utf-8')
-          M.write_text(m,encoding='utf-8')
-          print('Applied 6.0.34 Ludo launch hotfix')
-          PY
-
-      - name: Validate source and regression guards
-        run: |
-          set -euo pipefail
-          H=duoapp/src/main/assets/index.html
-          grep -q "versionCode 6034" duoapp/build.gradle
-          grep -q "versionName '6.0.34'" duoapp/build.gradle
-          grep -q 'android:label="Наша семья 6.0.34"' duoapp/src/main/AndroidManifest.xml
-          grep -q "APP_VERSION='6.0.34'" "$H"
-          grep -Fq "'gamesHub','durak','ludo'" "$H"
-          grep -q 'id="ludoPickerHint"' "$H"
-          grep -q 'максимум 3 участников' "$H"
-          grep -q "btn.textContent='Запускаем…'" "$H"
-          grep -q "if(!\$('ludo').classList.contains('hidden'))" "$H"
-          grep -q 'id="hubLudoBtn"' "$H"
-          grep -q 'id="hubCheckersBtn"' "$H"
-          grep -q 'id="hubDurakBtn"' "$H"
-          grep -q 'id="micBtn"' "$H"
-          grep -q 'captureChatVideoBtn' "$H"
-          grep -q 'PermissionGateActivity' duoapp/src/main/AndroidManifest.xml
-          node tools/test_ludo.cjs
-          node --check duoapp/src/main/assets/ludo.js
-          node --check duoapp/src/main/assets/checkers.js
-          node --check duoapp/src/main/assets/durak.js
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8')
-          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
-          Path('/tmp/family634-inline.js').write_text('\n'.join(blocks),encoding='utf-8')
-          # Exact regression check for the bug reported from the phones.
-          assert "'gamesHub','durak','ludo'" in h
-          assert "showScreen('ludo');renderLudo();" in h
-          assert 'selectedCount()>3' in h
-          print('Ludo screen registration and 3-invitee guard verified')
-          PY
-          node --check /tmp/family634-inline.js
-
-      - name: Build and verify 6.0.34 candidate
-        run: |
-          set -euo pipefail
-          gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
-          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
-          BT="$ANDROID_HOME/build-tools/35.0.0"
+          APK=updates/downloads/OurFamily_6_0_45_Stable.apk
           test -s "$APK"
-          "$BT/aapt" dump badging "$APK" > /tmp/badging634.txt
-          grep -q "package: name='com.sergey.ourfamily'" /tmp/badging634.txt
-          grep -q "versionCode='6034'" /tmp/badging634.txt
-          grep -q "versionName='6.0.34'" /tmp/badging634.txt
-          unzip -l "$APK" | grep -q 'assets/ludo.js'
-          echo '6.0.34 candidate built and verified'
-
-      - name: Commit validated hotfix
-        run: |
-          set -euo pipefail
-          git config user.name ourfamily-release-bot
-          git config user.email ourfamily-release-bot@users.noreply.github.com
-          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html
-          if ! git diff --cached --quiet; then
-            git commit -m 'Fix Family Race launch in OurFamily 6.0.34'
-            git push origin HEAD:fix/family-6.0.34-ludo-launch
-          fi
+          echo '986d9f7335ad7736a565ac6ad0675749eddd09f99f698184d33f5a32405a55ab  '$APK | sha256sum -c -
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_45_Stable
+          path: updates/downloads/OurFamily_6_0_45_Stable.apk
+          if-no-files-found: error
+          compression-level: 0
