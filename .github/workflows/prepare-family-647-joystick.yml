@@ -84,3 +84,5 @@ jobs:
             git commit -m 'Add Arkanoid joystick controls for 6.0.47'
             git push origin HEAD:release/family-6.0.47-arkanoid-joystick
           fi
+
+# rerun-marker: robust-stage-replacement
