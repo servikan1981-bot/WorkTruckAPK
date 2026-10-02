@@ -12,6 +12,8 @@ import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
+import android.media.AudioFormat;
+import android.media.AudioTrack;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
@@ -57,6 +59,12 @@ public class MainActivity extends Activity {
                 t.setDaemon(true);
                 return t;
             });
+    private static final ThreadPoolExecutor GAME_AUDIO = new ThreadPoolExecutor(
+            1, 2, 1L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(10), r -> {
+                Thread t = new Thread(r, "OurFamilyGameAudio");
+                t.setDaemon(true);
+                return t;
+            }, new ThreadPoolExecutor.DiscardOldestPolicy());
     private static volatile WeakReference<MainActivity> visibleActivity = new WeakReference<>(null);
     private WebView webView;
     private static final int PERMISSION_REQUEST = 2001;
@@ -64,6 +72,7 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> filePathCallback;
     private Uri cameraOutputUri;
     private boolean telecomPromptShownThisRun = false;
+    private volatile boolean poolGameActive = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -301,13 +310,90 @@ public class MainActivity extends Activity {
         else startService(i);
     }
 
+    private void playPoolSoundNative(String kind, int strengthPercent) {
+        final boolean cue = "cue".equals(kind);
+        final float strength = Math.max(0.15f, Math.min(1f, strengthPercent / 100f));
+        try {
+            GAME_AUDIO.execute(() -> {
+                AudioTrack track = null;
+                try {
+                    final int sampleRate = 22050;
+                    final int durationMs = cue ? 105 : 58;
+                    final int count = sampleRate * durationMs / 1000;
+                    short[] pcm = new short[count];
+                    long seed = System.nanoTime() ^ (cue ? 0x4f11L : 0x91a7L);
+                    for (int i = 0; i < count; i++) {
+                        double t = i / (double) sampleRate;
+                        double x = i / (double) Math.max(1, count - 1);
+                        double env = Math.pow(1.0 - x, cue ? 2.0 : 3.4);
+                        seed = seed * 6364136223846793005L + 1442695040888963407L;
+                        double noise = (((seed >>> 33) & 0x7fffffffL) / 1073741824.0) - 1.0;
+                        double freq = cue ? (235.0 - 95.0 * x) : (1850.0 - 520.0 * x);
+                        double tone = Math.sin(2.0 * Math.PI * freq * t);
+                        double second = Math.sin(2.0 * Math.PI * (cue ? 92.0 : 980.0) * t);
+                        double sample = env * (cue ? (0.56 * tone + 0.24 * second + 0.20 * noise)
+                                                  : (0.68 * tone + 0.18 * second + 0.14 * noise));
+                        pcm[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE,
+                                sample * 32767.0 * (0.48 + 0.48 * strength)));
+                    }
+                    int min = AudioTrack.getMinBufferSize(sampleRate,
+                            AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
+                    int bytes = Math.max(min, pcm.length * 2);
+                    track = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRate,
+                            AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                            bytes, AudioTrack.MODE_STATIC);
+                    track.write(pcm, 0, pcm.length);
+                    track.setVolume(Math.min(1f, 0.55f + 0.40f * strength));
+                    track.play();
+                    Thread.sleep(durationMs + 35L);
+                } catch (Exception ignored) {
+                } finally {
+                    if (track != null) {
+                        try { track.stop(); } catch (Exception ignored) {}
+                        try { track.release(); } catch (Exception ignored) {}
+                    }
+                }
+            });
+        } catch (RejectedExecutionException ignored) {}
+    }
+
     public class AndroidBridge {
+        @JavascriptInterface
+        public void setPoolGameActive(boolean active) {
+            runOnUiThread(() -> {
+                poolGameActive = active;
+                try {
+                    if (active) {
+                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR);
+                    } else {
+                        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                    }
+                } catch (Exception ignored) {}
+            });
+        }
+
+        @JavascriptInterface
+        public void requestPoolLandscape() {
+            runOnUiThread(() -> {
+                poolGameActive = true;
+                try {
+                    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                    if (webView != null) webView.postDelayed(() -> {
+                        if (poolGameActive) {
+                            try { setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR); }
+                            catch (Exception ignored) {}
+                        }
+                    }, 700);
+                } catch (Exception ignored) {}
+            });
+        }
+
         @JavascriptInterface
         public void setPoolGameFullscreen(boolean enabled) {
             runOnUiThread(() -> {
                 try {
                     if (enabled) {
-                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
                         getWindow().getDecorView().setSystemUiVisibility(
                                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
                                 View.SYSTEM_UI_FLAG_FULLSCREEN |
@@ -317,10 +403,17 @@ public class MainActivity extends Activity {
                                 View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
                     } else {
                         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
-                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                     }
+                    setRequestedOrientation(poolGameActive
+                            ? ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+                            : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
                 } catch (Exception ignored) {}
             });
+        }
+
+        @JavascriptInterface
+        public void playPoolSound(String kind, int strengthPercent) {
+            playPoolSoundNative(kind, strengthPercent);
         }
 
         @JavascriptInterface
