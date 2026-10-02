@@ -34,159 +34,10 @@ jobs:
           gradle-version: '8.10.2'
           cache-read-only: true
 
-      - name: Apply 6.0.46 optimization and visual polish
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
+      - name: Apply polish patch
+        run: python3 tools/apply_family_646.py
 
-          H=Path('duoapp/src/main/assets/index.html')
-          A=Path('duoapp/src/main/assets/arkanoid.js')
-          G=Path('duoapp/build.gradle')
-          M=Path('duoapp/src/main/AndroidManifest.xml')
-          h=H.read_text(encoding='utf-8')
-          a=A.read_text(encoding='utf-8')
-          g=G.read_text(encoding='utf-8')
-          m=M.read_text(encoding='utf-8')
-
-          if "APP_VERSION='6.0.46'" not in h:
-              if 'versionCode 6045' not in g or "versionName '6.0.45'" not in g:
-                  raise SystemExit('Expected 6.0.45 Gradle baseline not found')
-              g=g.replace('versionCode 6045','versionCode 6046',1).replace("versionName '6.0.45'","versionName '6.0.46'",1)
-              m=m.replace('6.0.45','6.0.46')
-              h=h.replace('6.0.45','6.0.46')
-
-          # Four permanent game cards. Arkanoid used to be injected after the hub opened.
-          if 'id="hubArkanoidBtn"' not in h:
-              pat=re.compile(r'(<button id="hubPoolBtn" class="game-card pool-card">.*?</button>)(</div>\s*<div class="section-title">Текущие партии)',re.S)
-              ark='<button id="hubArkanoidBtn" class="game-card arkanoid-card"><span class="emoji">🧱</span><strong>Арканоид</strong><span>Одиночная игра · уровни · бонусы</span></button>'
-              h,n=pat.subn(r'\1'+ark+r'\2',h,count=1)
-              if n!=1: raise SystemExit('Games hub anchor not found')
-
-          old_ark=""" var grid=doc.querySelector('#gamesHub .game-grid');
- if(grid&&!doc.getElementById('hubArkanoidBtn')){
-  var b=doc.createElement('button');b.id='hubArkanoidBtn';b.className='game-card arkanoid-card';b.innerHTML='<span class=\"emoji\">🧱</span><strong>Арканоид</strong><span>Одиночная игра · уровни · бонусы</span>';grid.appendChild(b);b.addEventListener('click',openGame);
- }
-"""
-          new_ark=""" var grid=doc.querySelector('#gamesHub .game-grid'),hub=doc.getElementById('hubArkanoidBtn');
- if(grid&&!hub){
-  hub=doc.createElement('button');hub.id='hubArkanoidBtn';hub.className='game-card arkanoid-card';hub.innerHTML='<span class=\"emoji\">🧱</span><strong>Арканоид</strong><span>Одиночная игра · уровни · бонусы</span>';grid.appendChild(hub);
- }
- if(hub&&hub.dataset.arkanoidBound!=='1'){hub.dataset.arkanoidBound='1';hub.addEventListener('click',openGame);}
-"""
-          if old_ark in a:
-              a=a.replace(old_ark,new_ark,1)
-          elif "hub.dataset.arkanoidBound==='1'" not in a:
-              raise SystemExit('Arkanoid hub binding anchor not found')
-
-          # Coalesce repeated scroll-to-bottom chains instead of stacking 6 operations per render.
-          old_scroll="""function scrollChatToBottom(){
- var box=$('messages');if(!box||$('chat').classList.contains('hidden'))return;
- function go(){try{box.scrollTop=box.scrollHeight;box.scrollTo({top:box.scrollHeight,behavior:'auto'});}catch(e){box.scrollTop=box.scrollHeight;}}
- go();requestAnimationFrame(function(){go();requestAnimationFrame(go);});setTimeout(go,60);setTimeout(go,180);setTimeout(go,420);
-}
-"""
-          new_scroll="""var chatScrollGeneration=0;
-function scrollChatToBottom(){
- var box=$('messages');if(!box||$('chat').classList.contains('hidden'))return;
- var generation=++chatScrollGeneration;
- function go(){if(generation!==chatScrollGeneration||!box.isConnected)return;try{box.scrollTop=box.scrollHeight;box.scrollTo({top:box.scrollHeight,behavior:'auto'});}catch(e){box.scrollTop=box.scrollHeight;}}
- go();requestAnimationFrame(go);setTimeout(go,120);
-}
-"""
-          if old_scroll in h:
-              h=h.replace(old_scroll,new_scroll,1)
-          elif 'var chatScrollGeneration=0;' not in h:
-              raise SystemExit('Chat scroll anchor not found')
-
-          # Compress phone photos before encryption/upload. Video and generic files are untouched.
-          old_photo="""async function compressPhoto(file){
- var limit=maxAttachmentSize();if(file.size<=limit)return file;
- try{
-   var url=URL.createObjectURL(file),img=new Image();
-   await new Promise(function(resolve,reject){img.onload=resolve;img.onerror=reject;img.src=url;});
-   var scale=Math.min(1,1600/Math.max(img.width,img.height)),c=document.createElement('canvas');
-   c.width=Math.max(1,Math.round(img.width*scale));c.height=Math.max(1,Math.round(img.height*scale));
-   c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
-   var blob=await new Promise(function(resolve){c.toBlob(resolve,'image/jpeg',.78);});
-   if(blob&&blob.size<=limit)return new File([blob],(file.name||'photo').replace(/\\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'});
- }catch(e){}
- return file;
-}
-"""
-          new_photo="""function photoUploadTargetSize(){
- var host='';try{host=(new URL(relayBase)).hostname;}catch(e){}
- var conn=navigator.connection||navigator.mozConnection||navigator.webkitConnection||{};
- if(conn.saveData||/2g/i.test(String(conn.effectiveType||'')))return 1150000;
- if(/3g/i.test(String(conn.effectiveType||'')))return 1650000;
- return /(^|\\.)ntfy\\.sh$/i.test(host)?1350000:2400000;
-}
-async function compressPhoto(file){
- var hard=maxAttachmentSize(),target=Math.min(hard,photoUploadTargetSize());if(file.size<=target)return file;
- var url='';
- try{
-   url=URL.createObjectURL(file);var img=new Image();
-   await new Promise(function(resolve,reject){img.onload=resolve;img.onerror=reject;img.src=url;});
-   var maxSide=1920,scale=Math.min(1,maxSide/Math.max(img.width,img.height)),c=document.createElement('canvas');
-   c.width=Math.max(1,Math.round(img.width*scale));c.height=Math.max(1,Math.round(img.height*scale));
-   c.getContext('2d',{alpha:false}).drawImage(img,0,0,c.width,c.height);
-   var blob=await new Promise(function(resolve){c.toBlob(resolve,'image/jpeg',.82);});
-   if(blob&&blob.size>target&&Math.max(c.width,c.height)>1600){
-     var scale2=1600/Math.max(c.width,c.height),c2=document.createElement('canvas');c2.width=Math.max(1,Math.round(c.width*scale2));c2.height=Math.max(1,Math.round(c.height*scale2));c2.getContext('2d',{alpha:false}).drawImage(c,0,0,c2.width,c2.height);blob=await new Promise(function(resolve){c2.toBlob(resolve,'image/jpeg',.74);});
-   }
-   if(blob&&blob.size<file.size&&blob.size<=hard)return new File([blob],(file.name||'photo').replace(/\\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'});
- }catch(e){}finally{if(url)try{URL.revokeObjectURL(url);}catch(_e){}}
- return file;
-}
-"""
-          if old_photo in h:
-              h=h.replace(old_photo,new_photo,1)
-          elif 'function photoUploadTargetSize()' not in h:
-              raise SystemExit('Photo compression anchor not found')
-
-          # Additive redesign layer: no call/video/WebRTC markup or code is replaced.
-          if 'id="design646"' not in h:
-              css=r'''<style id="design646">
-:root{--radius-card:21px;--soft-shadow:0 10px 28px rgba(24,61,78,.09);--ui-glass:rgba(255,255,255,.94)}
-html,body{background:linear-gradient(180deg,#edf6f7 0,#f6f8fb 42%,#eef4f6 100%)}
-.topbar{position:relative;z-index:4;background:var(--ui-glass);border-bottom:1px solid rgba(79,119,130,.13);box-shadow:0 4px 18px rgba(25,58,72,.05);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding-left:14px;padding-right:14px}
-.iconbtn{border:1px solid rgba(57,102,116,.08);background:#f1f7f8;color:var(--ink);border-radius:14px;transition:transform .12s ease,background .12s ease}.iconbtn:active{transform:scale(.95)}
-.body{padding:14px}.actionbar{gap:10px}.action{border-radius:18px;box-shadow:0 5px 15px rgba(25,67,82,.07)}
-.thread{border:1px solid rgba(69,111,124,.08);border-radius:21px;padding:12px;margin-bottom:9px;box-shadow:var(--soft-shadow);content-visibility:auto;contain-intrinsic-size:74px;transition:transform .12s ease,box-shadow .12s ease}.thread:active{transform:scale(.986);box-shadow:0 5px 16px rgba(24,61,78,.08)}
-.tavatar{width:50px;height:50px;background:linear-gradient(145deg,#e2f3f5,#edf2ff);color:var(--blue);box-shadow:inset 0 0 0 1px rgba(42,112,126,.08)}
-.badge{background:linear-gradient(135deg,var(--blue),#299b91);box-shadow:0 4px 10px rgba(28,125,145,.20)}
-#messages,#adminMessages{padding:16px 11px 18px;background:radial-gradient(circle at 10% 0,#edf8f7 0,transparent 36%),linear-gradient(180deg,#f4f8fa,#eef4f6)}
-.bubble{border-radius:19px;padding:10px 12px;box-shadow:0 4px 13px rgba(26,59,72,.06);content-visibility:auto;contain-intrinsic-size:56px}.mine{background:linear-gradient(145deg,#d3edf2,#dbe9ff);border-bottom-right-radius:6px}.theirs{background:rgba(255,255,255,.97);border:1px solid rgba(65,103,115,.07);border-bottom-left-radius:6px}
-.composer{background:rgba(255,255,255,.96);border-top:1px solid rgba(65,103,115,.10);box-shadow:0 -7px 22px rgba(24,58,70,.06);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);padding-left:10px;padding-right:10px}.composer textarea{border-radius:18px;background:#f5f9fa;border-color:#dce9eb}.send{background:linear-gradient(145deg,var(--blue),#238f8a);box-shadow:0 7px 16px rgba(26,117,133,.22)}
-.bottom-nav{background:rgba(255,255,255,.94);border-top:1px solid rgba(65,103,115,.10);box-shadow:0 -7px 22px rgba(24,58,70,.07);backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);padding-top:7px}.bottom-nav button{border-radius:13px}.bottom-nav button.active{color:var(--blue);background:rgba(27,125,145,.07)}
-.more-options{gap:10px}.more-options button{min-height:54px;border-radius:18px;border-color:rgba(65,103,115,.09);box-shadow:var(--soft-shadow);background:rgba(255,255,255,.96)}
-.news-card,.daily-quote,.pickrow,.permission{border-radius:20px!important;box-shadow:var(--soft-shadow)!important;border-color:rgba(65,103,115,.09)!important}.modal-card,.incoming-card,.urgent-card{border-radius:25px}
-#gamesHub{background:linear-gradient(155deg,#e8f3f4 0,#f5f8fa 48%,#e9f0f6 100%)}
-#gamesHub .topbar{background:rgba(247,252,252,.94)}
-#gamesHub .games-hub-body{padding:11px 12px 86px;gap:10px}
-#gamesHub .game-profile{display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px 12px;padding:12px 14px;border-radius:20px;background:linear-gradient(135deg,#153e4c,#216b70 58%,#2d6486);box-shadow:0 10px 25px rgba(13,61,72,.18)}
-#gamesHub .game-profile strong{font-size:17px}#gamesHub .game-points{font-size:20px;margin:0;grid-column:2;grid-row:1}#gamesHub .game-profile .muted{grid-column:1/3;font-size:11px;line-height:1.25;margin-top:2px}
-#gamesHub .game-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-#gamesHub .game-card{grid-column:auto!important;min-width:0;min-height:118px;padding:13px;border-radius:21px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;box-shadow:0 10px 24px rgba(18,55,73,.14);border:1px solid rgba(255,255,255,.35);color:#fff!important;position:relative}
-#gamesHub .game-card:before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(0,0,0,.08));pointer-events:none}
-#gamesHub .game-card>*{position:relative;z-index:1}#gamesHub .game-card .emoji{font-size:31px!important;line-height:1;margin-bottom:auto}#gamesHub .game-card strong{font-size:17px;margin:7px 0 3px}#gamesHub .game-card span:last-child{font-size:11px;line-height:1.2;color:rgba(255,255,255,.88)!important}
-#gamesHub #hubCheckersBtn{background:linear-gradient(145deg,#43647c,#2f485f)!important}#gamesHub #hubDurakBtn{background:linear-gradient(145deg,#17724a,#0c9a62)!important}#gamesHub #hubPoolBtn{background:linear-gradient(145deg,#113c34,#126d53 58%,#18395d)!important}#gamesHub #hubArkanoidBtn{background:linear-gradient(145deg,#293e86,#5a2d91)!important}
-#gamesHub .section-title{margin:5px 3px 2px}
-@media(max-height:700px){#gamesHub .games-hub-body{padding-top:8px;gap:7px}#gamesHub .game-profile{padding:9px 12px}#gamesHub .game-profile .muted{display:none}#gamesHub .game-card{min-height:100px;padding:10px}#gamesHub .game-card .emoji{font-size:27px!important}#gamesHub .game-card strong{font-size:15px;margin:5px 0 2px}#gamesHub .game-card span:last-child{font-size:10px}#gamesHub .section-title{margin-top:2px}}
-body[data-theme="dark"]{--ui-glass:rgba(23,33,48,.94)}body[data-theme="dark"] html,body[data-theme="dark"]{background:#0d1420}body[data-theme="dark"] .thread,body[data-theme="dark"] .more-options button{background:var(--card);border-color:#2b3748}body[data-theme="dark"] #messages{background:linear-gradient(180deg,#101923,#0d1420)}body[data-theme="dark"] #gamesHub{background:linear-gradient(155deg,#101b24,#111827)}body[data-theme="dark"] #gamesHub .topbar{background:rgba(23,33,48,.94)}
-</style>'''
-              if '</head>' not in h: raise SystemExit('head close not found')
-              h=h.replace('</head>',css+'\n</head>',1)
-
-          H.write_text(h,encoding='utf-8')
-          A.write_text(a,encoding='utf-8')
-          G.write_text(g,encoding='utf-8')
-          M.write_text(m,encoding='utf-8')
-          print('6.0.46 polish applied')
-          PY
-
-      - name: Validate source and regression guards
+      - name: Validate source and regressions
         run: |
           set -euo pipefail
           H=duoapp/src/main/assets/index.html
@@ -204,7 +55,6 @@ body[data-theme="dark"]{--ui-glass:rgba(23,33,48,.94)}body[data-theme="dark"] ht
           grep -q 'hub.dataset.arkanoidBound' "$A"
           grep -q 'function photoUploadTargetSize()' "$H"
           grep -q 'var chatScrollGeneration=0' "$H"
-          # Video/WebRTC safety markers must remain present; MainActivity is not part of this change.
           grep -q 'RTCPeerConnection' "$H"
           grep -q 'prepareLocalMedia' "$H"
           grep -q 'captureChatVideoBtn' "$H"
@@ -213,18 +63,7 @@ body[data-theme="dark"]{--ui-glass:rgba(23,33,48,.94)}body[data-theme="dark"] ht
           node --check duoapp/src/main/assets/billiards.js
           node --check duoapp/src/main/assets/checkers.js
           node --check duoapp/src/main/assets/durak.js
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8')
-          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
-          Path('/tmp/family646-inline.js').write_text('\n'.join(blocks),encoding='utf-8')
-          assert h.count('id="hubArkanoidBtn"')==1
-          assert 'grid-template-columns:repeat(2,minmax(0,1fr))' in h
-          assert 'setTimeout(go,420)' not in h
-          assert "return /(^|\\.)ntfy\\.sh$/i.test(host)?1350000:2400000" in h
-          print('6.0.46 static regression checks passed')
-          PY
+          python3 -c "from pathlib import Path; import re; h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8'); Path('/tmp/family646-inline.js').write_text('\\n'.join(re.findall(r'<script>(.*?)</script>',h,flags=re.S)),encoding='utf-8'); assert h.count('id=\"hubArkanoidBtn\"')==1; assert 'setTimeout(go,420)' not in h"
           node --check /tmp/family646-inline.js
           shopt -s nullglob
           for f in tools/test_*.cjs; do echo "Running $f"; node "$f"; done
@@ -244,7 +83,6 @@ body[data-theme="dark"]{--ui-glass:rgba(23,33,48,.94)}body[data-theme="dark"] ht
           unzip -l "$APK" | grep -q 'assets/billiards.js'
           unzip -l "$APK" | grep -q 'assets/checkers.js'
           unzip -l "$APK" | grep -q 'assets/durak.js'
-          echo '6.0.46 unsigned candidate built and inspected'
 
       - name: Commit validated polish
         run: |
