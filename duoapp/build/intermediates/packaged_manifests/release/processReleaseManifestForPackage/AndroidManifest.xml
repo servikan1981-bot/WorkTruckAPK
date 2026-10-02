@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.sergey.ourfamily"
-    android:versionCode="6033"
-    android:versionName="6.0.33" >
+    android:versionCode="6041"
+    android:versionName="6.0.41" >
 
     <uses-sdk
         android:minSdkVersion="24"
@@ -32,7 +32,7 @@
         android:allowBackup="false"
         android:extractNativeLibs="false"
         android:icon="@drawable/ic_launcher"
-        android:label="Наша семья 6.0.33"
+        android:label="Наша семья 6.0.41"
         android:roundIcon="@drawable/ic_launcher"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false" >
@@ -91,6 +91,7 @@
         </activity>
         <activity
             android:name="com.sergey.duochat.MainActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="true"
             android:launchMode="singleTop"
             android:screenOrientation="portrait" />

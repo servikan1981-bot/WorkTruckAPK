@@ -11,10 +11,10 @@ INJECTED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/Androi
 	android:name
 		ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:57:13-47
 manifest
-ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:1:1-88:12
-INJECTED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:1:1-88:12
-INJECTED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:1:1-88:12
-INJECTED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:1:1-88:12
+ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:1:1-89:12
+INJECTED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:1:1-89:12
+INJECTED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:1:1-89:12
+INJECTED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:1:1-89:12
 	package
 		INJECTED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml
 	android:versionName
@@ -84,8 +84,8 @@ ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidMa
 	android:name
 		ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:16:19-61
 application
-ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:18:5-87:19
-INJECTED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:18:5-87:19
+ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:18:5-88:19
+INJECTED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:18:5-88:19
 	android:extractNativeLibs
 		INJECTED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml
 	android:label
@@ -187,13 +187,15 @@ ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidMa
 	android:name
 		ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:78:27-74
 activity#com.sergey.duochat.MainActivity
-ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:82:9-86:39
+ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:82:9-87:39
 	android:screenOrientation
 		ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:84:13-49
 	android:launchMode
-		ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:85:13-43
+		ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:86:13-43
 	android:exported
-		ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:86:13-36
+		ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:87:13-36
+	android:configChanges
+		ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:85:13-74
 	android:name
 		ADDED from /home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:83:13-41
 uses-sdk

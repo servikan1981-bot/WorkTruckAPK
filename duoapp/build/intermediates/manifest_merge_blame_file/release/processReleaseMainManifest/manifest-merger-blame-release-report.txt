@@ -1,8 +1,8 @@
 1<?xml version="1.0" encoding="utf-8"?>
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 3    package="com.sergey.ourfamily"
-4    android:versionCode="6033"
-5    android:versionName="6.0.33" >
+4    android:versionCode="6041"
+5    android:versionName="6.0.41" >
 6
 7    <uses-sdk
 8        android:minSdkVersion="24"
@@ -59,13 +59,13 @@
 29-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:16:62-86
 30
 31    <application
-31-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:18:5-87:19
+31-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:18:5-88:19
 32        android:allowBackup="false"
 32-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:19:9-36
 33        android:extractNativeLibs="false"
 34        android:icon="@drawable/ic_launcher"
 34-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:23:9-45
-35        android:label="Наша семья 6.0.33"
+35        android:label="Наша семья 6.0.41"
 35-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:20:9-42
 36        android:roundIcon="@drawable/ic_launcher"
 36-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:24:9-50
@@ -174,15 +174,17 @@
 90            </intent-filter>
 91        </activity>
 92        <activity
-92-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:82:9-86:39
+92-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:82:9-87:39
 93            android:name="com.sergey.duochat.MainActivity"
 93-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:83:13-41
-94            android:exported="true"
-94-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:86:13-36
-95            android:launchMode="singleTop"
-95-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:85:13-43
-96            android:screenOrientation="portrait" />
-96-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:84:13-49
-97    </application>
-98
-99</manifest>
+94            android:configChanges="orientation|screenSize|keyboardHidden"
+94-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:85:13-74
+95            android:exported="true"
+95-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:87:13-36
+96            android:launchMode="singleTop"
+96-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:86:13-43
+97            android:screenOrientation="portrait" />
+97-->/home/runner/work/WorkTruckAPK/WorkTruckAPK/duoapp/src/main/AndroidManifest.xml:84:13-49
+98    </application>
+99
+100</manifest>
