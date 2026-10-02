@@ -11,6 +11,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ActivityInfo;
 import android.net.Uri;
 import android.media.AudioDeviceInfo;
+import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.AudioFormat;
 import android.media.AudioTrack;
@@ -60,7 +61,7 @@ public class MainActivity extends Activity {
                 return t;
             });
     private static final ThreadPoolExecutor GAME_AUDIO = new ThreadPoolExecutor(
-            1, 2, 1L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(10), r -> {
+            4, 4, 1L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(24), r -> {
                 Thread t = new Thread(r, "OurFamilyGameAudio");
                 t.setDaemon(true);
                 return t;
@@ -264,7 +265,7 @@ public class MainActivity extends Activity {
             int n;
             while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
             String html = new String(out.toByteArray(), StandardCharsets.UTF_8);
-            String[] gameRuleAssets = {"checkers.js", "durak.js"};
+            String[] gameRuleAssets = {"checkers.js", "durak.js", "billiards.js"};
             for (String assetName : gameRuleAssets) {
                 try (InputStream game = getAssets().open(assetName)) {
                     ByteArrayOutputStream rules = new ByteArrayOutputStream();
@@ -312,44 +313,64 @@ public class MainActivity extends Activity {
 
     private void playPoolSoundNative(String kind, int strengthPercent) {
         final boolean cue = "cue".equals(kind);
-        final float strength = Math.max(0.15f, Math.min(1f, strengthPercent / 100f));
+        final boolean rail = "rail".equals(kind);
+        final float strength = Math.max(0.12f, Math.min(1f, strengthPercent / 100f));
         try {
             GAME_AUDIO.execute(() -> {
                 AudioTrack track = null;
                 try {
-                    final int sampleRate = 22050;
-                    final int durationMs = cue ? 105 : 58;
+                    final int sampleRate = 32000;
+                    final int durationMs = cue ? 92 : (rail ? 52 : 46);
                     final int count = sampleRate * durationMs / 1000;
                     short[] pcm = new short[count];
-                    long seed = System.nanoTime() ^ (cue ? 0x4f11L : 0x91a7L);
+                    long seed = System.nanoTime() ^ (cue ? 0x4f11L : (rail ? 0x70a1L : 0x91a7L));
                     for (int i = 0; i < count; i++) {
                         double t = i / (double) sampleRate;
                         double x = i / (double) Math.max(1, count - 1);
-                        double env = Math.pow(1.0 - x, cue ? 2.0 : 3.4);
+                        double env = Math.pow(1.0 - x, cue ? 2.15 : (rail ? 4.0 : 3.25));
                         seed = seed * 6364136223846793005L + 1442695040888963407L;
                         double noise = (((seed >>> 33) & 0x7fffffffL) / 1073741824.0) - 1.0;
-                        double freq = cue ? (235.0 - 95.0 * x) : (1850.0 - 520.0 * x);
-                        double tone = Math.sin(2.0 * Math.PI * freq * t);
-                        double second = Math.sin(2.0 * Math.PI * (cue ? 92.0 : 980.0) * t);
-                        double sample = env * (cue ? (0.56 * tone + 0.24 * second + 0.20 * noise)
-                                                  : (0.68 * tone + 0.18 * second + 0.14 * noise));
-                        pcm[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE,
-                                sample * 32767.0 * (0.48 + 0.48 * strength)));
+                        double f1 = cue ? (315.0 - 125.0 * x) : (rail ? (760.0 - 170.0 * x) : (2260.0 - 720.0 * x));
+                        double f2 = cue ? 128.0 : (rail ? 330.0 : 1280.0);
+                        double tone = Math.sin(2.0 * Math.PI * f1 * t);
+                        double second = Math.sin(2.0 * Math.PI * f2 * t);
+                        double sample;
+                        if (cue) sample = env * (0.48 * tone + 0.28 * second + 0.24 * noise);
+                        else if (rail) sample = env * (0.44 * tone + 0.18 * second + 0.38 * noise);
+                        else sample = env * (0.70 * tone + 0.18 * second + 0.12 * noise);
+                        double amp = cue ? (0.62 + 0.34 * strength) : (0.54 + 0.42 * strength);
+                        pcm[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, sample * 32767.0 * amp));
                     }
+
+                    AudioAttributes attrs = new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_GAME)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build();
+                    AudioFormat format = new AudioFormat.Builder()
+                            .setSampleRate(sampleRate)
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build();
                     int min = AudioTrack.getMinBufferSize(sampleRate,
                             AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
-                    int bytes = Math.max(min, pcm.length * 2);
-                    track = new AudioTrack(AudioManager.STREAM_MUSIC, sampleRate,
-                            AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
-                            bytes, AudioTrack.MODE_STATIC);
-                    track.write(pcm, 0, pcm.length);
-                    track.setVolume(Math.min(1f, 0.55f + 0.40f * strength));
+                    int bytes = Math.max(Math.max(min, pcm.length * 2), 4096);
+                    track = new AudioTrack.Builder()
+                            .setAudioAttributes(attrs)
+                            .setAudioFormat(format)
+                            .setBufferSizeInBytes(bytes)
+                            .setTransferMode(AudioTrack.MODE_STATIC)
+                            .build();
+                    if (track.getState() != AudioTrack.STATE_INITIALIZED) throw new IllegalStateException("pool audio not initialized");
+                    int written = track.write(pcm, 0, pcm.length, AudioTrack.WRITE_BLOCKING);
+                    if (written <= 0) throw new IllegalStateException("pool audio write failed: " + written);
+                    track.setVolume(1f);
                     track.play();
-                    Thread.sleep(durationMs + 35L);
+                    Thread.sleep(durationMs + 28L);
                 } catch (Exception ignored) {
                 } finally {
                     if (track != null) {
                         try { track.stop(); } catch (Exception ignored) {}
+                        try { track.flush(); } catch (Exception ignored) {}
                         try { track.release(); } catch (Exception ignored) {}
                     }
                 }
