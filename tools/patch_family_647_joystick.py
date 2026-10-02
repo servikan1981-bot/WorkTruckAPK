@@ -40,13 +40,23 @@ extra_css = """\\
 """
 text = replace_once(text, style_marker, extra_css + style_marker, 'style insertion')
 
-shell_line = ' <div class=\\"ark-shell\\"><canvas id=\\"arkCanvas\\" width=\\"960\\" height=\\"540\\" aria-label=\\"Арканоид\\"></canvas><div id=\\"arkOverlay\\" class=\\"ark-overlay\\"><span>Нажмите «Старт»</span></div></div>\\\n'
-stage_line = ' <div class=\\"ark-stage\\"><div class=\\"ark-shell\\"><canvas id=\\"arkCanvas\\" width=\\"960\\" height=\\"540\\" aria-label=\\"Арканоид\\"></canvas><div id=\\"arkOverlay\\" class=\\"ark-overlay\\"><span>Нажмите «Старт»</span></div></div><div id=\\"arkJoystick\\" class=\\"ark-joystick\\"><span class=\\"ark-joystick-title\\">УПРАВЛЕНИЕ</span><div id=\\"arkJoystickTrack\\" class=\\"ark-joystick-track\\" role=\\"slider\\" aria-label=\\"Управление платформой\\" aria-valuemin=\\"-100\\" aria-valuemax=\\"100\\" aria-valuenow=\\"0\\"><div id=\\"arkJoystickKnob\\" class=\\"ark-joystick-knob\\"></div></div></div></div>\\\n'
-text = replace_once(text, shell_line, stage_line, 'stage HTML')
-
-old_hint = ' <div class=\\"ark-hint\\">Ведите пальцем по игровому полю, чтобы двигать платформу. Коснитесь поля, чтобы запустить шар.</div>\\\n'
-new_hint = ' <div class=\\"ark-hint\\">Управляйте платформой джойстиком. Игровое поле остаётся свободным; коснитесь его только для запуска шара.</div>\\\n'
-text = replace_once(text, old_hint, new_hint, 'joystick hint')
+# Replace dynamic HTML lines by semantic markers instead of exact escaping.
+lines = text.splitlines(keepends=True)
+stage_found = False
+hint_found = False
+for i, line in enumerate(lines):
+    if (not stage_found) and 'id=\\"arkCanvas\\"' in line and 'class=\\"ark-shell\\"' in line:
+        stage_html = ' <div class=\\"ark-stage\\"><div class=\\"ark-shell\\"><canvas id=\\"arkCanvas\\" width=\\"960\\" height=\\"540\\" aria-label=\\"Арканоид\\"></canvas><div id=\\"arkOverlay\\" class=\\"ark-overlay\\"><span>Нажмите «Старт»</span></div></div><div id=\\"arkJoystick\\" class=\\"ark-joystick\\"><span class=\\"ark-joystick-title\\">УПРАВЛЕНИЕ</span><div id=\\"arkJoystickTrack\\" class=\\"ark-joystick-track\\" role=\\"slider\\" aria-label=\\"Управление платформой\\" aria-valuemin=\\"-100\\" aria-valuemax=\\"100\\" aria-valuenow=\\"0\\"><div id=\\"arkJoystickKnob\\" class=\\"ark-joystick-knob\\"></div></div></div></div>'
+        lines[i] = stage_html + '\\' + '\n'
+        stage_found = True
+    elif (not hint_found) and 'Ведите пальцем по игровому полю' in line:
+        lines[i] = ' <div class=\\"ark-hint\\">Управляйте платформой джойстиком. Игровое поле остаётся свободным; коснитесь его только для запуска шара.</div>' + '\\' + '\n'
+        hint_found = True
+if not stage_found:
+    raise SystemExit('missing marker: stage HTML')
+if not hint_found:
+    raise SystemExit('missing marker: joystick hint')
+text = ''.join(lines)
 
 old_canvas = """ if(canvas){
   canvas.addEventListener('pointerdown',function(e){unlockAudio();movePaddle(e);if(state.started&&state.balls.some(function(b){return b.stuck;}))launchStuckBalls();try{canvas.setPointerCapture(e.pointerId);}catch(_e){};});
@@ -60,14 +70,23 @@ new_canvas = """ if(canvas){
 """
 text = replace_once(text, old_canvas, new_canvas, 'canvas input replacement')
 
-move_line = "function movePaddle(e){if(!canvas||!state.paddle)return;var r=canvas.getBoundingClientRect();var x=(e.clientX-r.left)/Math.max(1,r.width)*W;state.paddle.x=clamp(x-state.paddle.w/2,8,W-state.paddle.w-8);state.balls.forEach(function(b){if(b.stuck)b.x=state.paddle.x+state.paddle.w/2;});if(!state.running)draw();}\n"
+# Replace movePaddle by line marker for resilience.
+lines = text.splitlines(keepends=True)
+move_found = False
 joy_code = """function joystickAxisFromClientX(clientX,left,width){var raw=((clientX-left)/Math.max(1,width)-.5)*2;raw=clamp(raw,-1,1);var a=Math.abs(raw);if(a<.08)return 0;return Math.sign(raw)*((a-.08)/.92);}
 function syncStuckBalls(){if(!state.paddle)return;state.balls.forEach(function(b){if(b.stuck)b.x=state.paddle.x+state.paddle.w/2;});}
 function updateJoystickVisual(){if(!doc)return;var knob=doc.getElementById('arkJoystickKnob'),track=doc.getElementById('arkJoystickTrack');if(knob)knob.style.left=(50+state.joyAxis*31)+'%';if(track)track.setAttribute('aria-valuenow',String(Math.round(state.joyAxis*100)));}
 function resetJoystick(){state.joyAxis=0;state.joyPointer=null;if(doc){var box=doc.getElementById('arkJoystick');if(box)box.classList.remove('active');}updateJoystickVisual();}
 function bindJoystick(){if(!doc)return;var track=doc.getElementById('arkJoystickTrack');if(!track||track.dataset.bound==='1')return;track.dataset.bound='1';function apply(e){var r=track.getBoundingClientRect();state.joyAxis=joystickAxisFromClientX(e.clientX,r.left,r.width);updateJoystickVisual();}function end(e){if(state.joyPointer!==null&&e&&e.pointerId!==state.joyPointer)return;resetJoystick();}track.addEventListener('pointerdown',function(e){unlockAudio();state.joyPointer=e.pointerId;var box=doc.getElementById('arkJoystick');if(box)box.classList.add('active');try{track.setPointerCapture(e.pointerId);}catch(_e){}apply(e);e.preventDefault();});track.addEventListener('pointermove',function(e){if(state.joyPointer===e.pointerId){apply(e);e.preventDefault();}});track.addEventListener('pointerup',end);track.addEventListener('pointercancel',end);track.addEventListener('lostpointercapture',function(){resetJoystick();});updateJoystickVisual();}
 """
-text = replace_once(text, move_line, joy_code, 'joystick functions')
+for i, line in enumerate(lines):
+    if line.startswith('function movePaddle(e)'):
+        lines[i] = joy_code
+        move_found = True
+        break
+if not move_found:
+    raise SystemExit('missing marker: movePaddle')
+text = ''.join(lines)
 
 text = replace_once(
     text,
