@@ -65,17 +65,32 @@ jobs:
           grep -q 'captureChatVideoBtn' "$H"
           git diff origin/family-stable-6 --exit-code -- duoapp/src/main/java/com/sergey/duochat/MainActivity.java
 
-      - name: Validate JavaScript and game tests
+      - name: Validate asset JavaScript syntax
         run: |
           set -euo pipefail
           node --check duoapp/src/main/assets/arkanoid.js
           node --check duoapp/src/main/assets/billiards.js
           node --check duoapp/src/main/assets/checkers.js
           node --check duoapp/src/main/assets/durak.js
+
+      - name: Validate inline JavaScript syntax
+        run: |
+          set -euo pipefail
           python3 -c "from pathlib import Path; import re; h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8'); Path('/tmp/family646-inline.js').write_text('\\n'.join(re.findall(r'<script>(.*?)</script>',h,flags=re.S)),encoding='utf-8'); assert h.count('id=\"hubArkanoidBtn\"')==1; assert 'setTimeout(go,420)' not in h"
           node --check /tmp/family646-inline.js
-          shopt -s nullglob
-          for f in tools/test_*.cjs; do echo "Running $f"; node "$f"; done
+
+      - name: Test checkers
+        run: node tools/test_checkers.cjs
+      - name: Test Durak
+        run: node tools/test_durak.cjs
+      - name: Test billiards
+        run: node tools/test_billiards.cjs
+      - name: Test async messaging regression
+        run: node tools/test_family_624_async.cjs
+      - name: Test Ludo regression
+        run: node tools/test_ludo.cjs
+      - name: Test TURN SDP regression
+        run: node tools/test_turn_sdp_627.cjs
 
       - name: Build and inspect APK
         run: |
