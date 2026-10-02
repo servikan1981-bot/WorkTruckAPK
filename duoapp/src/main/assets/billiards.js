@@ -33,11 +33,11 @@ function simulate(state,angle,power,keepFrames){
  var frames=[],pocketed=[],firstContact=null,lastFrame=-9,pendingSound=0;
  function snap(){if(!keepFrames)return;var fr=balls.map(function(b){return {n:b.n,x:+b.x.toFixed(2),y:+b.y.toFixed(2),pocketed:b.pocketed};});if(pendingSound>0){fr._sound=Math.min(1,pendingSound);pendingSound=0;}frames.push(fr);}
  snap();
- for(var step=0;step<1900;step++){
+ for(var step=0;step<3200;step++){
   var moving=false;
   for(var i=0;i<balls.length;i++){
    var b=balls[i];if(b.pocketed)continue;
-   if(Math.abs(b.vx)+Math.abs(b.vy)>.015)moving=true;
+   if(Math.abs(b.vx)+Math.abs(b.vy)>.008)moving=true;
    b.x+=b.vx*.34;b.y+=b.vy*.34;
    for(var p=0;p<POCKETS.length;p++){
     var pk=POCKETS[p],pr=(p===1||p===4)?24:27;
@@ -52,8 +52,8 @@ function simulate(state,angle,power,keepFrames){
    var d=Math.sqrt(d2),nx=dx/d,ny=dy/d,over=min-d;A.x-=nx*over/2;A.y-=ny*over/2;B.x+=nx*over/2;B.y+=ny*over/2;
    var rvx=B.vx-A.vx,rvy=B.vy-A.vy,sep=rvx*nx+rvy*ny;if(sep<0){var hitStrength=Math.min(1,Math.abs(sep)/22);if(hitStrength>.055)pendingSound=Math.max(pendingSound,hitStrength);var imp=-(1.92)*sep/2;A.vx-=imp*nx;A.vy-=imp*ny;B.vx+=imp*nx;B.vy+=imp*ny;if(firstContact===null&&(A.n===0||B.n===0))firstContact=A.n===0?B.n:A.n;}
   }
-  for(var q=0;q<balls.length;q++){var bb=balls[q];if(bb.pocketed)continue;bb.vx*=.993;bb.vy*=.993;if(Math.abs(bb.vx)<.010)bb.vx=0;if(Math.abs(bb.vy)<.010)bb.vy=0;}
-  if(keepFrames&&step-lastFrame>=7){snap();lastFrame=step;}
+  for(var q=0;q<balls.length;q++){var bb=balls[q];if(bb.pocketed)continue;bb.vx*=.9965;bb.vy*=.9965;if(Math.abs(bb.vx)<.006)bb.vx=0;if(Math.abs(bb.vy)<.006)bb.vy=0;}
+  if(keepFrames&&step-lastFrame>=8){snap();lastFrame=step;}
   if(!moving&&step>8)break;
  }
  if(keepFrames)snap();
