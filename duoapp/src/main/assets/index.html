@@ -450,7 +450,6 @@ body[data-theme="dark"]{--ui-glass:rgba(23,33,48,.94)}body[data-theme="dark"]{ba
 <script src="durak.js"></script>
 <script src="billiards.js"></script>
 <script src="arkanoid.js"></script>
-<script src="arkanoid_joystick.js"></script>
 <script>
 (function(){
 'use strict';
@@ -470,7 +469,7 @@ var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteS
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.48',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
+var APP_VERSION='6.0.49',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
 var games={},activeGameId='',pendingGameAcceptId='',gameSending=false,checkersDrag=null,suppressCheckersClick=0;
 var durakGames={},activeDurakId='',pendingDurakAcceptId='',durakSending=false,gamePickKind='',gamePickPeer='';
 var poolGames={},activePoolId='',pendingPoolAcceptId='',poolSending=false,poolAnimating=false,poolAim=-0.12,poolPower=.62;
