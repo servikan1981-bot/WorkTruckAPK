@@ -1,0 +1,46 @@
+name: Prepare secure OurFamily 6.0.41 publisher
+
+on:
+  push:
+    branches:
+      - release/family-6.0.41-secure-publish
+    paths:
+      - .github/workflows/prepare-family-641-publisher.yml
+      - updates/candidates/prepare641.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/family-6.0.41-secure-publish
+          fetch-depth: 0
+      - name: Create 6.0.41 secure publisher from 6.0.40 template
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          src=Path('.github/workflows/secure-publish-family-640.yml').read_text(encoding='utf-8')
+          s=src.replace('release/family-6.0.40-secure-publish','release/family-6.0.41-secure-publish')
+          s=s.replace('secure-publish-family-640.yml','secure-publish-family-641.yml')
+          s=s.replace('6.0.40','6.0.41').replace('6040','6041').replace('640','641')
+          s=s.replace("bb.vx\\*=.993","bb.vx\\*=.9965")
+          s=s.replace("grep -q 'poolFullscreenBtn' duoapp/src/main/assets/index.html", "grep -q 'poolFullscreenBtn' duoapp/src/main/assets/index.html\n          grep -q 'poolFullscreenBigBtn' duoapp/src/main/assets/index.html\n          grep -q 'setPoolGameActive(boolean active)' duoapp/src/main/java/com/sergey/duochat/MainActivity.java\n          grep -q 'playPoolSound(String kind, int strengthPercent)' duoapp/src/main/java/com/sergey/duochat/MainActivity.java")
+          s=re.sub(r"'notes':'[^']*'", "'notes':'Бильярд 8-ball: большая кнопка НА ВЕСЬ ЭКРАН под столом, автоматический полноэкранный режим при повороте телефона внутри игры, заметно более длительное реалистичное качение шаров и нативные Android-звуки удара кия и столкновений шаров. Чаты, фото и видео не изменялись.'", s)
+          Path('.github/workflows/secure-publish-family-641.yml').write_text(s,encoding='utf-8')
+          PY
+          grep -q 'versionCode 6041' .github/workflows/secure-publish-family-641.yml
+          grep -q 'v641_' .github/workflows/secure-publish-family-641.yml
+          grep -q 'bb.vx\\\*=.9965' .github/workflows/secure-publish-family-641.yml || grep -q '.9965' .github/workflows/secure-publish-family-641.yml
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add .github/workflows/secure-publish-family-641.yml
+          git commit -m 'Add secure OurFamily 6.0.41 publisher'
+          git push origin HEAD:release/family-6.0.41-secure-publish
