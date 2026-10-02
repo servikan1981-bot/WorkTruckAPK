@@ -1,0 +1,25 @@
+name: Cleanup OurFamily 6.0.47 release helpers
+on:
+  push:
+    branches: [release/family-6.0.47-secure-publish]
+    paths: [.github/workflows/cleanup-release-647.yml]
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/family-6.0.47-secure-publish
+          fetch-depth: 0
+      - run: |
+          set -euo pipefail
+          git fetch origin family-stable-6
+          git checkout origin/family-stable-6 -- .github/workflows/secure-publish-family-646.yml
+          git rm -f .github/workflows/prepare-family-647-joystick.yml .github/workflows/cleanup-release-647.yml
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add .github/workflows/secure-publish-family-646.yml
+          git commit -m 'Clean temporary 6.0.47 release helpers'
+          git push origin HEAD:release/family-6.0.47-secure-publish
