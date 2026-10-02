@@ -58,7 +58,7 @@ jobs:
           grep -q 'RTCPeerConnection' "$H"
           grep -q 'prepareLocalMedia' "$H"
           grep -q 'captureChatVideoBtn' "$H"
-          git diff family-stable-6 --exit-code -- duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          git diff origin/family-stable-6 --exit-code -- duoapp/src/main/java/com/sergey/duochat/MainActivity.java
           node --check "$A"
           node --check duoapp/src/main/assets/billiards.js
           node --check duoapp/src/main/assets/checkers.js
