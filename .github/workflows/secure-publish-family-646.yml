@@ -1,0 +1,212 @@
+name: Secure publish OurFamily 6.0.46
+
+on:
+  push:
+    branches:
+      - release/family-6.0.46-secure-publish
+    paths:
+      - .github/workflows/secure-publish-family-646.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+tasks: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/family-6.0.46-secure-publish
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+
+      - name: Publish one-time encryption certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /tmp/ourfamily646.key >/dev/null 2>&1
+          openssl req -new -x509 -sha256 -key /tmp/ourfamily646.key -out /tmp/ourfamily646.crt -days 1 -subj '/CN=OurFamily-6.0.46-One-Time/'
+          mkdir -p updates/candidates/signed646
+          cp /tmp/ourfamily646.crt updates/candidates/signed646/ephemeral_cert.pem
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add updates/candidates/signed646/ephemeral_cert.pem
+          git commit -m 'Publish one-time 6.0.46 signing certificate'
+          git push origin HEAD:release/family-6.0.46-secure-publish
+
+      - name: Wait for encrypted signing payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          FOUND=0
+          for i in $(seq 1 150); do
+            git fetch origin release/family-6.0.46-secure-publish
+            if git cat-file -e 'origin/release/family-6.0.46-secure-publish:updates/candidates/signed646/encrypted_payload.b64' 2>/dev/null; then
+              git show 'origin/release/family-6.0.46-secure-publish:updates/candidates/signed646/encrypted_payload.b64' > /tmp/encrypted_payload.b64
+              git reset --hard origin/release/family-6.0.46-secure-publish
+              FOUND=1
+              break
+            fi
+            sleep 4
+          done
+          test "$FOUND" = 1
+
+      - name: Decrypt signing material in runner only
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d /tmp/encrypted_payload.b64 > /tmp/signing_payload.cms
+          openssl cms -decrypt -binary -inform DER -in /tmp/signing_payload.cms -recip /tmp/ourfamily646.crt -inkey /tmp/ourfamily646.key -out /tmp/signing_payload.tar.gz
+          mkdir -p /tmp/signing646
+          tar -xzf /tmp/signing_payload.tar.gz -C /tmp/signing646
+          test -s /tmp/signing646/OurFamily_Stable6_Signing.p12
+          test -s /tmp/signing646/password.txt
+
+      - name: Validate 6.0.46 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          H=duoapp/src/main/assets/index.html
+          grep -q 'versionCode 6046' duoapp/build.gradle
+          grep -q "versionName '6.0.46'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.46"' duoapp/src/main/AndroidManifest.xml
+          grep -q "APP_VERSION='6.0.46'" "$H"
+          grep -q 'id="design646"' "$H"
+          test "$(grep -o 'id="hubCheckersBtn"' "$H" | wc -l)" -eq 1
+          test "$(grep -o 'id="hubDurakBtn"' "$H" | wc -l)" -eq 1
+          test "$(grep -o 'id="hubPoolBtn"' "$H" | wc -l)" -eq 1
+          test "$(grep -o 'id="hubArkanoidBtn"' "$H" | wc -l)" -eq 1
+          grep -q 'grid-template-columns:repeat(2,minmax(0,1fr))' "$H"
+          grep -q 'function photoUploadTargetSize()' "$H"
+          grep -q 'var chatScrollGeneration=0' "$H"
+          grep -q 'RTCPeerConnection' "$H"
+          grep -q 'prepareLocalMedia' "$H"
+          node --check duoapp/src/main/assets/arkanoid.js
+          node --check duoapp/src/main/assets/billiards.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          node tools/test_billiards.cjs
+          node tools/test_family_624_async.cjs
+          node tools/test_turn_sdp_627.cjs
+          node - <<'NODE'
+          require('./duoapp/src/main/assets/arkanoid.js');
+          const a=global.ArkanoidGame;
+          if(!a) throw new Error('Arkanoid API missing');
+          if(a.speedForLevel(1)!==320) throw new Error('Unexpected Arkanoid level 1 speed');
+          const b1=a.buildLevel(1),b6=a.buildLevel(6);
+          if(b1.length<45||b1.length>55||b6.length<=b1.length) throw new Error('Arkanoid level generation invalid');
+          console.log('ARKANOID_OK',b1.length,b6.length);
+          NODE
+
+      - name: Build unsigned APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Align sign and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          U=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          A=/tmp/OurFamily_6_0_46_aligned.apk
+          S=/tmp/OurFamily_6_0_46_Stable.apk
+          PASS=$(tr -d '\r\n' < /tmp/signing646/password.txt)
+          "$BT/zipalign" -p -f 4 "$U" "$A"
+          "$BT/zipalign" -c -v 4 "$A" >/dev/null
+          "$BT/apksigner" sign --ks /tmp/signing646/OurFamily_Stable6_Signing.p12 --ks-type PKCS12 --ks-key-alias ourfamily6 --ks-pass "pass:$PASS" --key-pass "pass:$PASS" --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled true --out "$S" "$A"
+          "$BT/apksigner" verify --verbose --print-certs "$S" > /tmp/cert646.txt
+          "$BT/aapt" dump badging "$S" > /tmp/badging646.txt
+          grep -q "package: name='com.sergey.ourfamily'" /tmp/badging646.txt
+          grep -q "versionCode='6046'" /tmp/badging646.txt
+          grep -q "versionName='6.0.46'" /tmp/badging646.txt
+          CERT=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert646.txt | sed 's/.*: //')
+          test "$CERT" = '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83'
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/cert646.txt
+          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' /tmp/cert646.txt
+
+      - name: Upload signed APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_46_Stable
+          path: /tmp/OurFamily_6_0_46_Stable.apk
+          if-no-files-found: error
+
+      - name: Build update payload and metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib, json
+          apk=Path('/tmp/OurFamily_6_0_46_Stable.apk').read_bytes()
+          sha=hashlib.sha256(apk).hexdigest()
+          b64=base64.b64encode(apk).decode('ascii')
+          chunks=[b64[i:i+16000] for i in range(0,len(b64),16000)]
+          parts=Path('updates/parts'); parts.mkdir(parents=True,exist_ok=True)
+          for p in parts.glob('v646_*.b64'): p.unlink()
+          base='https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'
+          urls=[]
+          for i,c in enumerate(chunks):
+              name=f'v646_{i:02d}.b64'
+              (parts/name).write_text(c,encoding='ascii')
+              urls.append(base+name)
+          meta={
+            'versionCode':6046,
+            'versionName':'6.0.46',
+            'apkBase64Parts':urls,
+            'sha256':sha,
+            'notes':'Обновлён дизайн приложения: более чистые карточки, верхние панели, чат, нижняя навигация, меню и новости. Раздел Игры переработан в сетку 2×2 — Шашки, Дурак, Бильярд и Арканоид видны одновременно без прокрутки на обычном экране телефона. Оптимизирована автопрокрутка переписки и подготовка фотографий перед отправкой, особенно на медленном соединении. Видеозвонки и WebRTC не менялись; TURN/SDP прошёл регрессионную проверку.'
+          }
+          text=json.dumps(meta,ensure_ascii=False,indent=2)+'\n'
+          Path('updates/candidates').mkdir(parents=True,exist_ok=True)
+          Path('updates/candidates/646.json').write_text(text,encoding='utf-8')
+          Path('updates/latest.json').write_text(text,encoding='utf-8')
+          Path('updates/downloads').mkdir(parents=True,exist_ok=True)
+          Path('updates/downloads/OurFamily_6_0_46_Stable.apk').write_bytes(apk)
+          rebuilt=base64.b64decode(''.join((parts/u.rsplit('/',1)[-1]).read_text(encoding='ascii') for u in urls))
+          assert rebuilt==apk
+          assert hashlib.sha256(rebuilt).hexdigest()==sha
+          print('READY',len(apk),len(chunks),sha)
+          PY
+
+      - name: Commit signed release to release branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f updates/candidates/signed646/encrypted_payload.b64 updates/candidates/signed646/ephemeral_cert.pem
+          rmdir updates/candidates/signed646 2>/dev/null || true
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add -A updates
+          git commit -m 'Release OurFamily 6.0.46 stable candidate'
+          git push origin HEAD:release/family-6.0.46-secure-publish
+
+      - name: Final verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          m=json.loads(Path('updates/latest.json').read_text(encoding='utf-8'))
+          apk=Path('updates/downloads/OurFamily_6_0_46_Stable.apk').read_bytes()
+          assert m['versionCode']==6046 and m['versionName']=='6.0.46'
+          assert hashlib.sha256(apk).hexdigest()==m['sha256']
+          assert len(m['apkBase64Parts'])>=10
+          print('FINAL_READY',m['versionName'],m['sha256'])
+          PY
