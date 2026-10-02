@@ -1,0 +1,44 @@
+name: Assemble signing payload 6.0.45
+
+on:
+  push:
+    branches:
+      - release/family-6.0.45-secure-publish
+    paths:
+      - .github/workflows/assemble-signing-645.yml
+      - updates/candidates/signed645/encrypted_payload.part0
+      - updates/candidates/signed645/encrypted_payload.part1
+      - updates/candidates/signed645/encrypted_payload.part2
+      - updates/candidates/signed645/encrypted_payload.part3
+      - updates/candidates/signed645/encrypted_payload.part4
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/family-6.0.45-secure-publish
+          fetch-depth: 0
+      - name: Assemble encrypted signing payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          for p in 0 1 2 3 4; do test -s "updates/candidates/signed645/encrypted_payload.part$p"; done
+          cat updates/candidates/signed645/encrypted_payload.part0 \
+              updates/candidates/signed645/encrypted_payload.part1 \
+              updates/candidates/signed645/encrypted_payload.part2 \
+              updates/candidates/signed645/encrypted_payload.part3 \
+              updates/candidates/signed645/encrypted_payload.part4 \
+              > updates/candidates/signed645/encrypted_payload.b64
+          test "$(wc -c < updates/candidates/signed645/encrypted_payload.b64)" -gt 6500
+          rm -f updates/candidates/signed645/encrypted_payload.part0 updates/candidates/signed645/encrypted_payload.part1 updates/candidates/signed645/encrypted_payload.part2 updates/candidates/signed645/encrypted_payload.part3 updates/candidates/signed645/encrypted_payload.part4
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add -A updates/candidates/signed645
+          git commit -m 'Assemble encrypted signing payload for 6.0.45'
+          git push origin HEAD:release/family-6.0.45-secure-publish
