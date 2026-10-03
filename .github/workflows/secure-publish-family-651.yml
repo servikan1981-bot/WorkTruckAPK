@@ -1,4 +1,4 @@
-name: Build and publish OurFamily 6.0.51 Puzzle Performance — retry 5 — wait for all encrypted chunks
+name: Build and publish OurFamily 6.0.51 Puzzle Performance — stable key retry 6
 
 on:
   push:
@@ -61,29 +61,21 @@ jobs:
           node tools/test_family_624_async.cjs
           node tools/test_turn_sdp_627.cjs
 
-      - name: Prepare one-time signing certificate
+      - name: Generate one-time signing certificate
         run: |
           set -euo pipefail
-          git fetch origin release/family-6.0.51-puzzle-performance
-          if git cat-file -e "origin/release/family-6.0.51-puzzle-performance:updates/candidates/signed651/ephemeral_cert.pem" 2>/dev/null; then
-            git show "origin/release/family-6.0.51-puzzle-performance:updates/candidates/signed651/ephemeral_cert.pem" > /tmp/ourfamily651.crt
-          else
-            openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /tmp/ourfamily651.key >/dev/null 2>&1
-            openssl req -new -x509 -sha256 -key /tmp/ourfamily651.key -out /tmp/ourfamily651.crt -days 1 -subj '/CN=OurFamily-6.0.51-One-Time/'
-            mkdir -p updates/candidates/signed651
-            cp /tmp/ourfamily651.crt updates/candidates/signed651/ephemeral_cert.pem
-            git config user.name ourfamily-release-bot
-            git config user.email ourfamily-release-bot@users.noreply.github.com
-            git add updates/candidates/signed651/ephemeral_cert.pem
-            git commit -m 'Publish one-time 6.0.51 signing certificate'
-            git pull --rebase origin release/family-6.0.51-puzzle-performance
-            git push origin HEAD:release/family-6.0.51-puzzle-performance
-          fi
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /tmp/ourfamily651.key >/dev/null 2>&1
+          openssl req -new -x509 -sha256 -key /tmp/ourfamily651.key -out /tmp/ourfamily651.crt -days 1 -subj '/CN=OurFamily-6.0.51-One-Time/'
+          rm -rf updates/candidates/signed651
+          mkdir -p updates/candidates/signed651
+          cp /tmp/ourfamily651.crt updates/candidates/signed651/ephemeral_cert.pem
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add updates/candidates/signed651/ephemeral_cert.pem
+          git commit -m 'Publish one-time 6.0.51 signing certificate'
+          git push origin HEAD:release/family-6.0.51-puzzle-performance
           test -s /tmp/ourfamily651.crt
-          if [ ! -s /tmp/ourfamily651.key ]; then
-            echo 'Existing ephemeral certificate found, but private key is unavailable; aborting before decrypt.' >&2
-            exit 1
-          fi
+          test -s /tmp/ourfamily651.key
 
       - name: Wait for encrypted stable signing payload
         run: |
