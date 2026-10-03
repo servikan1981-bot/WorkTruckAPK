@@ -1,7 +1,7 @@
 name: Build OurFamily 6.0.51 unsigned
 on:
   push:
-    branches: [ release/family-6.0.51-puzzle-performance ]
+    branches: [ family-stable-6 ]
     paths:
       - 'duoapp/**'
       - 'tools/**'
