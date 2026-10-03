@@ -1,0 +1,35 @@
+name: Build OurFamily 6.0.51 unsigned candidate
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: family-stable-6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Validate source
+        run: |
+          set -e
+          grep -q "versionCode 6051" duoapp/build.gradle
+          grep -q "versionName '6.0.51'" duoapp/build.gradle
+          test -f duoapp/src/main/assets/puzzles.js
+          gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+          test -s duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily-6.0.51-unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error
