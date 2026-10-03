@@ -1,6 +1,6 @@
 name: Build OurFamily 6.0.51 unsigned
 on:
-  pull_request:
+  push:
     branches: [ family-stable-6 ]
     paths:
       - 'duoapp/**'
