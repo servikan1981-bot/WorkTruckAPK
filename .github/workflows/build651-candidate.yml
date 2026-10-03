@@ -1,9 +1,7 @@
 name: Build OurFamily 6.0.51 signing candidate
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - '.github/workflows/build651-candidate.yml'
+  schedule:
+    - cron: '*/5 * * * *'
 permissions:
   contents: read
 jobs:
