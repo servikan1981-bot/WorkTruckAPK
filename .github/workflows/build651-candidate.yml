@@ -3,7 +3,7 @@ on:
   schedule:
     - cron: '*/5 * * * *'
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,8 +21,31 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.10.2'
-      - run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
-      - uses: actions/upload-artifact@v4
-        with:
-          name: OurFamily-6.0.51-unsigned
-          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+      - run: |
+          set -e
+          gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+          test -s duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+      - name: Publish unsigned candidate as temporary text chunks
+        run: |
+          set -e
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,hashlib
+          apk=Path('duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk').read_bytes()
+          s=base64.b64encode(apk).decode('ascii')
+          out=Path('/tmp/unsigned651'); out.mkdir()
+          for p in out.parent.glob('unsigned651_*'):
+              p.unlink()
+          for i in range(0,len(s),2000000):
+              (out/f'unsigned651_{i//2000000:02d}.b64').write_text(s[i:i+2000000],encoding='ascii')
+          Path(out/'SHA256').write_text(hashlib.sha256(apk).hexdigest(),encoding='ascii')
+          Path(out/'SIZE').write_text(str(len(apk)),encoding='ascii')
+          PY
+          rm -rf unsigned651
+          mkdir unsigned651
+          cp /tmp/unsigned651/* unsigned651/
+          git config user.name ourfamily-build-bot
+          git config user.email ourfamily-build-bot@users.noreply.github.com
+          git add -A unsigned651
+          git commit -m "Temporary unsigned 6.0.51 candidate" || true
+          git push origin HEAD:main
