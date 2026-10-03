@@ -1,0 +1,31 @@
+name: Build OurFamily 6.0.51 unsigned
+on:
+  pull_request:
+    branches: [ family-stable-6 ]
+    paths:
+      - 'duoapp/**'
+      - 'tools/**'
+      - 'settings-duo.gradle'
+      - '.github/workflows/build651.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily-6.0.51-unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
