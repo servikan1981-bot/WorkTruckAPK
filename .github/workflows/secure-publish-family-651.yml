@@ -1,4 +1,4 @@
-name: Build and publish OurFamily 6.0.51 Puzzle Performance — retry 4 — encrypted chunks
+name: Build and publish OurFamily 6.0.51 Puzzle Performance — retry 5 — wait for all encrypted chunks
 
 on:
   push:
@@ -81,7 +81,9 @@ jobs:
           for i in $(seq 1 180); do
             git fetch origin release/family-6.0.51-puzzle-performance
             OK=1
-            git cat-file -e "origin/release/family-6.0.51-puzzle-performance:updates/candidates/signed651/encrypted_payload.part0" 2>/dev/null || OK=0
+            for p in 0 1 2 3; do
+              git cat-file -e "origin/release/family-6.0.51-puzzle-performance:updates/candidates/signed651/encrypted_payload.part${p}" 2>/dev/null || OK=0
+            done
             if [ "$OK" = 1 ]; then
               : > /tmp/encrypted_payload.b64
               git show "origin/release/family-6.0.51-puzzle-performance:updates/candidates/signed651/encrypted_payload.part0" >> /tmp/encrypted_payload.b64
