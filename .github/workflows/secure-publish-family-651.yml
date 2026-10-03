@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /tmp/ourfamily651.key >/dev/null 2>&1
-          openssl req -new -x509 -sha256 -key /tmp/ourfamily651.key -out /tmp/ourfamily651.crt -days 1 -subj '/CN=OurFamily-6.0.51-One-Time/'
+          openssl req -new -x509 -sha256 -key /tmp/ourfamily651.key -out /tmp/ourfamily651.crt -days 1 -subj '/CN=OurFamily-6.0.51-One-Time-${{ github.run_id }}/'
           rm -rf updates/candidates/signed651
           mkdir -p updates/candidates/signed651
           cp /tmp/ourfamily651.crt updates/candidates/signed651/ephemeral_cert.pem
@@ -76,6 +76,7 @@ jobs:
           git push origin HEAD:release/family-6.0.51-puzzle-performance
           test -s /tmp/ourfamily651.crt
           test -s /tmp/ourfamily651.key
+          openssl x509 -in /tmp/ourfamily651.crt -noout -serial -fingerprint -sha256 -startdate -enddate
 
       - name: Wait for encrypted stable signing payload
         run: |
