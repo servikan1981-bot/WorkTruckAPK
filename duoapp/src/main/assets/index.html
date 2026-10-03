@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
-<title>Наша семья 6.0.48</title>
+<meta name="theme-color" content="#2d7ff9">
+<title>Наша семья 6.0.50</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -152,12 +152,76 @@ html,body{background:linear-gradient(180deg,#edf6f7 0,#f6f8fb 42%,#eef4f6 100%)}
 @media(max-height:700px){#gamesHub .games-hub-body{padding-top:8px;gap:7px}#gamesHub .game-profile{padding:9px 12px}#gamesHub .game-profile .muted{display:none}#gamesHub .game-card{min-height:100px;padding:10px}#gamesHub .game-card .emoji{font-size:27px!important}#gamesHub .game-card strong{font-size:15px;margin:5px 0 2px}#gamesHub .game-card span:last-child{font-size:10px}#gamesHub .section-title{margin-top:2px}}
 body[data-theme="dark"]{--ui-glass:rgba(23,33,48,.94)}body[data-theme="dark"]{background:#0d1420}body[data-theme="dark"] .thread,body[data-theme="dark"] .more-options button{background:var(--card);border-color:#2b3748}body[data-theme="dark"] #messages{background:linear-gradient(180deg,#101923,#0d1420)}body[data-theme="dark"] #gamesHub{background:linear-gradient(155deg,#101b24,#111827)}body[data-theme="dark"] #gamesHub .topbar{background:rgba(23,33,48,.94)}
 </style>
+<style id="design650">
+:root{--ocean-0:#f2f9ff;--ocean-1:#e7f4ff;--ocean-2:#d7ecff;--ocean-3:#2d7ff9;--ocean-4:#1768d6;--ocean-5:#0d3f82;--glass:rgba(255,255,255,.78);--glass-strong:rgba(255,255,255,.93);--blue:#2d7ff9}
+html,body{background:linear-gradient(180deg,#eaf6ff 0,#f7fbff 42%,#e8f4ff 100%);color:#15324f}
+body[data-theme="ocean"]{--bg:#edf7ff;--card:#fff;--ink:#15324f;--muted:#6b849d;--line:#d7e8f7;--blue:#2d7ff9;--green:#18a77a;--red:#df5c6a;--amber:#b27b1f;--shadow:0 18px 42px rgba(32,100,164,.12)}
+#setup{position:relative;overflow:hidden;background:radial-gradient(circle at 18% 8%,rgba(78,171,255,.26),transparent 34%),radial-gradient(circle at 88% 86%,rgba(40,207,203,.18),transparent 32%),linear-gradient(155deg,#dff2ff 0,#f8fcff 48%,#e4f5ff 100%)}
+#setup:before,#home:before,#gamesHub:before,#more:before{content:"";position:absolute;pointer-events:none;border-radius:50%;filter:blur(2px)}
+#setup:before{width:360px;height:360px;right:-160px;top:-110px;background:radial-gradient(circle,rgba(45,127,249,.28),rgba(45,127,249,0) 70%)}
+#setup .card{position:relative;z-index:1;width:min(470px,100%);padding:28px 24px 24px;border:1px solid rgba(255,255,255,.85);background:rgba(255,255,255,.82);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-radius:32px;box-shadow:0 28px 70px rgba(24,91,150,.18)}
+#setup .logo{width:76px;height:76px;border-radius:26px;background:linear-gradient(145deg,#3c8dff,#1665d4);box-shadow:0 14px 30px rgba(45,127,249,.28);font-size:35px}
+#setup h1{font-size:30px;letter-spacing:-.03em;color:#123a61}#setup .sub{color:#67829d}
+#setup .role{border:1px solid #d8e9f8;background:rgba(255,255,255,.72);border-radius:16px}.role.active{border-color:#6ea7ff;background:#e8f2ff;color:#1768d6;box-shadow:0 0 0 3px rgba(45,127,249,.08)}
+#setup .code{background:rgba(255,255,255,.82);border-color:#d4e6f6;border-radius:16px}.primary{background:linear-gradient(145deg,#398aff,#1768d6);box-shadow:0 12px 24px rgba(45,127,249,.24)}
+#home,#gamesHub,#more{position:relative;overflow:hidden}
+#home:before{width:520px;height:280px;left:-230px;top:62px;background:radial-gradient(circle,rgba(45,127,249,.16),rgba(45,127,249,0) 70%)}
+#home .topbar{position:relative;z-index:2;margin:0;background:linear-gradient(135deg,#2f83fa 0,#1b6fdf 56%,#164fa4 100%);border:0;color:#fff;padding:calc(14px + env(safe-area-inset-top)) 16px 15px;box-shadow:0 16px 34px rgba(23,91,171,.22)}
+#home .topbar .avatar{width:50px;height:50px;background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.36);box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+#home .topbar .name{font-size:20px;letter-spacing:-.02em;color:#fff}#home .topbar .status{color:rgba(255,255,255,.82)}
+#home .body{position:relative;z-index:1;padding:16px 14px 94px;overflow:auto}
+#home .permission{background:rgba(255,247,218,.94);border-color:#efd98b}
+#home .daily-quote{border:0!important;border-radius:23px!important;background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(239,248,255,.94))!important;box-shadow:0 13px 28px rgba(32,100,164,.10)!important;padding:15px 16px;margin-bottom:13px}
+#home .quote-label{color:#2677e8;letter-spacing:.08em}#home .quote-text{font-size:15px;color:#23445f}
+#home .actionbar{grid-template-columns:1.15fr .85fr;gap:10px;margin:0 0 16px}
+#home .action{min-height:58px;border-radius:20px;padding:13px 14px;font-size:14px;box-shadow:0 13px 24px rgba(32,100,164,.11);border:1px solid rgba(255,255,255,.8)}
+#home .action.blue{color:#fff;background:linear-gradient(145deg,#398aff,#1768d6)}#home .action.green{color:#0b6d55;background:linear-gradient(145deg,#dffbf3,#bcefe1)}
+#home .section-title{margin:16px 3px 9px;color:#66839d;font-size:11px;letter-spacing:.11em}
+#home .presence-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:5px}
+#home .presence-person{position:relative;min-width:0;min-height:73px;padding:10px 7px;border:1px solid rgba(98,153,195,.13);border-radius:20px;background:rgba(255,255,255,.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 10px 24px rgba(32,100,164,.08);display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
+#home .presence-dot{position:absolute;right:9px;top:9px;width:8px;height:8px}.presence-name{font-size:11px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.presence-state{font-size:9px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#home .presence-person .badge{display:none}
+#home #directList,#home #groupList{display:grid;gap:9px}
+#home .thread{margin:0;padding:12px 13px;border:1px solid rgba(80,137,181,.12);border-radius:22px;background:rgba(255,255,255,.88);box-shadow:0 11px 27px rgba(32,100,164,.08);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+#home .thread .tavatar{width:52px;height:52px;background:linear-gradient(145deg,#e4f2ff,#d9f5f4);color:#1768d6;border:1px solid rgba(45,127,249,.10)}
+#home .tname{font-size:15px;color:#173c5f}#home .preview{font-size:12px;color:#7b92a8;margin-top:4px}.badge{background:linear-gradient(145deg,#398aff,#1a73db)}
+#home .thread:active{transform:scale(.985)}
+.bottom-nav{left:12px;right:12px;bottom:max(10px,env(safe-area-inset-bottom));border:1px solid rgba(255,255,255,.86);border-radius:25px;padding:7px 6px 7px;background:rgba(255,255,255,.84);box-shadow:0 16px 38px rgba(26,89,143,.18);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px)}
+.bottom-nav button{color:#7891a8;border-radius:18px;padding:5px 2px;font-size:10px}.bottom-nav button span{font-size:22px;line-height:24px}.bottom-nav button.active{color:#1768d6;background:linear-gradient(180deg,rgba(216,235,255,.96),rgba(232,245,255,.75));box-shadow:inset 0 1px 0 #fff}
+#gamesHub{background:linear-gradient(160deg,#e4f3ff 0,#f7fbff 45%,#e6f7f5 100%)}
+#gamesHub:before{width:430px;height:260px;right:-170px;top:48px;background:radial-gradient(circle,rgba(45,127,249,.18),rgba(45,127,249,0) 70%)}
+#gamesHub .topbar{background:rgba(255,255,255,.72);border-bottom:1px solid rgba(85,140,181,.10);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+#gamesHub .games-hub-body{position:relative;z-index:1;padding:14px 13px 96px;gap:12px}
+#gamesHub .game-profile{border-radius:25px;padding:16px;background:linear-gradient(135deg,#246fda 0,#248fd8 55%,#24a99d 100%);box-shadow:0 18px 36px rgba(31,112,192,.22);border:1px solid rgba(255,255,255,.35)}
+#gamesHub .game-profile strong{font-size:19px}#gamesHub .game-points{font-size:23px}.game-points span{font-variant-numeric:tabular-nums}#gamesHub .game-profile .muted{color:rgba(255,255,255,.84)}
+#gamesHub .game-grid{gap:10px}
+#gamesHub .game-card{min-height:142px;border-radius:24px!important;padding:15px!important;border:1px solid rgba(255,255,255,.50)!important;box-shadow:0 16px 30px rgba(24,84,139,.14)!important;transform:translateZ(0);transition:transform .12s ease,box-shadow .12s ease}
+#gamesHub .game-card:active{transform:scale(.975);box-shadow:0 9px 18px rgba(24,84,139,.12)!important}
+#gamesHub .game-card:after{content:"";position:absolute;right:-22px;top:-22px;width:95px;height:95px;border-radius:50%;background:rgba(255,255,255,.10)}
+#gamesHub .game-card .emoji{font-size:35px!important}.game-card strong{letter-spacing:-.02em}
+#gamesHub #hubCheckersBtn{background:linear-gradient(145deg,#4f7ca8,#315878)!important}#gamesHub #hubDurakBtn{background:linear-gradient(145deg,#159d73,#087a68)!important}#gamesHub #hubPoolBtn{background:linear-gradient(145deg,#1b5267,#155a91)!important}#gamesHub #hubArkanoidBtn{background:linear-gradient(145deg,#3477c9,#5149a8)!important}
+#gamesHub .section-title{margin:3px 3px 0;color:#66839d}
+#chat .topbar,#news .topbar,#more .topbar,#picker .topbar{background:rgba(255,255,255,.84);border-bottom:1px solid rgba(85,140,181,.10);box-shadow:0 6px 18px rgba(32,100,164,.06);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+#chat #messages,#adminMessages{background:radial-gradient(circle at 88% 0,rgba(45,127,249,.10),transparent 32%),linear-gradient(180deg,#edf7ff,#f8fbff 55%,#eaf6fb);padding:17px 12px 20px}
+#chat .bubble{border-radius:21px;box-shadow:0 7px 18px rgba(29,92,143,.08);border:1px solid rgba(70,126,168,.07)}
+#chat .mine{background:linear-gradient(145deg,#d9efff,#d8e9ff);border-bottom-right-radius:7px}.theirs{background:rgba(255,255,255,.94);border-bottom-left-radius:7px}
+#chat .composer{background:rgba(255,255,255,.82);border-top:1px solid rgba(75,129,168,.10);box-shadow:0 -10px 26px rgba(30,89,136,.08);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:10px 10px max(10px,env(safe-area-inset-bottom))}
+#chat .composer textarea{background:rgba(241,248,255,.96);border:1px solid #d5e7f7;border-radius:20px}.send{background:linear-gradient(145deg,#398aff,#1768d6);box-shadow:0 9px 18px rgba(45,127,249,.25)}
+#news{background:linear-gradient(180deg,#eaf6ff,#f8fbff)}#news .news-feed{padding:14px 12px 98px;overflow:auto}.news-card{background:rgba(255,255,255,.90)!important;border:1px solid rgba(78,137,181,.11)!important;border-radius:24px!important;box-shadow:0 15px 32px rgba(32,100,164,.09)!important}.news-composer{background:rgba(255,255,255,.82);border-top:1px solid rgba(78,137,181,.10);box-shadow:0 -10px 26px rgba(32,100,164,.08);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+#more{background:linear-gradient(160deg,#e9f6ff,#f8fbff 55%,#e8f6f3)}
+#more .body{position:relative;z-index:1;padding:16px 14px 96px}.more-options{gap:11px}.more-options button{min-height:58px;border-radius:21px;border:1px solid rgba(75,132,175,.10);background:rgba(255,255,255,.84);box-shadow:0 12px 28px rgba(32,100,164,.08);color:#1c3f60;padding:14px 16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+#picker .body{background:linear-gradient(180deg,#eef8ff,#f9fcff)}.pickrow{border-radius:20px;background:rgba(255,255,255,.88);box-shadow:0 10px 22px rgba(32,100,164,.07)}.picker-actions{background:rgba(255,255,255,.86);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+#home #resumeCheckersBtn{border:0;border-radius:20px;background:linear-gradient(135deg,#2d7ff9,#1a68d3);color:#fff;box-shadow:0 12px 25px rgba(45,127,249,.22);padding:14px}
+body[data-theme="dark"]{--blue:#78aaff}
+body[data-theme="dark"] #home .topbar{background:linear-gradient(135deg,#214d91,#163462)}body[data-theme="dark"] #home .presence-person,body[data-theme="dark"] #home .thread,body[data-theme="dark"] #more .more-options button{background:rgba(23,33,48,.86);border-color:#30445a;color:#eef6ff}body[data-theme="dark"] #home .tname{color:#eef6ff}body[data-theme="dark"] .bottom-nav{background:rgba(18,29,44,.90);border-color:#30445a}
+@media(max-width:430px){#home .presence-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}#home .presence-person{min-height:68px;padding:8px 4px}.presence-name{font-size:10px}#home .action{min-height:56px;padding:11px 10px}#gamesHub .game-card{min-height:132px}}
+</style>
 </head>
 <body>
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья 6.0.37</h1>
+    <h1>Наша семья 6.0.50</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -179,7 +243,7 @@ body[data-theme="dark"]{--ui-glass:rgba(23,33,48,.94)}body[data-theme="dark"]{ba
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v6.0.37</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.50</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
   </div>
   <div class="body">
     <div id="permissionBanner" class="permission hidden"><strong>Настройка звонков и уведомлений</strong><div id="notificationPermissionRow" class="hidden">Уведомления о сообщениях и звонках<br><button id="notificationPermissionBtn">Включить уведомления</button></div><div id="fullScreenPermissionRow" class="hidden">Кнопка «Принять» поверх экрана блокировки<br><button id="fullScreenPermissionBtn">Разрешить полноэкранный звонок</button></div><div id="backgroundPermissionRow" class="hidden">Работа в фоне для получения звонков и сообщений<br><button id="backgroundPermissionBtn">Открыть настройки батареи</button></div><div id="callChannelGuideRow" class="hidden">Проверьте канал <strong>«Семейные звонки»</strong>: Настройки → Приложения → Наша семья → Уведомления → Семейные звонки. Включите все доступные пункты: уведомления, всплывающий показ, экран блокировки, звук и вибрацию.<br><button id="callChannelGuideBtn">Открыть уведомления</button> <button id="callChannelGuideDoneBtn">Уже включено</button></div><div class="hint">В настройках батареи выберите для приложения «Без ограничений». Названия пунктов зависят от телефона.</div></div>
@@ -469,7 +533,7 @@ var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteS
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.49',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
+var APP_VERSION='6.0.50',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
 var games={},activeGameId='',pendingGameAcceptId='',gameSending=false,checkersDrag=null,suppressCheckersClick=0;
 var durakGames={},activeDurakId='',pendingDurakAcceptId='',durakSending=false,gamePickKind='',gamePickPeer='';
 var poolGames={},activePoolId='',pendingPoolAcceptId='',poolSending=false,poolAnimating=false,poolAim=-0.12,poolPower=.62;
