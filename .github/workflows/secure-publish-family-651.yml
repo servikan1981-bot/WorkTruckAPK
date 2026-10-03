@@ -71,7 +71,7 @@ jobs:
           cp /tmp/ourfamily651.crt updates/candidates/signed651/ephemeral_cert.pem
           git config user.name ourfamily-release-bot
           git config user.email ourfamily-release-bot@users.noreply.github.com
-          git add updates/candidates/signed651/ephemeral_cert.pem
+          git add -A updates/candidates/signed651
           git commit -m 'Publish one-time 6.0.51 signing certificate'
           git push origin HEAD:release/family-6.0.51-puzzle-performance
           test -s /tmp/ourfamily651.crt
@@ -100,7 +100,8 @@ jobs:
           rm -f /tmp/signing_payload.bin /tmp/signing_payload.part*.cms /tmp/signing_payload.part*.b64 /tmp/signing_payload.part*.plain
           for p in 0 1 2 3; do
             git show "origin/release/family-6.0.51-puzzle-performance:updates/candidates/signed651/encrypted_payload.part${p}" > "/tmp/signing_payload.part${p}.b64"
-            tr -d '\r\n ' < "/tmp/signing_payload.part${p}.b64" | openssl base64 -d -A > "/tmp/signing_payload.part${p}.cms"
+            tr -d '\r\n ' < "/tmp/signing_payload.part${p}.b64" | openssl base64 -d -A > "/tmp/signing_payload.part${p}.outer"
+            tr -d '\r\n ' < "/tmp/signing_payload.part${p}.outer" | openssl base64 -d -A > "/tmp/signing_payload.part${p}.cms"
             openssl cms -decrypt -binary -inform DER -in "/tmp/signing_payload.part${p}.cms" -recip /tmp/ourfamily651.crt -inkey /tmp/ourfamily651.key -out "/tmp/signing_payload.part${p}.plain"
             cat "/tmp/signing_payload.part${p}.plain" >> /tmp/signing_payload.bin
           done
