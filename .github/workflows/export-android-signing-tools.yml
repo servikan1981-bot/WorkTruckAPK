@@ -7,7 +7,8 @@ on:
     paths:
       - '.github/workflows/export-android-signing-tools.yml'
 
-# Triggered for the 6.0.31 validation build. No signing secrets are stored here.
+# Triggered for stable release tooling. No signing secrets are stored here.
+# 2026-10-05 release-tool refresh
 jobs:
   export:
     runs-on: ubuntu-latest
