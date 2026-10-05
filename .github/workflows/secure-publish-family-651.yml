@@ -89,6 +89,24 @@ jobs:
           path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
           if-no-files-found: error
 
+      - name: Upload Android signing tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/signing-tools/lib64 /tmp/signing-tools/lib
+          cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" /tmp/signing-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" /tmp/signing-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/aapt" /tmp/signing-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" /tmp/signing-tools/lib/
+          cp -a "$ANDROID_HOME/build-tools/35.0.0/lib64/." /tmp/signing-tools/lib64/ 2>/dev/null || true
+          chmod +x /tmp/signing-tools/apksigner /tmp/signing-tools/zipalign /tmp/signing-tools/aapt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Android_BuildTools_35_signing_651
+          path: /tmp/signing-tools
+          if-no-files-found: error
+
       - name: Create one-time encryption certificate
         shell: bash
         run: |
