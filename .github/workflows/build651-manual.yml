@@ -1,6 +1,8 @@
 name: Build OurFamily 6.0.51 unsigned candidate
 on:
   workflow_dispatch:
+  push:
+    branches: [ main ]
 permissions:
   contents: read
 jobs:
