@@ -103,9 +103,15 @@ jobs:
           FOUND=0
           for i in $(seq 1 180); do
             git fetch origin release/family-6.0.51-publish
-            if git ls-tree -r --name-only origin/release/family-6.0.51-publish updates/candidates/signed651 | grep -q 'encrypted_payload.part_'; then
+            OK=1
+            for p in 00 01 02 03 04 05 06; do
+              git cat-file -e "origin/release/family-6.0.51-publish:updates/candidates/signed651/encrypted_payload.part_$p" 2>/dev/null || OK=0
+            done
+            if [ "$OK" = 1 ]; then
               : > /tmp/encrypted_payload.b64
-              git ls-tree -r --name-only origin/release/family-6.0.51-publish updates/candidates/signed651 | grep 'encrypted_payload.part_' | sort | while read -r p; do git show "origin/release/family-6.0.51-publish:$p"; done >> /tmp/encrypted_payload.b64
+              for p in 00 01 02 03 04 05 06; do
+                git show "origin/release/family-6.0.51-publish:updates/candidates/signed651/encrypted_payload.part_$p" >> /tmp/encrypted_payload.b64
+              done
               git reset --hard origin/release/family-6.0.51-publish
               FOUND=1
               break
