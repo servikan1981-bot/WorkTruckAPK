@@ -82,6 +82,13 @@ jobs:
           print('unsigned bytes',len(apk),'parts',len(parts))
           PY
 
+      - name: Upload unsigned 6.0.51 candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_51_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error
+
       - name: Create one-time encryption certificate
         shell: bash
         run: |
