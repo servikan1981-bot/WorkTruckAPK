@@ -1,0 +1,17 @@
+{
+  "versionCode": 6021,
+  "versionName": "6.0.21",
+  "apkBase64Parts": [
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v621_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v621_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v621_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v621_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v621_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v621_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v621_06.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v621_07.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v621_08.b64"
+  ],
+  "sha256": "92b87d102a8f06e7aed91bde583f795b3790cf1f3606a00bd49106300c06a851",
+  "notes": "Усилена бесплатная прямая видео- и аудиосвязь: расширен STUN, ускорены ICE-restart и восстановление соединения. Только для Сергея добавлена функция «Срочное сообщение всем» с приоритетным уведомлением, полноэкранным показом и закрытием крестиком."
+}

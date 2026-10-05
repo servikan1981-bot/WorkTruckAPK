@@ -1,0 +1,59 @@
+name: Verify existing 6.0.31 payload
+
+on:
+  push:
+    branches: [ 'family-stable-6' ]
+    paths:
+      - '.github/workflows/verify-payload-631.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Diagnose pre-publication 6.0.31 payload
+        shell: bash
+        run: |
+          set -u
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib, json, subprocess, zipfile, traceback
+          base='d938e1161415079f4fac62ed0a6f524e76fb9415'
+          out={'baseCommit':base}
+          try:
+              p0=subprocess.check_output(['git','show',f'{base}:updates/parts/v631_00.b64']).decode('ascii')
+              parts=[p0]
+              for i in range(1,10):
+                  parts.append(Path(f'updates/parts/v631_{i:02d}.b64').read_text(encoding='ascii'))
+              joined=''.join(''.join(p.split()) for p in parts)
+              out['base64Chars']=len(joined)
+              apk=base64.b64decode(joined,validate=True)
+              Path('/tmp/existing631.apk').write_bytes(apk)
+              out['apkBytes']=len(apk)
+              out['sha256']=hashlib.sha256(apk).hexdigest()
+              try:
+                  with zipfile.ZipFile('/tmp/existing631.apk') as z:
+                      out['zipOk']=z.testzip() is None
+                      out['entries']=len(z.namelist())
+                      out['hasManifest']='AndroidManifest.xml' in z.namelist()
+                      out['hasIndex']='assets/index.html' in z.namelist()
+              except Exception as e:
+                  out['zipOk']=False
+                  out['zipError']=repr(e)
+          except Exception as e:
+              out['fatal']=repr(e)
+              out['trace']=traceback.format_exc()[-2000:]
+          Path('updates/verify631.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print(json.dumps(out,ensure_ascii=False,indent=2))
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add updates/verify631.json
+          git commit -m 'Diagnose existing 6.0.31 payload' || exit 0
+          git push

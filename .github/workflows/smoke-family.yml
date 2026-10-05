@@ -1,0 +1,64 @@
+name: Smoke test OurFamily update on Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-stable-6 ]
+    paths:
+      - 'updates/candidates/607.json'
+      - 'updates/parts/v607_*.b64'
+      - 'tools/smoke_family.sh'
+      - '.github/workflows/smoke-family.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [29, 35]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Validate signed candidate
+        run: |
+          python3 - <<'PY'
+          import base64,hashlib,json,pathlib
+          m=json.loads(pathlib.Path('updates/candidates/607.json').read_text())
+          assert m['versionCode']==6007
+          data=base64.b64decode(''.join((pathlib.Path('updates/parts')/u.rsplit('/',1)[-1]).read_text() for u in m['apkBase64Parts']))
+          assert hashlib.sha256(data).hexdigest()==m['sha256']
+          pathlib.Path('/tmp/candidate607.apk').write_bytes(data)
+          PY
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 /tmp/candidate607.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/candidate607.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install over 6.0.6 and launch
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: bash tools/smoke_family.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: family-launch-api-${{ matrix.api-level }}
+          path: |
+            /tmp/family-screen.png
+            /tmp/family-window.xml
+          if-no-files-found: ignore

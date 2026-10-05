@@ -1,0 +1,21 @@
+{
+  "versionCode": 6046,
+  "versionName": "6.0.46",
+  "apkBase64Parts": [
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_06.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_07.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_08.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_09.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_10.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_11.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v646_12.b64"
+  ],
+  "sha256": "0174db1e7815034ddaa6f2c919e45973ded2cfd6058fb5e78cd1c541346255b4",
+  "notes": "Обновлён дизайн приложения: более чистые карточки, верхние панели, чат, нижняя навигация, меню и новости. Раздел Игры переработан в сетку 2×2 — Шашки, Дурак, Бильярд и Арканоид видны одновременно без прокрутки на обычном экране телефона. Оптимизирована автопрокрутка переписки и подготовка фотографий перед отправкой, особенно на медленном соединении. Видеозвонки и WebRTC не менялись; TURN/SDP прошёл регрессионную проверку."
+}

@@ -1,0 +1,112 @@
+name: Prepare OurFamily 6.0.40 Pool Fullscreen Physics Sound
+
+on:
+  push:
+    branches:
+      - fix/family-6.0.40-pool-fullscreen-physics-sound
+    paths:
+      - .github/workflows/prepare-family-640.yml
+      - .github/scripts/patch_family_640.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/family-6.0.40-pool-fullscreen-physics-sound
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+
+      - name: Apply 6.0.40 billiards improvements
+        run: python3 .github/scripts/patch_family_640.py
+
+      - name: Commit patched source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add duoapp
+          if ! git diff --cached --quiet; then
+            git commit -m 'Improve pool fullscreen physics and sound for 6.0.40'
+            git push origin HEAD:fix/family-6.0.40-pool-fullscreen-physics-sound
+          fi
+
+      - name: Validate 6.0.40 changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "versionCode 6040" duoapp/build.gradle
+          grep -q "versionName '6.0.40'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.40"' duoapp/src/main/AndroidManifest.xml
+          grep -q 'configChanges="orientation|screenSize|keyboardHidden"' duoapp/src/main/AndroidManifest.xml
+          grep -q 'setPoolGameFullscreen(boolean enabled)' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'SCREEN_ORIENTATION_SENSOR_LANDSCAPE' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'poolFullscreenBtn' duoapp/src/main/assets/index.html
+          grep -q 'pool-fullscreen-mode' duoapp/src/main/assets/index.html
+          grep -q "APP_VERSION='6.0.40'" duoapp/src/main/assets/index.html
+          grep -q 'bb.vx\*=.993' duoapp/src/main/assets/billiards.js
+          grep -q 'bb.vx\*=.993' duoapp/src/main/assets/durak.js
+          grep -q 'fr._sound' duoapp/src/main/assets/billiards.js
+          grep -q 'fr._sound' duoapp/src/main/assets/durak.js
+          grep -q 'poolPlayCueSound' duoapp/src/main/assets/index.html
+          grep -q 'poolPlayBallSound' duoapp/src/main/assets/index.html
+          node --check duoapp/src/main/assets/billiards.js
+          node --check duoapp/src/main/assets/durak.js
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          node tools/test_billiards.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8')
+          for name in ('checkers.js','durak.js'):
+              marker=f'<script src="{name}"></script>'
+              rules=Path('duoapp/src/main/assets/'+name).read_text(encoding='utf-8')
+              h=h.replace(marker,'<script>\n'+rules+'\n</script>')
+          Path('/tmp/family640.js').write_text('\n'.join(re.findall(r'<script>(.*?)</script>',h,flags=re.S)),encoding='utf-8')
+          assert 'setPoolGameFullscreen' in h
+          assert 'poolPlayBallSound' in h
+          assert 'pool-fullscreen-mode' in h
+          PY
+          node --check /tmp/family640.js
+
+      - name: Build 6.0.40 APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Inspect built APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/durak.js | grep -q 'bb.vx\*=.993'
+          unzip -p "$APK" assets/durak.js | grep -q 'fr._sound'
+          unzip -p "$APK" assets/index.html | grep -q 'poolFullscreenBtn'
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionCode='6040'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionName='6.0.40'"
+          sha256sum "$APK"
+
+      - name: Upload unsigned APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_40_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error

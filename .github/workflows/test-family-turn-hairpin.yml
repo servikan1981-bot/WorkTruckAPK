@@ -1,0 +1,41 @@
+name: Test OurFamily TURN relay media
+on:
+  push:
+    branches: [family-628-turn]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: false
+      - working-directory: family-turn-windows
+        run: |
+          go mod tidy
+          cp main.go /tmp/family-turn-fixed.go
+          git show 78b5371f9381322dfd86eb2b01d038a7a0aa0125:family-turn-windows/main.go > main.go
+          if go test -count=1 -run '^TestTwoAllocationsExchangePacketsWithoutRouterHairpin$' -timeout=12s ./...; then
+            echo 'The old TURN server unexpectedly passed the hairpin regression test'
+            exit 1
+          fi
+          cp /tmp/family-turn-fixed.go main.go
+          go test -v -count=1 ./...
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o family-turn.exe .
+          file family-turn.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_TURN_hairpin_candidate
+          path: |
+            family-turn-windows/family-turn.exe
+            family-turn-windows/start-turn.cmd
+            family-turn-windows/start-turn.ps1
+            family-turn-windows/README-RU.txt
+          if-no-files-found: error

@@ -1,0 +1,90 @@
+name: Publish OurFamily 6.0.21 stable
+
+on:
+  push:
+    branches: [family-stable-6]
+    paths:
+      - '.github/workflows/publish-family-621.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Download exact validated unsigned 6.0.21
+        uses: actions/download-artifact@v4
+        with:
+          name: OurFamily_6_0_21_unsigned
+          path: /tmp/family621unsigned
+          github-token: ${{ github.token }}
+          run-id: 36315405571
+
+      - name: Restore and verify Stable-signed 6.0.21
+        run: |
+          APK=$(find /tmp/family621unsigned -type f -name '*.apk' | head -1)
+          test -n "$APK"
+          echo '1e4bb7bbaab001bcfd0146c37fd7a09622121d69a335f0b420eafadb3591958a  '"$APK" | sha256sum -c -
+          base64 -d updates/candidates/sign621.patch.b64 > /tmp/sign621.patch.zst
+          echo 'f4d19fe655d8e68f12cb4fae6308ff0d0b9682231f8917b294df0f9a1bf0bcdc  /tmp/sign621.patch.zst' | sha256sum -c -
+          zstd -q -d --patch-from="$APK" /tmp/sign621.patch.zst -o /tmp/OurFamily_6_0_21_Stable.apk
+          echo '92b87d102a8f06e7aed91bde583f795b3790cf1f3606a00bd49106300c06a851  /tmp/OurFamily_6_0_21_Stable.apk' | sha256sum -c -
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_21_Stable.apk | tee /tmp/verify.txt
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/verify.txt
+          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' /tmp/verify.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/verify.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/OurFamily_6_0_21_Stable.apk | grep -q "versionCode='6021' versionName='6.0.21'"
+
+      - name: Prepare production update channel
+        run: |
+          base64 -w0 /tmp/OurFamily_6_0_21_Stable.apk > /tmp/family621.b64
+          rm -f updates/parts/v621_*.b64
+          split -b 16000 -d -a 2 --additional-suffix=.b64 /tmp/family621.b64 updates/parts/v621_
+          python3 - <<'PY'
+          import base64, hashlib, json, pathlib
+          parts=sorted(pathlib.Path('updates/parts').glob('v621_*.b64'))
+          meta={
+            'versionCode':6021,
+            'versionName':'6.0.21',
+            'apkBase64Parts':['https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'+p.name for p in parts],
+            'sha256':'92b87d102a8f06e7aed91bde583f795b3790cf1f3606a00bd49106300c06a851',
+            'notes':'Усилена бесплатная прямая видео- и аудиосвязь: расширен STUN, ускорены ICE-restart и восстановление соединения. Только для Сергея добавлена функция «Срочное сообщение всем» с приоритетным уведомлением, полноэкранным показом и закрытием крестиком.'
+          }
+          text=json.dumps(meta,ensure_ascii=False,indent=2)+'\n'
+          pathlib.Path('updates/candidates/621.json').write_text(text,encoding='utf-8')
+          pathlib.Path('updates/latest.json').write_text(text,encoding='utf-8')
+          data=base64.b64decode(''.join(p.read_text().strip() for p in parts))
+          assert hashlib.sha256(data).hexdigest()==meta['sha256']
+          assert len(parts)==9
+          print('6.0.21 production:',len(parts),'parts',len(data),'bytes')
+          PY
+
+      - name: Commit and publish 6.0.21
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add updates/latest.json updates/candidates/621.json updates/parts/v621_*.b64
+          git commit -m 'Publish OurFamily 6.0.21 stable'
+          for i in 1 2 3; do
+            git fetch origin family-stable-6
+            git rebase origin/family-stable-6
+            if git push origin HEAD:family-stable-6; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_21_Stable_RELEASED
+          path: /tmp/OurFamily_6_0_21_Stable.apk
+          if-no-files-found: error

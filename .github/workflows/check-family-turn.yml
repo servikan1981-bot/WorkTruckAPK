@@ -1,0 +1,27 @@
+name: Check TURN availability for family video
+on:
+  push:
+    branches: [family-stable-6]
+    paths: ['.github/workflows/check-family-turn.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check existing Realtime TURN key access
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import os,urllib.request,urllib.error,json
+          url='https://api.cloudflare.com/client/v4/accounts/860c7981b2d45d79a28a2f18ab9f101f/calls/turn_keys'
+          req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['TOKEN']})
+          try:
+              with urllib.request.urlopen(req,timeout=20) as r:
+                  body=json.load(r)
+                  print('TURN API read access:',r.status,'success:',body.get('success'),'keys:',len(body.get('result',[])))
+          except urllib.error.HTTPError as e:
+              print('TURN API read access: HTTP',e.code)
+          PY

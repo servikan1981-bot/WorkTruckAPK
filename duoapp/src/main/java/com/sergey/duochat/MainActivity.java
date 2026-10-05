@@ -1,0 +1,947 @@
+package com.sergey.duochat;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.Intent;
+import android.content.ContentValues;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.content.pm.ActivityInfo;
+import android.net.Uri;
+import android.media.AudioDeviceInfo;
+import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.AudioFormat;
+import android.media.AudioTrack;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
+import android.provider.MediaStore;
+import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.view.WindowManager;
+import android.view.View;
+
+import org.json.JSONObject;
+
+import java.lang.ref.WeakReference;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+public class MainActivity extends Activity {
+    private static final ThreadPoolExecutor MESSAGE_POSTER = new ThreadPoolExecutor(
+            3, 3, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(64), r -> {
+                Thread t = new Thread(r, "OurFamilyMessageSend");
+                t.setDaemon(true);
+                return t;
+            });
+    private static final ThreadPoolExecutor CALL_POSTER = new ThreadPoolExecutor(
+            2, 2, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(32), r -> {
+                Thread t = new Thread(r, "OurFamilyCallSignal");
+                t.setDaemon(true);
+                return t;
+            });
+    private static final ThreadPoolExecutor SIGNAL_POSTER = new ThreadPoolExecutor(
+            2, 2, 30L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(128), r -> {
+                Thread t = new Thread(r, "OurFamilyIceSignal");
+                t.setDaemon(true);
+                return t;
+            });
+    private static final ThreadPoolExecutor GAME_AUDIO = new ThreadPoolExecutor(
+            4, 4, 1L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(24), r -> {
+                Thread t = new Thread(r, "OurFamilyGameAudio");
+                t.setDaemon(true);
+                return t;
+            }, new ThreadPoolExecutor.DiscardOldestPolicy());
+    private static volatile WeakReference<MainActivity> visibleActivity = new WeakReference<>(null);
+    private WebView webView;
+    private static final int PERMISSION_REQUEST = 2001;
+    private static final int FILE_CHOOSER_REQUEST = 2002;
+    private ValueCallback<Uri[]> filePathCallback;
+    private Uri cameraOutputUri;
+    private boolean telecomPromptShownThisRun = false;
+    private volatile boolean poolGameActive = false;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        applyCallWindowFlags(getIntent());
+        captureCallAction(getIntent());
+        captureMessageNavigation(getIntent());
+
+        webView = new WebView(this);
+        setContentView(webView);
+
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
+        settings.setMediaPlaybackRequiresUserGesture(false);
+        settings.setAllowContentAccess(true);
+        settings.setAllowFileAccess(true);
+
+        webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
+        webView.setWebViewClient(new WebViewClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                runOnUiThread(() -> {
+                    if (hasMediaPermissions()) request.grant(request.getResources());
+                    else {
+                        request.deny();
+                        requestPermissionsIfNeeded();
+                    }
+                });
+            }
+
+            @Override
+            public boolean onShowFileChooser(
+                    WebView webView,
+                    ValueCallback<Uri[]> filePathCallbackNew,
+                    FileChooserParams fileChooserParams) {
+                if (filePathCallback != null) filePathCallback.onReceiveValue(null);
+                filePathCallback = filePathCallbackNew;
+                try {
+                    if (fileChooserParams.isCaptureEnabled()) {
+                        StringBuilder joinedBuilder = new StringBuilder();
+                        for (String type : fileChooserParams.getAcceptTypes()) {
+                            if (type != null) joinedBuilder.append(type).append(",");
+                        }
+                        String joined = joinedBuilder.toString().toLowerCase();
+                        boolean video = joined.contains("video");
+                        Intent intent = new Intent(video ? MediaStore.ACTION_VIDEO_CAPTURE : MediaStore.ACTION_IMAGE_CAPTURE);
+                        ContentValues values = new ContentValues();
+                        values.put(MediaStore.MediaColumns.DISPLAY_NAME, "OurFamily_" + System.currentTimeMillis() + (video ? ".mp4" : ".jpg"));
+                        values.put(MediaStore.MediaColumns.MIME_TYPE, video ? "video/mp4" : "image/jpeg");
+                        cameraOutputUri = getContentResolver().insert(
+                                video ? MediaStore.Video.Media.EXTERNAL_CONTENT_URI : MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                                values);
+                        if (cameraOutputUri != null) {
+                            intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraOutputUri);
+                            intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        }
+                        if (video) intent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, 12);
+                        startActivityForResult(intent, FILE_CHOOSER_REQUEST);
+                        return true;
+                    }
+                    Intent intent = fileChooserParams.createIntent();
+                    startActivityForResult(intent, FILE_CHOOSER_REQUEST);
+                    return true;
+                } catch (Exception e) {
+                    filePathCallback = null;
+                    cameraOutputUri = null;
+                    return false;
+                }
+            }
+        });
+
+        requestPermissionsIfNeeded();
+        TelecomCallManager.register(this);
+        maybeStartMessagingService();
+        loadApp();
+        UpdateManager.checkAsync(this, getIntent() != null && getIntent().getBooleanExtra("force_update_check", false));
+        webView.postDelayed(this::maybePromptTelecomSetup, 900);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        applyCallWindowFlags(intent);
+        captureCallAction(intent);
+        captureMessageNavigation(intent);
+        if (intent != null && intent.getBooleanExtra("force_update_check", false)) {
+            UpdateManager.checkAsync(this, true);
+        }
+        if (webView != null) {
+            webView.post(() -> webView.evaluateJavascript(
+                    "window.__ourFamilyConsumeNativeAction && window.__ourFamilyConsumeNativeAction();", null));
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == FILE_CHOOSER_REQUEST) {
+            if (filePathCallback != null) {
+                Uri[] result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+                if ((result == null || result.length == 0) && resultCode == RESULT_OK && cameraOutputUri != null) {
+                    result = new Uri[] { cameraOutputUri };
+                }
+                filePathCallback.onReceiveValue(result);
+                filePathCallback = null;
+                cameraOutputUri = null;
+            }
+            return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
+    }
+
+    private void applyCallWindowFlags(Intent intent) {
+        if (intent == null || intent.getStringExtra("call_action") == null) return;
+        try {
+            getWindow().addFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+            );
+            if (Build.VERSION.SDK_INT >= 27) {
+                setShowWhenLocked(true);
+                setTurnScreenOn(true);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void captureCallAction(Intent intent) {
+        if (intent == null) return;
+        String actionName = intent.getStringExtra("call_action");
+        String callId = intent.getStringExtra("call_id");
+        String callerRole = intent.getStringExtra("caller_role");
+        String kind = intent.getStringExtra("call_kind");
+        if (actionName == null || callId == null || callerRole == null) return;
+
+        try {
+            JSONObject o = new JSONObject();
+            o.put("action", actionName);
+            o.put("callId", callId);
+            o.put("callerRole", callerRole);
+            o.put("kind", kind == null ? "video" : kind);
+            SecureStore.prefs(this).edit()
+                    .putString("pending_call_action", o.toString())
+                    .apply();
+        } catch (Exception ignored) {}
+    }
+
+    private void captureMessageNavigation(Intent intent) {
+        if (intent == null) return;
+        String messageId = intent.getStringExtra("open_message_id");
+        String senderRole = intent.getStringExtra("open_sender_role");
+        String messageKind = intent.getStringExtra("open_message_kind");
+        if (messageId == null || messageId.isEmpty()) return;
+
+        try {
+            JSONObject o = new JSONObject();
+            o.put("messageId", messageId);
+            o.put("senderRole", senderRole == null ? "" : senderRole);
+            o.put("kind", messageKind == null ? "" : messageKind);
+            o.put("accept", ("checkers".equals(messageKind) || "durak".equals(messageKind)) && intent.getBooleanExtra("open_game_accept", false));
+            SecureStore.prefs(this).edit()
+                    .putString("pending_message_navigation", o.toString())
+                    .apply();
+        } catch (Exception ignored) {}
+    }
+
+    private void maybePromptTelecomSetup() {
+        if (Build.VERSION.SDK_INT < 23 || telecomPromptShownThisRun || isFinishing()) return;
+        if (TelecomCallManager.isEnabled(this)) return;
+        telecomPromptShownThisRun = true;
+
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Разрешите системные входящие звонки")
+                .setMessage("Чтобы принимать звонки «Наша семья» прямо на заблокированном экране, один раз включите аккаунт «Наша семья» в системных настройках звонков.")
+                .setPositiveButton("Включить", (d, w) -> TelecomCallManager.openSettings(this))
+                .setNegativeButton("Позже", null)
+                .show();
+    }
+
+    private void loadApp() {
+        try (InputStream in = getAssets().open("index.html")) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            String html = new String(out.toByteArray(), StandardCharsets.UTF_8);
+            String[] gameRuleAssets = {"checkers.js", "durak.js", "billiards.js", "arkanoid.js"};
+            for (String assetName : gameRuleAssets) {
+                try (InputStream game = getAssets().open(assetName)) {
+                    ByteArrayOutputStream rules = new ByteArrayOutputStream();
+                    while ((n = game.read(buf)) > 0) rules.write(buf, 0, n);
+                    String marker = "<script src=\"" + assetName + "\"></script>";
+                    if (!html.contains(marker)) throw new IllegalStateException(assetName + " marker missing");
+                    html = html.replace(marker, "<script>\n" +
+                            new String(rules.toByteArray(), StandardCharsets.UTF_8) + "\n</script>");
+                }
+            }
+            webView.loadDataWithBaseURL("https://app.local/", html, "text/html", "UTF-8", null);
+        } catch (Exception e) {
+            webView.loadData("<h2>Не удалось запустить приложение</h2>", "text/html", "UTF-8");
+        }
+    }
+
+    private boolean hasMediaPermissions() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true;
+        return checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestPermissionsIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return;
+        java.util.ArrayList<String> list = new java.util.ArrayList<>();
+        if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) list.add(Manifest.permission.CAMERA);
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) list.add(Manifest.permission.RECORD_AUDIO);
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            list.add(Manifest.permission.POST_NOTIFICATIONS);
+        }
+        if (!list.isEmpty()) requestPermissions(list.toArray(new String[0]), PERMISSION_REQUEST);
+    }
+
+    private void maybeStartMessagingService() {
+        SharedPreferences prefs = SecureStore.prefs(this);
+        if (!prefs.getString("topic", "").isEmpty()) startMessagingService(false);
+    }
+
+    private void startMessagingService(boolean restart) {
+        Intent i = new Intent(this, MessagingService.class);
+        if (restart) i.setAction(MessagingService.ACTION_RESTART);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i);
+        else startService(i);
+    }
+
+    private void playPoolSoundNative(String kind, int strengthPercent) {
+        final boolean cue = "cue".equals(kind);
+        final boolean rail = "rail".equals(kind);
+        final float strength = Math.max(0.12f, Math.min(1f, strengthPercent / 100f));
+        try {
+            GAME_AUDIO.execute(() -> {
+                AudioTrack track = null;
+                try {
+                    final int sampleRate = 32000;
+                    final int durationMs = cue ? 92 : (rail ? 52 : 46);
+                    final int count = sampleRate * durationMs / 1000;
+                    short[] pcm = new short[count];
+                    long seed = System.nanoTime() ^ (cue ? 0x4f11L : (rail ? 0x70a1L : 0x91a7L));
+                    for (int i = 0; i < count; i++) {
+                        double t = i / (double) sampleRate;
+                        double x = i / (double) Math.max(1, count - 1);
+                        double env = Math.pow(1.0 - x, cue ? 2.15 : (rail ? 4.0 : 3.25));
+                        seed = seed * 6364136223846793005L + 1442695040888963407L;
+                        double noise = (((seed >>> 33) & 0x7fffffffL) / 1073741824.0) - 1.0;
+                        double f1 = cue ? (315.0 - 125.0 * x) : (rail ? (760.0 - 170.0 * x) : (2260.0 - 720.0 * x));
+                        double f2 = cue ? 128.0 : (rail ? 330.0 : 1280.0);
+                        double tone = Math.sin(2.0 * Math.PI * f1 * t);
+                        double second = Math.sin(2.0 * Math.PI * f2 * t);
+                        double sample;
+                        if (cue) sample = env * (0.48 * tone + 0.28 * second + 0.24 * noise);
+                        else if (rail) sample = env * (0.44 * tone + 0.18 * second + 0.38 * noise);
+                        else sample = env * (0.70 * tone + 0.18 * second + 0.12 * noise);
+                        double amp = cue ? (0.62 + 0.34 * strength) : (0.54 + 0.42 * strength);
+                        pcm[i] = (short) Math.max(Short.MIN_VALUE, Math.min(Short.MAX_VALUE, sample * 32767.0 * amp));
+                    }
+
+                    AudioAttributes attrs = new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_GAME)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build();
+                    AudioFormat format = new AudioFormat.Builder()
+                            .setSampleRate(sampleRate)
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build();
+                    int min = AudioTrack.getMinBufferSize(sampleRate,
+                            AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
+                    int bytes = Math.max(Math.max(min, pcm.length * 2), 4096);
+                    track = new AudioTrack.Builder()
+                            .setAudioAttributes(attrs)
+                            .setAudioFormat(format)
+                            .setBufferSizeInBytes(bytes)
+                            .setTransferMode(AudioTrack.MODE_STATIC)
+                            .build();
+                    if (track.getState() != AudioTrack.STATE_INITIALIZED) throw new IllegalStateException("pool audio not initialized");
+                    int written = track.write(pcm, 0, pcm.length, AudioTrack.WRITE_BLOCKING);
+                    if (written <= 0) throw new IllegalStateException("pool audio write failed: " + written);
+                    track.setVolume(1f);
+                    track.play();
+                    Thread.sleep(durationMs + 28L);
+                } catch (Exception ignored) {
+                } finally {
+                    if (track != null) {
+                        try { track.stop(); } catch (Exception ignored) {}
+                        try { track.flush(); } catch (Exception ignored) {}
+                        try { track.release(); } catch (Exception ignored) {}
+                    }
+                }
+            });
+        } catch (RejectedExecutionException ignored) {}
+    }
+
+    public class AndroidBridge {
+        @JavascriptInterface
+        public void setPoolGameActive(boolean active) {
+            runOnUiThread(() -> {
+                poolGameActive = active;
+                try {
+                    if (active) {
+                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR);
+                    } else {
+                        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+                        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                    }
+                } catch (Exception ignored) {}
+            });
+        }
+
+        @JavascriptInterface
+        public void requestPoolLandscape() {
+            runOnUiThread(() -> {
+                poolGameActive = true;
+                try {
+                    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                    if (webView != null) webView.postDelayed(() -> {
+                        if (poolGameActive) {
+                            try { setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR); }
+                            catch (Exception ignored) {}
+                        }
+                    }, 700);
+                } catch (Exception ignored) {}
+            });
+        }
+
+        @JavascriptInterface
+        public void setPoolGameFullscreen(boolean enabled) {
+            runOnUiThread(() -> {
+                try {
+                    if (enabled) {
+                        getWindow().getDecorView().setSystemUiVisibility(
+                                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+                                View.SYSTEM_UI_FLAG_FULLSCREEN |
+                                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                                View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+                    } else {
+                        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+                    }
+                    setRequestedOrientation(poolGameActive
+                            ? ActivityInfo.SCREEN_ORIENTATION_FULL_SENSOR
+                            : ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+                } catch (Exception ignored) {}
+            });
+        }
+
+        @JavascriptInterface
+        public void playPoolSound(String kind, int strengthPercent) {
+            playPoolSoundNative(kind, strengthPercent);
+        }
+
+        @JavascriptInterface
+        public String loadProfile() {
+            try {
+                SharedPreferences p = SecureStore.prefs(MainActivity.this);
+                String role = p.getString("role", "");
+                String enc = p.getString("family_secret", "");
+                String relay = SecureStore.relay(MainActivity.this);
+                if (role.isEmpty() || enc.isEmpty()) return "";
+
+                JSONObject o = new JSONObject();
+                o.put("role", role);
+                o.put("code", SecureStore.decrypt(enc));
+                o.put("relay", relay);
+                o.put("turnUrl", p.getString("turn_url", ""));
+                String tu = p.getString("turn_user", "");
+                String tp = p.getString("turn_pass", "");
+                o.put("turnUser", tu.isEmpty() ? "" : SecureStore.decrypt(tu));
+                o.put("turnPass", tp.isEmpty() ? "" : SecureStore.decrypt(tp));
+                return o.toString();
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
+        @JavascriptInterface
+        public boolean saveProfile(String role, String code, String relayBase, String turnUrl, String turnUser, String turnPass) {
+            try {
+                if (!FamilyDirectory.validRole(role)) return false;
+                if (code == null || code.length() < 14) return false;
+                if (relayBase == null || !relayBase.startsWith("https://")) return false;
+                if (!relayBase.replaceAll("/+$", "").equals(SecureStore.relay(MainActivity.this)))
+                    PresenceStore.clearLive(MainActivity.this);
+
+                SharedPreferences.Editor ed = SecureStore.prefs(MainActivity.this).edit()
+                        .putString("role", role)
+                        .putString("family_secret", SecureStore.encrypt(code))
+                        .putString("relay_base", relayBase.replaceAll("/+$", ""))
+                        .putString("turn_url", turnUrl == null ? "" : turnUrl.trim());
+
+                if (turnUser != null && !turnUser.isEmpty()) ed.putString("turn_user", SecureStore.encrypt(turnUser)); else ed.remove("turn_user");
+                if (turnPass != null && !turnPass.isEmpty()) ed.putString("turn_pass", SecureStore.encrypt(turnPass)); else ed.remove("turn_pass");
+                ed.apply();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public String loadHistory() {
+            SharedPreferences p = SecureStore.prefs(MainActivity.this);
+            String[] keys = {"history_v51", "history", "history_v51_backup"};
+            for (String key : keys) {
+                try {
+                    String enc = p.getString(key, "");
+                    if (!enc.isEmpty()) {
+                        String value = SecureStore.decrypt(enc);
+                        if (value.startsWith("[")) return value;
+                    }
+                } catch (Exception ignored) {}
+            }
+            return "[]";
+        }
+
+        @JavascriptInterface
+        public boolean saveHistory(String json) {
+            try {
+                if (json == null || json.length() > 2500000) return false;
+                SharedPreferences p = SecureStore.prefs(MainActivity.this);
+                String previous = p.getString("history_v51", "");
+                String encrypted = SecureStore.encrypt(json);
+                SharedPreferences.Editor ed = p.edit().putString("history_v51", encrypted);
+                if (!previous.isEmpty()) ed.putString("history_v51_backup", previous);
+                ed.apply();
+                return true;
+            } catch (Exception ignored) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public String loadUiSettings() {
+            try {
+                String enc = SecureStore.prefs(MainActivity.this).getString("ui_settings_v51", "");
+                return enc.isEmpty() ? "{}" : SecureStore.decrypt(enc);
+            } catch (Exception e) {
+                return "{}";
+            }
+        }
+
+        @JavascriptInterface
+        public void saveUiSettings(String json) {
+            try {
+                if (json == null || json.length() > 20000) return;
+                SecureStore.prefs(MainActivity.this).edit()
+                        .putString("ui_settings_v51", SecureStore.encrypt(json))
+                        .apply();
+            } catch (Exception ignored) {}
+        }
+
+        @JavascriptInterface
+        public void clearProfile() {
+            SecureStore.prefs(MainActivity.this).edit().clear().apply();
+        }
+
+        @JavascriptInterface
+        public void configure(String topic, String role, String relayBase, String senderTag) {
+            if (topic == null || role == null || relayBase == null || senderTag == null) return;
+            if (!topic.matches("[a-zA-Z0-9_-]{12,100}")) return;
+            if (!FamilyDirectory.validRole(role)) return;
+            if (!senderTag.matches("[a-f0-9]{8,32}")) return;
+            if (!relayBase.startsWith("https://")) return;
+
+            SecureStore.prefs(MainActivity.this).edit()
+                    .putString("topic", topic)
+                    .putString("role", role)
+                    .putString("relay_base", relayBase.replaceAll("/+$", ""))
+                    .putString("sender_tag", senderTag)
+                    .apply();
+
+            runOnUiThread(() -> {
+                startMessagingService(true);
+                if (MessagingService.isAppVisible()) sendVisibility(true);
+            });
+        }
+
+        @JavascriptInterface
+        public void logCallMetric(String phase) {
+            if (phase != null && phase.matches("invite_start|accepted|media_ready|offer_sent|offer_received|offer_apply_start|remote_description|answer_local_description|answer_sent|answer_received|video_track|connected|remote_frame|candidate_sent|candidate_send_failed|candidate_added|candidate_add_failed|restart_failed")) {
+                android.util.Log.i("OurFamilyCall", phase + " " + System.currentTimeMillis());
+            }
+        }
+
+        @JavascriptInterface
+        public String sendRelay(String topic, String message, int priority) {
+            return NativeRelayTransport.postBlocking(MainActivity.this, topic, message, priority);
+        }
+
+        @JavascriptInterface
+        public String sendRelayBatch(String topic, String messagesJson, int priority) {
+            return NativeRelayTransport.postBatchBlocking(MainActivity.this, topic, messagesJson, priority);
+        }
+
+        @JavascriptInterface
+        public boolean sendRelayAsync(String requestId, String topic, String message, int priority) {
+            if (requestId == null || !requestId.matches("[a-f0-9]{32}") ||
+                    topic == null || !topic.matches("[a-zA-Z0-9_-]{12,100}") ||
+                    message == null || message.isEmpty() || message.length() > 8000) return false;
+            try {
+                android.content.Context app = getApplicationContext();
+                ThreadPoolExecutor executor = priority >= 5 ? CALL_POSTER : MESSAGE_POSTER;
+                executor.execute(() -> reportRelayResult(requestId,
+                        NativeRelayTransport.post(app, topic, message, priority)));
+                return true;
+            } catch (RejectedExecutionException e) { return false; }
+        }
+
+        @JavascriptInterface
+        public boolean sendRelayBatchAsync(String requestId, String topic, String messagesJson, int priority) {
+            if (requestId == null || !requestId.matches("[a-f0-9]{32}") ||
+                    topic == null || !topic.matches("[a-zA-Z0-9_-]{12,100}") ||
+                    messagesJson == null || messagesJson.length() > 130000) return false;
+            try {
+                android.content.Context app = getApplicationContext();
+                CALL_POSTER.execute(() -> reportRelayResult(requestId,
+                        NativeRelayTransport.postBatchJson(app, topic, messagesJson, priority)));
+                return true;
+            } catch (RejectedExecutionException e) { return false; }
+        }
+
+        private void reportRelayResult(String requestId, String result) {
+            runOnUiThread(() -> {
+                if (webView != null && !isFinishing() && !isDestroyed())
+                    webView.evaluateJavascript("window.__ourFamilyRelayResult && window.__ourFamilyRelayResult("
+                            + JSONObject.quote(requestId) + "," + JSONObject.quote(result) + ");", null);
+            });
+        }
+
+        @JavascriptInterface
+        public String queueRelay(String topic, String message, int priority) {
+            if (topic == null || !topic.matches("[a-zA-Z0-9_-]{12,100}") ||
+                    message == null || message.isEmpty() || message.length() > 8000) return "ERR:message";
+            try {
+                android.content.Context app = getApplicationContext();
+                if (ReliableRelayOutbox.isCritical(message))
+                    return ReliableRelayOutbox.enqueue(app, topic, message, priority) ? "OK" : "ERR:outbox_full";
+                String[] parts = message.split("\\|", 5);
+                String kind = parts.length > 3 ? parts[3] : "";
+                ThreadPoolExecutor executor = (kind.endsWith("invite") || kind.endsWith("accept") ||
+                        kind.endsWith("join")) ? CALL_POSTER : SIGNAL_POSTER;
+                executor.execute(() -> NativeRelayTransport.post(app, topic, message, priority));
+                return "OK";
+            } catch (RejectedExecutionException e) {
+                return "ERR:signal_queue_full";
+            }
+        }
+
+        @JavascriptInterface
+        public int pendingCritical(String callId) {
+            return ReliableRelayOutbox.pendingFor(MainActivity.this, callId);
+        }
+
+        @JavascriptInterface
+        public String probeRelay(String relayBase, String topic) {
+            final String[] result = {"ERR:timeout"};
+            Thread thread = new Thread(() -> result[0] = NativeRelayTransport.probe(
+                    MainActivity.this, relayBase, topic), "OurFamilyRelayProbe");
+            thread.start();
+            try { thread.join(16000L); } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return "ERR:interrupted";
+            }
+            if (thread.isAlive()) { thread.interrupt(); return "ERR:timeout"; }
+            return result[0];
+        }
+
+        @JavascriptInterface
+        public String uploadAttachment(String base64) {
+            return NativeAttachmentTransport.uploadBase64(MainActivity.this, base64);
+        }
+
+        @JavascriptInterface
+        public String downloadAttachment(String url) {
+            return NativeAttachmentTransport.downloadBase64(MainActivity.this, url);
+        }
+
+        @JavascriptInterface
+        public String readRelayInbox() {
+            return RelayInbox.read(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void ackRelayInbox(String idsJson) {
+            RelayInbox.ack(MainActivity.this, idsJson);
+        }
+
+        @JavascriptInterface
+        public String consumePendingAction() {
+            SharedPreferences p = SecureStore.prefs(MainActivity.this);
+            String value = p.getString("pending_call_action", "");
+            if (!value.isEmpty()) p.edit().remove("pending_call_action").apply();
+            return value;
+        }
+
+        @JavascriptInterface
+        public String consumePendingNavigation() {
+            SharedPreferences p = SecureStore.prefs(MainActivity.this);
+            String value = p.getString("pending_message_navigation", "");
+            if (!value.isEmpty()) p.edit().remove("pending_message_navigation").apply();
+            return value;
+        }
+
+        @JavascriptInterface
+        public boolean canUseFullScreenCall() {
+            if (Build.VERSION.SDK_INT < 34) return true;
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            return nm != null && nm.canUseFullScreenIntent();
+        }
+
+        @JavascriptInterface
+        public void requestFullScreenCallPermission() {
+            if (Build.VERSION.SDK_INT < 34) return;
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT);
+                    i.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(i);
+                } catch (Exception ignored) {}
+            });
+        }
+
+        @JavascriptInterface
+        public boolean notificationsAllowed() {
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            return (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
+                    && (Build.VERSION.SDK_INT < 24 || nm != null && nm.areNotificationsEnabled());
+        }
+
+        @JavascriptInterface
+        public boolean nativeCallUiAvailable(String kind) {
+            if (kind != null && kind.contains("audio") && TelecomCallManager.isEnabled(MainActivity.this)) return true;
+            if (!notificationsAllowed()) return false;
+            if (Build.VERSION.SDK_INT < 26) return true;
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            NotificationChannel calls = nm == null ? null : nm.getNotificationChannel(MessagingService.CH_CALLS);
+            return calls != null && calls.getImportance() != NotificationManager.IMPORTANCE_NONE;
+        }
+
+        @JavascriptInterface
+        public void requestNotifications() {
+            if (Build.VERSION.SDK_INT >= 33 && !notificationsAllowed())
+                runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, PERMISSION_REQUEST));
+            else runOnUiThread(() -> {
+                Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                intent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                startActivity(intent);
+            });
+        }
+
+        @JavascriptInterface
+        public boolean backgroundAllowed() {
+            if (Build.VERSION.SDK_INT < 23) return true;
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            return pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
+        }
+
+        @JavascriptInterface
+        public void openBackgroundSettings() {
+            runOnUiThread(() -> {
+                try {
+                    Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName()));
+                    startActivity(i);
+                } catch (Exception ignored) {}
+            });
+        }
+
+        @JavascriptInterface
+        public String deviceId() {
+            String id = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+            return id == null ? "" : id;
+        }
+
+        @JavascriptInterface
+        public boolean setSpeakerphone(boolean enabled) {
+            try {
+                AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+                if (am == null) return false;
+                am.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                if (Build.VERSION.SDK_INT >= 31) {
+                    AudioDeviceInfo target = null;
+                    for (AudioDeviceInfo d : am.getAvailableCommunicationDevices()) {
+                        if (enabled && d.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) { target = d; break; }
+                        if (!enabled && d.getType() == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) { target = d; break; }
+                    }
+                    if (target != null) return am.setCommunicationDevice(target);
+                    if (!enabled) { am.clearCommunicationDevice(); return true; }
+                    return false;
+                } else {
+                    am.setSpeakerphoneOn(enabled);
+                    return true;
+                }
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public boolean isSpeakerphoneOn() {
+            try {
+                AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+                if (am == null) return false;
+                if (Build.VERSION.SDK_INT >= 31) {
+                    AudioDeviceInfo d = am.getCommunicationDevice();
+                    return d != null && d.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER;
+                }
+                return am.isSpeakerphoneOn();
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public void resetAudioRoute() {
+            try {
+                AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+                if (am == null) return;
+                if (Build.VERSION.SDK_INT >= 31) am.clearCommunicationDevice();
+                else am.setSpeakerphoneOn(false);
+                am.setMode(AudioManager.MODE_NORMAL);
+            } catch (Exception ignored) {}
+        }
+
+        @JavascriptInterface
+        public String loadPresence() {
+            return PresenceStore.readLive(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public String loadAutoNews() {
+            return PositiveNewsFetcher.load(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public String loadDailyQuote() {
+            return DailyQuoteFetcher.load(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void refreshDailyQuote() {
+            new Thread(() -> {
+                DailyQuoteFetcher.checkAndStore(MainActivity.this);
+                if (webView != null) webView.post(() -> webView.evaluateJavascript(
+                        "window.__ourFamilyDailyQuoteUpdated && window.__ourFamilyDailyQuoteUpdated();", null));
+            }, "OurFamilyDailyQuote").start();
+        }
+
+        @JavascriptInterface
+        public String loadFamilyNews() {
+            return FamilyNewsStore.load(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public String publishFamilyNews(String id, String ciphertext) {
+            return FamilyNewsStore.publish(MainActivity.this, id, ciphertext);
+        }
+
+        @JavascriptInterface
+        public void refreshFamilyNews() {
+            new Thread(() -> {
+                FamilyNewsStore.sync(MainActivity.this);
+                PositiveNewsFetcher.checkAndStore(MainActivity.this);
+            }, "OurFamilyNewsRefresh").start();
+        }
+
+        @JavascriptInterface
+        public void checkForUpdates() {
+            runOnUiThread(() -> UpdateManager.checkAsync(MainActivity.this, true));
+        }
+
+        @JavascriptInterface
+        public boolean isSystemCallingEnabled() {
+            return TelecomCallManager.isEnabled(MainActivity.this);
+        }
+
+        @JavascriptInterface
+        public void openSystemCallingSettings() {
+            runOnUiThread(() -> TelecomCallManager.openSettings(MainActivity.this));
+        }
+
+        @JavascriptInterface
+        public String getVersion() {
+            try {
+                String version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+                return version == null ? "" : version;
+            } catch (Exception e) {
+                return "";
+            }
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (webView == null) {
+            super.onBackPressed();
+            return;
+        }
+        webView.evaluateJavascript(
+                "(window.__ourFamilyHandleBack && window.__ourFamilyHandleBack()) ? 'handled' : 'pass';",
+                value -> runOnUiThread(() -> {
+                    if (!"\"handled\"".equals(value)) {
+                        if (webView.canGoBack()) webView.goBack();
+                        else MainActivity.super.onBackPressed();
+                    }
+                }));
+    }
+
+    public static void notifyRelayArrived() {
+        MainActivity activity = visibleActivity.get();
+        if (activity == null) return;
+        activity.runOnUiThread(() -> {
+            if (activity.webView != null) activity.webView.evaluateJavascript(
+                    "window.__ourFamilyConsumeNativeAction && window.__ourFamilyConsumeNativeAction();", null);
+        });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        visibleActivity = new WeakReference<>(this);
+        MessagingService.setAppVisible(true);
+        sendVisibility(true);
+        TelecomCallManager.register(this);
+        UpdateManager.resumePendingInstall(this);
+        UpdateManager.checkAsync(this, false);
+    }
+
+    @Override
+    protected void onPause() {
+        visibleActivity = new WeakReference<>(null);
+        MessagingService.setAppVisible(false);
+        sendVisibility(false);
+        super.onPause();
+    }
+
+    private void sendVisibility(boolean visible) {
+        if (SecureStore.familyCode(this).isEmpty()) return;
+        try {
+            Intent i = new Intent(this, MessagingService.class);
+            i.setAction(MessagingService.ACTION_PRESENCE_CHANGE);
+            i.putExtra("visible", visible);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i);
+            else startService(i);
+        } catch (RuntimeException ignored) {}
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (filePathCallback != null) {
+            filePathCallback.onReceiveValue(null);
+            filePathCallback = null;
+        }
+        if (webView != null) {
+            webView.loadUrl("about:blank");
+            webView.destroy();
+        }
+        super.onDestroy();
+    }
+}

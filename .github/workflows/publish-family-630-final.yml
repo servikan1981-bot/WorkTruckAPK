@@ -1,0 +1,125 @@
+name: Publish OurFamily 6.0.30 final
+
+on:
+  push:
+    branches: [family-stable-6]
+    paths: ['.github/workflows/publish-family-630-final.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: family-stable-6
+          fetch-depth: 1
+
+      - name: Recover structurally valid signed APK candidates
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,hashlib,io,re,zipfile,json
+          parts=[re.sub(r'\s+','',Path(f'updates/parts/v630_{i:02d}.b64').read_text(encoding='ascii')) for i in range(10)]
+          raw=''.join(parts)
+          print('chunk lengths:',[len(x) for x in parts],'total',len(raw),'mod4',len(raw)%4)
+          assert len(raw)%4==1
+          offsets=[]; n=0
+          for s in parts:
+              offsets.append(n); n+=len(s)
+          found=[]
+          # Try every possible one-character deletion. Only CRC-clean APKs survive.
+          for idx in [4,9,8,7,6,5,3,2,1,0]:
+              start=offsets[idx]; source=parts[idx]
+              print('scanning part',idx)
+              for pos in range(len(source)):
+                  k=start+pos
+                  try: apk=base64.b64decode(raw[:k]+raw[k+1:],validate=True)
+                  except Exception: continue
+                  if apk[:4]!=b'PK\x03\x04': continue
+                  try:
+                      with zipfile.ZipFile(io.BytesIO(apk)) as z:
+                          names=set(z.namelist())
+                          if 'AndroidManifest.xml' not in names or 'classes.dex' not in names: continue
+                          if z.testzip() is not None: continue
+                  except Exception: continue
+                  out=Path(f'/tmp/recovered630_{len(found):03d}.apk'); out.write_bytes(apk)
+                  sha=hashlib.sha256(apk).hexdigest()
+                  print('CRC-valid:',idx,pos,len(apk),sha,out)
+                  found.append({'idx':idx,'pos':pos,'path':str(out),'sha256':sha})
+                  if len(found)>=200: break
+              if len(found)>=200: break
+          Path('/tmp/recovered630.json').write_text(json.dumps(found),encoding='utf-8')
+          print('CRC-valid candidates:',len(found))
+          assert found,'No CRC-valid APK recoverable by one-character repair'
+          PY
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+
+      - name: Select exact 6.0.30 with same certificate as installed 6.0.29
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/35.0.0"; OLD=updates/downloads/OurFamily_6_0_29_Stable.apk
+          "$BT/apksigner" verify --verbose --print-certs "$OLD" >/tmp/old.txt
+          OLD_CERT=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/old.txt|sed 's/.*: //'); test -n "$OLD_CERT"
+          SELECTED=''
+          for APK in /tmp/recovered630_*.apk; do
+            "$BT/aapt" dump badging "$APK" >/tmp/badging.txt 2>/dev/null || continue
+            grep -q "package: name='com.sergey.ourfamily'" /tmp/badging.txt || continue
+            grep -q "versionCode='6030'" /tmp/badging.txt || continue
+            grep -q "versionName='6.0.30'" /tmp/badging.txt || continue
+            "$BT/apksigner" verify --verbose --print-certs "$APK" >/tmp/new.txt 2>/dev/null || continue
+            NEW_CERT=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/new.txt|sed 's/.*: //')
+            [ "$NEW_CERT" = "$OLD_CERT" ] || continue
+            SELECTED="$APK"; break
+          done
+          test -n "$SELECTED"
+          cp "$SELECTED" /tmp/OurFamily_6_0_30_Stable.apk
+          echo "selected=$SELECTED cert=$OLD_CERT"
+          sha256sum /tmp/OurFamily_6_0_30_Stable.apk
+
+      - name: Normalize update payload
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,hashlib,json
+          apk=Path('/tmp/OurFamily_6_0_30_Stable.apk').read_bytes(); sha=hashlib.sha256(apk).hexdigest()
+          m=json.loads(Path('updates/candidates/630.json').read_text(encoding='utf-8'))
+          m['versionCode']=6030; m['versionName']='6.0.30'; m['sha256']=sha
+          b64=base64.b64encode(apk).decode('ascii'); chunks=[b64[i:i+16000] for i in range(0,len(b64),16000)]
+          for p in Path('updates/parts').glob('v630_*.b64'): p.unlink()
+          base='https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'
+          urls=[]
+          for i,c in enumerate(chunks):
+              name=f'v630_{i:02d}.b64'; Path('updates/parts',name).write_text(c,encoding='ascii'); urls.append(base+name)
+          m['apkBase64Parts']=urls; text=json.dumps(m,ensure_ascii=False,indent=2)+'\n'
+          Path('updates/candidates/630.json').write_text(text,encoding='utf-8'); Path('updates/latest.json').write_text(text,encoding='utf-8')
+          rebuilt=base64.b64decode(''.join(Path('updates/parts',u.rsplit('/',1)[-1]).read_text() for u in urls))
+          assert rebuilt==apk and hashlib.sha256(rebuilt).hexdigest()==sha
+          print('chunks',len(chunks),'sha256',sha)
+          PY
+
+      - name: Publish atomically
+        run: |
+          cp /tmp/OurFamily_6_0_30_Stable.apk updates/downloads/OurFamily_6_0_30_Stable.apk
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add -A updates/parts/v630_*.b64 updates/candidates/630.json updates/latest.json updates/downloads/OurFamily_6_0_30_Stable.apk
+          git commit -m 'Release OurFamily 6.0.30 stable'
+          git push origin HEAD:family-stable-6
+
+      - name: Final check
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path('updates/latest.json').read_text(encoding='utf-8'))
+          assert m['versionCode']==6030 and m['versionName']=='6.0.30' and len(m['sha256'])==64
+          print('LIVE',m['versionName'],m['sha256'])
+          PY

@@ -1,0 +1,16 @@
+{
+  "name": "our-family-relay",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "MAILBOX", "class_name": "TopicMailbox" },
+      { "name": "FILES", "class_name": "EncryptedFile" },
+      { "name": "AUTO_NEWS", "class_name": "AutoNews" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["TopicMailbox", "EncryptedFile"] },
+    { "tag": "v2", "new_sqlite_classes": ["AutoNews"] }
+  ]
+}

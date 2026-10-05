@@ -1,0 +1,176 @@
+name: Build Our Family 6.0.20 Stable
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-stable-6 ]
+    paths:
+      - 'duoapp/**'
+      - 'tools/patch_family_620.py'
+      - 'tools/fix_family_620_network.py'
+      - 'tools/test_durak.cjs'
+      - 'settings-duo.gradle'
+      - '.github/workflows/build-family-6-stable.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Apply 6.0.20 home relay fix
+        run: python3 tools/fix_family_620_network.py
+
+      - name: Validate stable identity
+        run: |
+          grep -q "applicationId 'com.sergey.ourfamily'" duoapp/build.gradle
+          grep -q "versionCode 6020" duoapp/build.gradle
+          grep -q "versionName '6.0.20'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.20"' duoapp/src/main/AndroidManifest.xml
+          grep -q 'REQUEST_INSTALL_PACKAGES' duoapp/src/main/AndroidManifest.xml
+          grep -q 'UpdateFileProvider' duoapp/src/main/AndroidManifest.xml
+
+      - name: Validate JavaScript and games
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text()
+          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
+          assert blocks
+          Path('/tmp/family6.js').write_text('\n'.join(blocks))
+          assert "APP_VERSION='6.0.20'" in h
+          assert 'Дурак' in h
+          assert 'bottomNav' in h
+          assert "gameType:'durak'" in h
+          assert "gameType:'checkers'" in h
+          assert "'durak_invite',id,true" in h
+          assert "'durak_move',g.id,true" in h
+          PY
+          node --check /tmp/family6.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          H=duoapp/src/main/assets/index.html
+          for token in direct_chat group_chat receipt_read REACTIONS openPhotoViewer scrollChatToBottom consumeNativeNavigation familyPresenceTopic openAdminArchiveScreen switchCamera enableSelfDrag startRingback speakerBtn "Семейные новости" "Пригласить в игру" "Новичок" "Опытный" "Мастер" "Крутяга" "Профи"; do
+            grep -q "$token" "$H"
+          done
+          grep -q 'game_invite' "$H"
+          grep -q 'notifyCheckers' duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+
+      - name: Validate lock-screen call acceptance
+        run: |
+          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          R=duoapp/src/main/java/com/sergey/duochat/CallActionReceiver.java
+          I=duoapp/src/main/java/com/sergey/duochat/IncomingCallActivity.java
+          M=duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q "CallStyle.forIncomingCall" "$S"
+          grep -q "IncomingCallActivity.ACTION_ACCEPT" "$S"
+          grep -q "PendingIntent.getBroadcast" "$S"
+          grep -q "ACTION_ACCEPT" "$R"
+          grep -q "call_action" "$R"
+          grep -q "FLAG_SHOW_WHEN_LOCKED" "$I"
+          grep -q "FLAG_DISMISS_KEYGUARD" "$I"
+          grep -q "applyCallWindowFlags" "$M"
+          grep -q "canUseFullScreenIntent" "$M"
+
+      - name: Validate Telecom integration
+        run: |
+          T=duoapp/src/main/java/com/sergey/duochat/TelecomCallManager.java
+          C=duoapp/src/main/java/com/sergey/duochat/FamilyConnectionService.java
+          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          M=duoapp/src/main/AndroidManifest.xml
+          grep -q "addNewIncomingCall" "$T"
+          grep -q "onCreateIncomingConnection" "$C"
+          grep -q "onAnswer" "$C"
+          grep -q "TelecomCallManager.reportIncomingCall" "$S"
+          grep -q "BIND_TELECOM_CONNECTION_SERVICE" "$M"
+
+      - name: Validate native presence and transport
+        run: |
+          P=duoapp/src/main/java/com/sergey/duochat/PresenceStore.java
+          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          U=duoapp/src/main/java/com/sergey/duochat/UpdateManager.java
+          H=duoapp/src/main/assets/index.html
+          R=duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
+          A=duoapp/src/main/java/com/sergey/duochat/NativeAttachmentTransport.java
+          grep -q "presence_native_v602" "$P"
+          grep -q "startPresenceSender" "$S"
+          grep -q "startPresenceListener" "$S"
+          grep -q "PresenceStore.update(this, senderRole" "$S"
+          grep -q "UpdateManager.checkBackground" "$S"
+          grep -q "AndroidBridge.loadPresence" "$H"
+          if grep -q "fetch(" "$H"; then echo "WebView network fetch must not remain"; exit 1; fi
+          grep -q "AndroidBridge.sendRelay" "$H"
+          grep -q "AndroidBridge.uploadAttachment" "$H"
+          grep -q "public String sendRelay" duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q "postBlocking" "$R"
+          grep -q "setReadTimeout(35000)" "$R"
+          grep -q "t.join(65000L)" "$R"
+          grep -q "uploadBase64" "$A"
+
+      - name: Validate low-latency relay and call setup
+        run: |
+          S=duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          H=duoapp/src/main/assets/index.html
+          grep -q 'after=" + cursor + "&wait=" + relayWaitSeconds(relay)' "$S"
+          grep -q 'return host != null && host.endsWith(".workers.dev") ? 25 : 2' "$S"
+          grep -q 'sleep(instantRelay ? 80L : 1200L)' "$S"
+          grep -q "iceCandidatePoolSize:8" "$H"
+          grep -q "connectTimer=setTimeout" "$H"
+          grep -q "var mediaPromise=prepareLocalMedia(inv.kind)" "$H"
+
+      - name: Validate update system and current published fallback
+        run: |
+          U=duoapp/src/main/java/com/sergey/duochat/UpdateManager.java
+          grep -q "latest.json" "$U"
+          grep -q "sha256" "$U"
+          grep -q "getPackageArchiveInfo" "$U"
+          python3 - <<'PY'
+          import base64,hashlib,json,pathlib
+          meta=json.loads(pathlib.Path('updates/latest.json').read_text())
+          assert meta['versionCode']==6019, 'Do not publish 6.0.20 before candidate validation'
+          data=base64.b64decode(''.join(pathlib.Path('updates/parts/'+u.rsplit('/',1)[-1]).read_text() for u in meta['apkBase64Parts']))
+          assert hashlib.sha256(data).hexdigest()==meta['sha256']
+          pathlib.Path('/tmp/published-family.apk').write_bytes(data)
+          PY
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 /tmp/published-family.apk >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose /tmp/published-family.apk >/dev/null
+
+      - name: Build unsigned 6.0.20 candidate
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Verify unsigned candidate
+        run: |
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          test -f "$APK"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/index.html | grep -q "Наша семья · v6.0.20"
+          unzip -p "$APK" assets/index.html | grep -q "Подкидной · 36 карт · 1 на 1"
+          unzip -p "$APK" assets/index.html | grep -q "durak_invite',id,true"
+          unzip -p "$APK" assets/durak.js | grep -q "function pickup"
+          sha256sum "$APK"
+          ls -lh "$APK"
+
+      - name: Upload unsigned candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_20_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error

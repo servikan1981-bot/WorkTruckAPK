@@ -1,0 +1,179 @@
+name: Implement OurFamily 6.0.33 Ludo
+
+on:
+  push:
+    branches: ['feature/family-6.0.33-ludo']
+    paths:
+      - '.github/workflows/implement-family-633-ludo.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  implement-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/family-6.0.33-ludo
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Add Ludo only, preserve existing functionality
+        run: |
+          cat > duoapp/src/main/assets/ludo.js <<'JS'
+          (function(g){'use strict';
+          var SAFE=[0,8,13,21,26,34,39,47];
+          function clone(x){return JSON.parse(JSON.stringify(x));}
+          function initial(players){var n=Math.max(2,Math.min(4,players|0)),pieces=[];for(var i=0;i<n;i++)pieces.push([-1,-1,-1,-1]);return {players:n,pieces:pieces,turn:0,dice:null,seq:0,winner:null,last:null};}
+          function absPos(player,progress){if(progress<0||progress>51)return -1;return ((player*13)+progress)%52;}
+          function movable(s,p,d){var out=[];if(!s||s.winner!==null||s.turn!==p||!d)return out;for(var i=0;i<4;i++){var q=s.pieces[p][i];if(q===58)continue;if(q<0){if(d===6)out.push(i);}else if(q+d<=58)out.push(i);}return out;}
+          function roll(s,p,d){if(!s||s.winner!==null||s.turn!==p||s.dice!==null||d<1||d>6)return null;var n=clone(s);n.dice=d;n.seq++;n.last={kind:'roll',player:p,dice:d};if(!movable(n,p,d).length){n.dice=null;n.turn=(p+1)%n.players;}return n;}
+          function move(s,p,piece){if(!s||s.winner!==null||s.turn!==p||s.dice===null)return null;var d=s.dice,legal=movable(s,p,d);if(legal.indexOf(piece)<0)return null;var n=clone(s),from=n.pieces[p][piece],to=from<0?0:from+d;n.pieces[p][piece]=to;var captured=[];if(to>=0&&to<=51){var a=absPos(p,to);if(SAFE.indexOf(a)<0){for(var op=0;op<n.players;op++)if(op!==p){for(var j=0;j<4;j++){var oq=n.pieces[op][j];if(oq>=0&&oq<=51&&absPos(op,oq)===a){n.pieces[op][j]=-1;captured.push([op,j]);}}}}}var won=n.pieces[p].every(function(x){return x===58;});n.seq++;n.last={kind:'move',player:p,piece:piece,dice:d,from:from,to:to,captured:captured};n.dice=null;if(won)n.winner=p;else if(d!==6&&captured.length===0)n.turn=(p+1)%n.players;return n;}
+          function resign(s,p){if(!s||s.winner!==null)return null;var n=clone(s),alive=[];for(var i=0;i<n.players;i++)if(i!==p)alive.push(i);n.winner=alive.length===1?alive[0]:null;n.seq++;n.last={kind:'resign',player:p};return n;}
+          g.LudoRules={initial:initial,absPos:absPos,movable:movable,roll:roll,move:move,resign:resign,SAFE:SAFE};
+          })(window);
+          JS
+
+          cat > tools/test_ludo.cjs <<'JS'
+          const fs=require('fs'),vm=require('vm');let ctx={window:{}};vm.createContext(ctx);vm.runInContext(fs.readFileSync('duoapp/src/main/assets/ludo.js','utf8'),ctx);const R=ctx.window.LudoRules;let s=R.initial(3);if(s.players!==3||s.turn!==0)throw Error('init');if(R.movable(s,0,5).length)throw Error('home');s=R.roll(s,0,6);if(R.movable(s,0,6).length!==4)throw Error('roll6');s=R.move(s,0,0);if(s.pieces[0][0]!==0||s.turn!==0)throw Error('enter');s=R.roll(s,0,3);s=R.move(s,0,0);if(s.pieces[0][0]!==3||s.turn!==1)throw Error('move');let f=R.initial(2);f.pieces[0]=[57,58,58,58];f=R.roll(f,0,1);f=R.move(f,0,0);if(f.winner!==0)throw Error('finish');console.log('Ludo rules OK');
+          JS
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('duoapp/src/main/assets/index.html');h=p.read_text(encoding='utf-8')
+          if '6.0.32' not in h: raise SystemExit('expected 6.0.32 base')
+          h=h.replace('6.0.32','6.0.33')
+          css='''\n#ludo{display:flex;flex-direction:column}.ludo-body{flex:1;overflow:auto;padding:12px;background:radial-gradient(circle at 50% 30%,#fff8d8 0,#e7f4ff 46%,#d8ecff 100%)}.ludo-panel{width:min(620px,100%);margin:0 auto}.ludo-info{display:flex;gap:8px;align-items:center;justify-content:space-between;background:rgba(255,255,255,.92);border-radius:18px;padding:10px 12px;box-shadow:var(--shadow);margin-bottom:10px}.ludo-turn{font-weight:950}.ludo-dice{width:64px;height:64px;border:0;border-radius:18px;background:linear-gradient(145deg,#fff,#dff0ff);box-shadow:0 7px 18px rgba(32,70,120,.18);font-size:34px;transition:.18s}.ludo-dice.roll{transform:rotate(18deg) scale(1.08)}.ludo-board-wrap{aspect-ratio:1;border-radius:28px;overflow:hidden;box-shadow:0 18px 42px rgba(25,60,100,.22);background:#fff}.ludo-board{width:100%;height:100%;display:block}.ludo-actions{display:flex;gap:9px;margin-top:10px}.ludo-actions button{flex:1}.ludo-piece{cursor:pointer;filter:drop-shadow(0 3px 3px rgba(0,0,0,.28));transition:.16s}.ludo-piece.legal{animation:ludoPulse .85s infinite alternate}.ludo-piece.mine{stroke:#fff;stroke-width:3}.ludo-player-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:10px}.ludo-player{background:rgba(255,255,255,.9);border-radius:12px;padding:7px 9px;font-size:12px;font-weight:800}.ludo-player.active{outline:3px solid rgba(47,111,237,.35)}.ludo-multi{position:fixed;inset:0;z-index:180;background:rgba(8,14,30,.58);display:grid;place-items:center;padding:18px}.ludo-multi-card{width:min(460px,100%);background:var(--card);color:var(--ink);border-radius:22px;padding:18px;box-shadow:var(--shadow)}.ludo-multi-row{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:13px;margin:7px 0}.ludo-multi-row input{width:22px;height:22px}.ludo-multi-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}@keyframes ludoPulse{from{transform:scale(.92)}to{transform:scale(1.12)}}\n'''
+          h=h.replace('</style>',css+'</style>',1)
+          h=h.replace('<script src="durak.js"></script>','<script src="durak.js"></script>\n<script src="ludo.js"></script>',1)
+          old='<div class="game-grid"><button id="hubCheckersBtn" class="game-card"><span class="emoji">♟</span><strong>Шашки</strong><span>Выберите соперника и начните партию</span></button><button id="hubDurakBtn" class="game-card durak-card"><span class="emoji">🃏</span><strong>Дурак</strong><span>Подкидной · 36 карт · 1 на 1</span></button></div>'
+          new='<div class="game-grid"><button id="hubCheckersBtn" class="game-card"><span class="emoji">♟</span><strong>Шашки</strong><span>Выберите соперника и начните партию</span></button><button id="hubDurakBtn" class="game-card durak-card"><span class="emoji">🃏</span><strong>Дурак</strong><span>Подкидной · 36 карт · 1 на 1</span></button><button id="hubLudoBtn" class="game-card ludo-card"><span class="emoji">🎲</span><strong>Семейная гонка</strong><span>Красочное Ludo · 2–4 игрока</span></button></div>'
+          if old not in h: raise SystemExit('hub anchor missing')
+          h=h.replace(old,new,1)
+          anchor='<section id="durak" class="screen hidden">'
+          ludo='''<section id="ludo" class="screen hidden"><div class="topbar"><button id="ludoBackBtn" class="iconbtn">‹</button><div class="who"><div class="name">🎲 Семейная гонка</div><div id="ludoStatus" class="status">Ludo · 2–4 игрока</div></div></div><div class="ludo-body"><div class="ludo-panel"><div class="ludo-info"><div><div id="ludoTurn" class="ludo-turn">Ожидание игроков</div><div id="ludoHint" class="muted">Пригласите семью</div></div><button id="ludoDice" class="ludo-dice">🎲</button></div><div class="ludo-board-wrap"><svg id="ludoBoard" class="ludo-board" viewBox="0 0 600 600"></svg></div><div id="ludoPlayers" class="ludo-player-strip"></div><div class="ludo-actions"><button id="ludoRetryInvite" class="primary hidden">Повторить приглашение</button><button id="ludoResign" class="game-entry">Сдаться</button></div></div></div></section>\n<div id="ludoMulti" class="ludo-multi hidden"><div class="ludo-multi-card"><h2 style="margin:0 0 6px">🎲 Семейная гонка</h2><div class="muted">Выберите от 1 до 3 участников. Играть можно вдвоём, втроём или вчетвером.</div><div id="ludoMultiList"></div><div class="ludo-multi-actions"><button id="ludoMultiCancel" class="game-entry">Отмена</button><button id="ludoMultiStart" class="primary">Пригласить</button></div></div></div>\n'''
+          if anchor not in h: raise SystemExit('durak screen anchor missing')
+          h=h.replace(anchor,ludo+anchor,1)
+          marker="var durakGames=JSON.parse(localStorage.getItem('of5_durak_games')||'{}'),activeDurakId='',pendingDurakAcceptId='',durakSending=false;"
+          if marker not in h: raise SystemExit('durak globals missing')
+          h=h.replace(marker,marker+"\nvar ludoGames=JSON.parse(localStorage.getItem('of5_ludo_games')||'{}'),activeLudoId='',pendingLudoAcceptId='',ludoSending=false;",1)
+          old="if(['game_invite','game_accept','game_decline','game_move','game_resign'].includes(p.kind)){if((d.gameType||'checkers')==='durak')receiveDurak(p);else receiveCheckers(p);return;}"
+          new="if(['game_invite','game_accept','game_decline','game_move','game_resign'].includes(p.kind)){var gt=d.gameType||'checkers';if(gt==='durak')receiveDurak(p);else if(gt==='ludo')receiveLudo(p);else receiveCheckers(p);return;}"
+          if old not in h: raise SystemExit('game route missing')
+          h=h.replace(old,new,1)
+          old="function launchGame(kind,peer){if(kind==='checkers'){var prev=currentThread;currentThread={type:'direct',peer:peer};inviteCheckers().finally(function(){currentThread=prev;});}else inviteDurak(peer);}"
+          new="function launchGame(kind,peer){if(kind==='checkers'){var prev=currentThread;currentThread={type:'direct',peer:peer};inviteCheckers().finally(function(){currentThread=prev;});}else if(kind==='durak')inviteDurak(peer);else openLudoMulti();}"
+          if old not in h: raise SystemExit('launch anchor missing')
+          h=h.replace(old,new,1)
+          old="Object.values(games).map(function(g){return {g:g,type:'checkers'};}).concat(Object.values(durakGames).map(function(g){return {g:g,type:'durak'};}))"
+          new="Object.values(games).map(function(g){return {g:g,type:'checkers'};}).concat(Object.values(durakGames).map(function(g){return {g:g,type:'durak'};})).concat(Object.values(ludoGames).map(function(g){return {g:g,type:'ludo'};}))"
+          if old not in h: raise SystemExit('session list anchor missing')
+          h=h.replace(old,new,1)
+          old="b.textContent=(item.type==='durak'?'🃏 Дурак':'♟ Шашки')+' · '+NAMES[item.g.players.find(function(x){return x!==role;})]+' · '+(item.g.status==='active'?'Продолжить':'Ожидание');b.onclick=function(){item.type==='durak'?openDurak(item.g.id):openCheckers(item.g.id);};"
+          new="var opp=item.g.players.filter(function(x){return x!==role;}).map(function(x){return NAMES[x];}).join(', ');b.textContent=(item.type==='durak'?'🃏 Дурак':(item.type==='ludo'?'🎲 Семейная гонка':'♟ Шашки'))+' · '+opp+' · '+(item.g.status==='active'?'Продолжить':'Ожидание');b.onclick=function(){item.type==='durak'?openDurak(item.g.id):(item.type==='ludo'?openLudo(item.g.id):openCheckers(item.g.id));};"
+          if old not in h: raise SystemExit('session render anchor missing')
+          h=h.replace(old,new,1)
+          hook="renderGameProfile();\n$('navFamily')"
+          if hook not in h: raise SystemExit('listener hook missing')
+          ljs=r'''
+function saveLudoGames(){localStorage.setItem('of5_ludo_games',JSON.stringify(ludoGames));}
+function ludoPeers(g){return g.players.filter(function(x){return x!==role;});}
+function ludoSide(g){return g.players.indexOf(role);}
+function ludoColor(i){return ['#ef4444','#22c55e','#3b82f6','#f59e0b'][i%4];}
+function ludoName(g,i){return NAMES[g.players[i]]||g.players[i];}
+function ludoBroadcast(g,kind,data){return Promise.all(ludoPeers(g).map(function(peer){return publishEnvelope(peer,kind,Object.assign({gameType:'ludo',gameId:g.id},data||{}),4,'ludo_'+kind,g.id,true).catch(function(){return null;});}));}
+function openLudoMulti(){var box=$('ludoMultiList');box.innerHTML='';MEMBERS.filter(function(x){return x.id!==role;}).forEach(function(m){var row=document.createElement('label');row.className='ludo-multi-row';row.innerHTML='<input type="checkbox" value="'+m.id+'"><span>'+(onlineNow(m.id)?'🟢 ':'⚪ ')+NAMES[m.id]+'</span>';box.appendChild(row);});$('ludoMulti').classList.remove('hidden');}
+function createLudoFromSelection(){var peers=Array.from($('ludoMultiList').querySelectorAll('input:checked')).map(function(x){return x.value;}).slice(0,3);if(peers.length<1){toast('Выберите хотя бы одного игрока');return;}$('ludoMulti').classList.add('hidden');var players=[role].concat(peers),id=randomId(),g={id:id,players:players,inviter:role,accepted:[role],status:'invited',updated:Date.now(),state:LudoRules.initial(players.length)};ludoGames[id]=g;saveLudoGames();openLudo(id);sendLudoInvite(g);}
+async function sendLudoInvite(g){await ludoBroadcast(g,'game_invite',{players:g.players,state:g.state,accepted:g.accepted||[g.inviter]});toast('Приглашение в «Семейную гонку» отправлено');renderLudo();}
+function openLudo(id){var g=ludoGames[id];if(!g)return;activeLudoId=id;showScreen('ludo');renderLudo();}
+function ludoPath(){var pts=[],lo=105,hi=495,step=32.5,i;for(i=0;i<13;i++)pts.push([lo+i*step,105]);for(i=0;i<13;i++)pts.push([495,lo+i*step]);for(i=0;i<13;i++)pts.push([hi-i*step,495]);for(i=0;i<13;i++)pts.push([105,hi-i*step]);return pts;}
+function ludoHomePos(player,piece){var base=[[70,70],[530,70],[530,530],[70,530]][player%4],dx=(piece%2?24:-24),dy=(piece>1?24:-24);return [base[0]+dx,base[1]+dy];}
+function ludoLanePos(player,progress){var t=(progress-51)/7,ends=[[300,190],[410,300],[300,410],[190,300]][player%4];return [300+(ends[0]-300)*(1-t),300+(ends[1]-300)*(1-t)];}
+function renderLudo(){var g=ludoGames[activeLudoId];if(!g)return;var s=g.state,side=ludoSide(g),ready=(g.accepted||[]).length===g.players.length;if(ready&&g.status==='invited'){g.status='active';saveLudoGames();}var turn=s.winner!==null?'Победил '+ludoName(g,s.winner):(g.status!=='active'?'Ждём игроков: '+(g.accepted||[]).length+'/'+g.players.length:(s.turn===side?'Ваш ход':'Ход: '+ludoName(g,s.turn)));$('ludoTurn').textContent=turn;$('ludoHint').textContent=s.dice===null?'Бросьте кубик':'Выпало: '+s.dice+' · выберите подсвеченную фишку';$('ludoDice').disabled=!(g.status==='active'&&s.winner===null&&s.turn===side&&s.dice===null);$('ludoResign').classList.toggle('hidden',g.status!=='active'||s.winner!==null);$('ludoRetryInvite').classList.toggle('hidden',!(g.status==='invited'&&g.inviter===role));$('ludoPlayers').innerHTML=g.players.map(function(p,i){return '<div class="ludo-player '+(s.turn===i?'active':'')+'"><span style="color:'+ludoColor(i)+'">●</span> '+NAMES[p]+((g.accepted||[]).indexOf(p)>=0?' ✓':' …')+'</div>';}).join('');var svg=$('ludoBoard'),path=ludoPath(),html='<defs><filter id="ds"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity=".22"/></filter></defs><rect width="600" height="600" fill="#fff7e6"/>';
+for(var q=0;q<4;q++){var c=ludoColor(q),x=q===0||q===3?20:420,y=q<2?20:420;html+='<rect x="'+x+'" y="'+y+'" width="160" height="160" rx="28" fill="'+c+'" opacity=".16"/><rect x="'+(x+20)+'" y="'+(y+20)+'" width="120" height="120" rx="24" fill="'+c+'" opacity=".20"/>';}html+='<circle cx="300" cy="300" r="78" fill="#fff" stroke="#dbe5f2" stroke-width="6"/><text x="300" y="288" text-anchor="middle" font-size="33">🎲</text><text x="300" y="325" text-anchor="middle" font-size="20" font-weight="900" fill="#334155">СЕМЬЯ</text>';
+path.forEach(function(pt,idx){var safe=LudoRules.SAFE.indexOf(idx)>=0;html+='<circle cx="'+pt[0]+'" cy="'+pt[1]+'" r="13" fill="'+(safe?'#fff2a8':'#ffffff')+'" stroke="#c9d7e8" stroke-width="3"/>';});for(var pi=0;pi<g.players.length;pi++){var c=ludoColor(pi);for(var k=52;k<=58;k++){var lp=ludoLanePos(pi,k);html+='<circle cx="'+lp[0]+'" cy="'+lp[1]+'" r="12" fill="'+c+'" opacity=".27"/>';}}var legal=s.dice!==null&&s.turn===side?LudoRules.movable(s,side,s.dice):[];for(var pi=0;pi<g.players.length;pi++)for(var pc=0;pc<4;pc++){var prog=s.pieces[pi][pc],pos;if(prog<0)pos=ludoHomePos(pi,pc);else if(prog<=51)pos=path[LudoRules.absPos(pi,prog)];else pos=ludoLanePos(pi,prog);var cls='ludo-piece'+(pi===side?' mine':'')+(pi===side&&legal.indexOf(pc)>=0?' legal':'');html+='<circle class="'+cls+'" data-player="'+pi+'" data-piece="'+pc+'" cx="'+pos[0]+'" cy="'+pos[1]+'" r="17" fill="'+ludoColor(pi)+'" stroke="#fff" stroke-width="3" filter="url(#ds)"/><text x="'+pos[0]+'" y="'+(pos[1]+5)+'" text-anchor="middle" font-size="13" font-weight="900" fill="#fff">'+(pc+1)+'</text>';}svg.innerHTML=html;Array.from(svg.querySelectorAll('.ludo-piece.legal')).forEach(function(el){el.onclick=function(){ludoMove(Number(el.dataset.piece));};});if(s.winner===side)awardGameOnce(g.id,'win');}
+function ludoRoll(){var g=ludoGames[activeLudoId];if(!g||g.status!=='active')return;var side=ludoSide(g),d=1+Math.floor(Math.random()*6),next=LudoRules.roll(g.state,side,d);if(!next)return;$('ludoDice').classList.add('roll');setTimeout(function(){$('ludoDice').classList.remove('roll');},260);sendLudoState(g,next);}
+function ludoMove(piece){var g=ludoGames[activeLudoId];if(!g)return;var next=LudoRules.move(g.state,ludoSide(g),piece);if(next)sendLudoState(g,next);}
+async function sendLudoState(g,next){if(ludoSending)return;ludoSending=true;g.state=next;g.status=next.winner===null?'active':'ended';g.updated=Date.now();saveLudoGames();renderLudo();try{await ludoBroadcast(g,'game_move',{players:g.players,state:next,accepted:g.accepted||g.players});}finally{ludoSending=false;}}
+async function resignLudo(){var g=ludoGames[activeLudoId];if(!g||g.status!=='active'||!confirm('Сдаться в этой партии?'))return;var n=LudoRules.resign(g.state,ludoSide(g));if(n){g.state=n;g.status='ended';saveLudoGames();renderLudo();await ludoBroadcast(g,'game_resign',{players:g.players,state:n,accepted:g.accepted||g.players});}}
+function showLudoRequest(){var g=pendingLudoAcceptId&&ludoGames[pendingLudoAcceptId];if(!g||g.status!=='invited')return;$('checkersRequestText').textContent=NAMES[g.inviter]+' приглашает в «Семейную гонку» ('+g.players.length+' игрока)';$('checkersRequest').classList.remove('hidden');}
+async function acceptLudo(id){var g=ludoGames[id];if(!g)return;if((g.accepted||[]).indexOf(role)<0)g.accepted.push(role);g.updated=Date.now();saveLudoGames();pendingLudoAcceptId='';$('checkersRequest').classList.add('hidden');openLudo(id);await ludoBroadcast(g,'game_accept',{players:g.players,accepted:g.accepted,state:g.state});}
+async function declineLudo(id){var g=ludoGames[id];if(!g)return;g.status='declined';saveLudoGames();pendingLudoAcceptId='';$('checkersRequest').classList.add('hidden');await ludoBroadcast(g,'game_decline',{players:g.players});}
+function receiveLudo(p){var d=p.data||{},id=d.gameId;if(!/^[a-f0-9]{32}$/.test(id||''))return;var g=ludoGames[id];if(p.kind==='game_invite'){if(!g){var players=(d.players||[]).filter(function(x){return NAMES[x];}).slice(0,4);if(players.indexOf(role)<0||players.length<2)return;g={id:id,players:players,inviter:p.from,accepted:(d.accepted||[p.from]).slice(),status:'invited',updated:Date.now(),state:d.state||LudoRules.initial(players.length)};ludoGames[id]=g;saveLudoGames();}pendingLudoAcceptId=id;showLudoRequest();return;}if(!g)return;if(p.kind==='game_accept'){(d.accepted||[]).forEach(function(x){if(g.accepted.indexOf(x)<0)g.accepted.push(x);});if(g.accepted.length===g.players.length)g.status='active';g.updated=Date.now();saveLudoGames();if(activeLudoId===id)renderLudo();return;}if(p.kind==='game_decline'){g.status='declined';saveLudoGames();if(activeLudoId===id)renderLudo();return;}if((p.kind==='game_move'||p.kind==='game_resign')&&d.state&&(!g.state||d.state.seq>=g.state.seq)){g.state=d.state;g.accepted=d.accepted||g.accepted;g.status=d.state.winner===null?'active':'ended';g.updated=Date.now();saveLudoGames();if(activeLudoId===id)renderLudo();}}
+'''
+          h=h.replace(hook,ljs+'\n'+hook,1)
+          h=h.replace("$('hubDurakBtn').addEventListener('click',function(){openOpponentChoice('durak');});","$('hubDurakBtn').addEventListener('click',function(){openOpponentChoice('durak');});$('hubLudoBtn').addEventListener('click',openLudoMulti);",1)
+          insert="$('ludoMultiCancel').addEventListener('click',function(){$('ludoMulti').classList.add('hidden');});$('ludoMultiStart').addEventListener('click',createLudoFromSelection);$('ludoBackBtn').addEventListener('click',function(){activeLudoId='';openGamesHub();});$('ludoDice').addEventListener('click',ludoRoll);$('ludoResign').addEventListener('click',resignLudo);$('ludoRetryInvite').addEventListener('click',function(){var g=ludoGames[activeLudoId];if(g)sendLudoInvite(g);});\n"
+          h=h.replace("$('newChatBtn').addEventListener('click'",insert+"$('newChatBtn').addEventListener('click'",1)
+          h=h.replace("$('acceptGameBtn').addEventListener('click',function(){acceptCheckers();});","$('acceptGameBtn').addEventListener('click',function(){if(pendingLudoAcceptId)acceptLudo(pendingLudoAcceptId);else acceptCheckers();});",1)
+          h=h.replace("$('declineGameBtn').addEventListener('click',function(){declineCheckers();});","$('declineGameBtn').addEventListener('click',function(){if(pendingLudoAcceptId)declineLudo(pendingLudoAcceptId);else declineCheckers();});",1)
+          p.write_text(h,encoding='utf-8')
+          g=Path('duoapp/build.gradle');s=g.read_text().replace('versionCode 6032','versionCode 6033').replace("versionName '6.0.32'","versionName '6.0.33'");g.write_text(s)
+          m=Path('duoapp/src/main/AndroidManifest.xml');s=m.read_text().replace('Наша семья 6.0.32','Наша семья 6.0.33');m.write_text(s)
+          PY
+
+      - name: Validate no regressions and Ludo
+        run: |
+          H=duoapp/src/main/assets/index.html
+          grep -q "APP_VERSION='6.0.33'" "$H"
+          grep -q '🎲 Семейная гонка' "$H"
+          grep -q '2–4 игрока' "$H"
+          grep -q 'ludo.js' "$H"
+          grep -q "gameType:'ludo'" "$H"
+          grep -q 'receiveLudo' "$H"
+          grep -q 'sendLudoState' "$H"
+          grep -q 'voiceRecordingBar' "$H"
+          grep -q 'captureChatVideoBtn' "$H"
+          grep -q 'durak_invite' "$H"
+          grep -q 'inviteCheckers' "$H"
+          node tools/test_ludo.cjs
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text();blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S);Path('/tmp/family633.js').write_text('\n'.join(blocks))
+          PY
+          node --check /tmp/family633.js
+          node --check duoapp/src/main/assets/ludo.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+
+      - name: Build unsigned 6.0.33 candidate
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Verify APK
+        run: |
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/index.html | grep -q 'Семейная гонка'
+          unzip -p "$APK" assets/ludo.js | grep -q 'LudoRules'
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionCode='6033' versionName='6.0.33'"
+          sha256sum "$APK"
+
+      - name: Commit validated source
+        run: |
+          git config user.name ourfamily-feature-bot
+          git config user.email ourfamily-feature-bot@users.noreply.github.com
+          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html duoapp/src/main/assets/ludo.js tools/test_ludo.cjs
+          git commit -m 'Add Family Race Ludo for 6.0.33'
+          git push origin HEAD:feature/family-6.0.33-ludo
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_33_ludo_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error

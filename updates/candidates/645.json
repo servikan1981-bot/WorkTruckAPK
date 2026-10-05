@@ -1,0 +1,21 @@
+{
+  "versionCode": 6045,
+  "versionName": "6.0.45",
+  "apkBase64Parts": [
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_06.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_07.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_08.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_09.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_10.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_11.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v645_12.b64"
+  ],
+  "sha256": "986d9f7335ad7736a565ac6ad0675749eddd09f99f698184d33f5a32405a55ab",
+  "notes": "Добавлена четвёртая игра — Арканоид. Одиночный режим с уровнями, 3 жизнями, рекордом и бонусами: широкая платформа, мультишар и дополнительная жизнь. Движение шара рассчитывается по реальному времени, поэтому скорость стабильна на экранах 60/90/120 Гц. Есть отдельные звуки удара о платформу, кубики, стены, бонусов, потери жизни и завершения уровня. Добавлен полноэкранный горизонтальный режим. Бильярд и остальные функции приложения не изменялись."
+}

@@ -1,0 +1,77 @@
+name: Publish green-tested OurFamily 6.0.20
+
+on:
+  push:
+    branches: [ family-stable-6 ]
+    paths:
+      - '.github/workflows/publish-family-620-green.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download exact fixed unsigned APK from validated build
+        uses: actions/download-artifact@v4
+        with:
+          name: OurFamily_6_0_20_unsigned
+          path: /tmp/family620unsigned
+          github-token: ${{ github.token }}
+          run-id: 36308209674
+
+      - name: Restore exact Stable APK already green-tested on two phones
+        run: |
+          APK=$(find /tmp/family620unsigned -type f -name '*.apk' | head -1)
+          test -n "$APK"
+          echo '3192e325f6e966a9461a0178e80e206df8caeecacd6db0458c8739a8dd0a3b31  '"$APK" | sha256sum -c -
+          base64 -d updates/candidates/sign620.patch.b64 > /tmp/sign620.patch.zst
+          zstd -q -d --patch-from="$APK" /tmp/sign620.patch.zst -o /tmp/OurFamily_6_0_20_Stable.apk
+          echo '66a8a2afbbe00e8a92574ab0f484145a62eb518a103517fe9051d99077c8346a  /tmp/OurFamily_6_0_20_Stable.apk' | sha256sum -c -
+
+      - name: Write production update 6.0.20
+        run: |
+          base64 -w0 /tmp/OurFamily_6_0_20_Stable.apk > /tmp/family620.b64
+          rm -f updates/parts/v620_*.b64
+          split -b 16000 -d -a 2 --additional-suffix=.b64 /tmp/family620.b64 updates/parts/v620_
+          python3 - <<'PY'
+          import json, pathlib, base64, hashlib
+          parts=sorted(pathlib.Path('updates/parts').glob('v620_*.b64'))
+          meta={
+            'versionCode':6020,
+            'versionName':'6.0.20',
+            'apkBase64Parts':['https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'+p.name for p in parts],
+            'sha256':'66a8a2afbbe00e8a92574ab0f484145a62eb518a103517fe9051d99077c8346a',
+            'notes':'Дурак, шашки, нижнее меню и статусы. Исправлена загрузка правил Дурака и работа игр через домашний сервер: приглашения и ходы не блокируют экран при медленном ответе туннеля. Проверено обновление 6.0.19 → 6.0.20 на двух телефонах.'
+          }
+          text=json.dumps(meta,ensure_ascii=False,indent=2)+'\n'
+          pathlib.Path('updates/candidates/620.json').write_text(text)
+          pathlib.Path('updates/latest.json').write_text(text)
+          raw=''.join(p.read_text().strip() for p in parts)
+          data=base64.b64decode(raw)
+          assert len(parts)==9
+          assert hashlib.sha256(data).hexdigest()==meta['sha256']
+          print('PRODUCTION 6.0.20 prepared:', len(parts), 'parts,', len(data), 'bytes')
+          PY
+
+      - name: Commit on top of freshest branch and publish
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add updates/latest.json updates/candidates/620.json updates/parts/v620_*.b64
+          git add -u updates/parts
+          git commit -m 'Publish OurFamily 6.0.20 stable after green E2E'
+          for i in 1 2 3; do
+            git fetch origin family-stable-6
+            git rebase origin/family-stable-6
+            if git push origin HEAD:family-stable-6; then exit 0; fi
+            sleep 2
+          done
+          exit 1

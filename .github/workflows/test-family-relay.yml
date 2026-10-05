@@ -1,0 +1,42 @@
+name: Test free Our Family relay
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-stable-6 ]
+    paths:
+      - 'family-relay/**'
+      - '.github/workflows/test-family-relay.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  local-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check protocol contract
+        run: node --test family-relay/test/protocol.mjs
+      - name: Install official Cloudflare runtime
+        run: npm install --no-save wrangler@4
+        working-directory: family-relay
+      - name: Start local Worker and Durable Objects
+        run: |
+          npx wrangler dev --local --port 8787 > /tmp/our-family-relay.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl --fail --silent http://127.0.0.1:8787/health > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/our-family-relay.log
+          exit 1
+        working-directory: family-relay
+      - name: Check native HTTP protocol against local Cloudflare runtime
+        run: node --test test/protocol-live.mjs
+        working-directory: family-relay
+      - name: Show runtime errors
+        if: failure()
+        run: cat /tmp/our-family-relay.log

@@ -1,0 +1,82 @@
+name: Validate OurFamily 6.0.34 Ludo hotfix
+
+on:
+  push:
+    branches:
+      - fix/family-6.0.34-ludo-launch
+    paths:
+      - .github/workflows/fix-family-634-ludo-launch-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/family-6.0.34-ludo-launch
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+
+      - name: Apply hotfix
+        run: python3 tools/patch_family_634_ludo_launch.py
+
+      - name: Test Ludo launch regression
+        run: |
+          set -e
+          python3 tools/test_family_634_ludo_launch.py
+          node tools/test_ludo.cjs
+          node --check duoapp/src/main/assets/ludo.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+
+      - name: Check inline JavaScript syntax
+        run: |
+          python3 -c "from pathlib import Path; import re; h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8'); Path('/tmp/family634-inline.js').write_text('\\n'.join(re.findall(r'<script>(.*?)</script>',h,flags=re.S)),encoding='utf-8')"
+          node --check /tmp/family634-inline.js
+
+      - name: Build release candidate
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Verify APK identity
+        run: |
+          set -e
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          test -s "$APK"
+          "$BT/aapt" dump badging "$APK" > /tmp/badging634.txt
+          grep -q "package: name='com.sergey.ourfamily'" /tmp/badging634.txt
+          grep -q "versionCode='6034'" /tmp/badging634.txt
+          grep -q "versionName='6.0.34'" /tmp/badging634.txt
+          unzip -l "$APK" | grep -q 'assets/ludo.js'
+          echo VERIFIED_6034
+
+      - name: Commit validated source
+        run: |
+          set -e
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'Fix Family Race launch in OurFamily 6.0.34'
+            git push origin HEAD:fix/family-6.0.34-ludo-launch
+          fi
+
+# trigger: 2

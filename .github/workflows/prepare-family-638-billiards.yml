@@ -1,0 +1,97 @@
+name: Prepare OurFamily 6.0.38 billiards
+
+on:
+  push:
+    branches: ['feature/family-6.0.38-billiards']
+    paths:
+      - '.github/workflows/prepare-family-638-billiards.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/family-6.0.38-billiards
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+      - name: Apply 6.0.38 billiards patch
+        run: python3 tools/patch_family_638_billiards.py
+      - name: Validate source and preserved media fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'versionCode 6038' duoapp/build.gradle
+          grep -q "versionName '6.0.38'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.38"' duoapp/src/main/AndroidManifest.xml
+          grep -q "APP_VERSION='6.0.38'" duoapp/src/main/assets/index.html
+          grep -q 'hubPoolBtn' duoapp/src/main/assets/index.html
+          grep -q 'poolCanvas' duoapp/src/main/assets/index.html
+          grep -q "gameType:'pool'" duoapp/src/main/assets/index.html
+          grep -q 'billiards.js' duoapp/src/main/assets/index.html
+          test ! -e duoapp/src/main/assets/ludo.js
+          ! grep -qi 'Семейная гонка\|hubLudoBtn\|LudoRules' duoapp/src/main/assets/index.html
+          grep -q 'attachmentDownloadPending' duoapp/src/main/assets/index.html
+          grep -q 'getAttachmentObjectUrl' duoapp/src/main/assets/index.html
+          grep -q 'keptAttachments' duoapp/src/main/assets/index.html
+          grep -q 'rememberMediaState' duoapp/src/main/assets/index.html
+          grep -q "video.preload='auto'" duoapp/src/main/assets/index.html
+          node --check duoapp/src/main/assets/billiards.js
+          node tools/test_billiards.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8')
+          assert h.count('function getAttachmentObjectUrl(')==1
+          assert h.count('function renderAttachmentInto(')==1
+          assert h.count('function renderMessages(){')==1
+          assert h.count('function receivePool(')==1
+          assert h.count('function poolShoot(')==1
+          assert 'hubLudoBtn' not in h and 'LudoRules' not in h and 'Семейная гонка' not in h
+          Path('/tmp/family638.js').write_text('\n'.join(re.findall(r'<script>(.*?)</script>',h,flags=re.S)),encoding='utf-8')
+          PY
+          node --check /tmp/family638.js
+      - name: Build unsigned 6.0.38 APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+      - name: Verify APK identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          "$AAPT" dump badging "$APK" > /tmp/badging638.txt
+          grep -q "package: name='com.sergey.ourfamily'" /tmp/badging638.txt
+          grep -q "versionCode='6038'" /tmp/badging638.txt
+          grep -q "versionName='6.0.38'" /tmp/badging638.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily-6.0.38-billiards-unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error
+          retention-days: 7
+      - name: Commit validated 6.0.38 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html duoapp/src/main/assets/billiards.js duoapp/src/main/assets/ludo.js tools/patch_family_638_billiards.py tools/test_billiards.cjs
+          if ! git diff --cached --quiet; then
+            git commit -m 'Replace Ludo with American Pool 8-ball for 6.0.38'
+            git push origin HEAD:feature/family-6.0.38-billiards
+          fi
