@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#2d7ff9">
-<title>Наша семья 6.0.51</title>
+<title>Наша семья 6.0.52</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fff;--ink:#172033;--muted:#718096;--line:#e5eaf1;--blue:#2f6fed;--green:#159c65;--red:#e24a4a;--amber:#b47b0a;--shadow:0 10px 28px rgba(20,35,60,.10)}
 *{box-sizing:border-box}html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -233,7 +233,7 @@ body[data-theme="dark"] #home .topbar{background:linear-gradient(135deg,#214d91,
 <section id="setup" class="screen">
   <div class="card">
     <div class="logo">❤</div>
-    <h1>Наша семья 6.0.51</h1>
+    <h1>Наша семья 6.0.52</h1>
     <p class="sub">Личные и групповые чаты, личные и групповые видеозвонки.</p>
     <div class="label">Кто использует этот телефон?</div>
     <div id="roles" class="roles"></div>
@@ -255,7 +255,7 @@ body[data-theme="dark"] #home .topbar{background:linear-gradient(135deg,#214d91,
 <section id="home" class="screen hidden">
   <div class="topbar">
     <div id="myAvatar" class="avatar">Я</div>
-    <div class="who"><div id="myName" class="name">Наша семья · v6.0.51</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
+    <div class="who"><div id="myName" class="name">Наша семья · v6.0.52</div><div id="mainStatus" class="status ok">Загрузка…</div></div>
   </div>
   <div class="body">
     <div id="permissionBanner" class="permission hidden"><strong>Настройка звонков и уведомлений</strong><div id="notificationPermissionRow" class="hidden">Уведомления о сообщениях и звонках<br><button id="notificationPermissionBtn">Включить уведомления</button></div><div id="fullScreenPermissionRow" class="hidden">Кнопка «Принять» поверх экрана блокировки<br><button id="fullScreenPermissionBtn">Разрешить полноэкранный звонок</button></div><div id="backgroundPermissionRow" class="hidden">Работа в фоне для получения звонков и сообщений<br><button id="backgroundPermissionBtn">Открыть настройки батареи</button></div><div id="callChannelGuideRow" class="hidden">Проверьте канал <strong>«Семейные звонки»</strong>: Настройки → Приложения → Наша семья → Уведомления → Семейные звонки. Включите все доступные пункты: уведомления, всплывающий показ, экран блокировки, звук и вибрацию.<br><button id="callChannelGuideBtn">Открыть уведомления</button> <button id="callChannelGuideDoneBtn">Уже включено</button></div><div class="hint">В настройках батареи выберите для приложения «Без ограничений». Названия пунктов зависят от телефона.</div></div>
@@ -356,7 +356,7 @@ body[data-theme="dark"] #home .topbar{background:linear-gradient(135deg,#214d91,
 <div id="gameChoice" class="game-choice hidden"><div class="game-choice-card"><div class="game-choice-title">Во что сыграть?</div><div class="game-choice-actions"><button id="pickCheckersBtn">♟ Шашки</button><button id="pickDurakBtn" class="durak-pick">🃏 Дурак</button><button id="pickPoolBtn" class="pool-choice">🎱 Бильярд 8-ball</button></div><button id="gameChoiceCancel" class="secondary" style="width:100%;margin-top:10px">Отмена</button></div></div>
 <div id="opponentChoice" class="opponent-choice hidden"><div class="game-choice-card"><div class="game-choice-title">С кем играть?</div><div id="opponentList" class="opponent-list"></div><button id="opponentCancel" class="secondary" style="width:100%;margin-top:10px">Отмена</button></div></div>
 
-<nav id="bottomNav" class="bottom-nav"><button id="navFamily" class="active"><span>👨‍👩‍👧‍👦</span>Семья</button><button id="navGames"><span>🎮</span>Игры</button><button id="navNews"><span>📰</span>Новости<small id="newsNavBadge" class="nav-badge hidden"></small></button><button id="navMore"><span>☰</span>Ещё</button></nav>
+<nav id="bottomNav" class="bottom-nav hidden"><button id="navFamily" class="active"><span>👨‍👩‍👧‍👦</span>Семья</button><button id="navGames"><span>🎮</span>Игры</button><button id="navNews"><span>📰</span>Новости<small id="newsNavBadge" class="nav-badge hidden"></small></button><button id="navMore"><span>☰</span>Ещё</button></nav>
 
 <section id="checkers" class="screen hidden">
   <div class="topbar"><button id="checkersBackBtn" class="iconbtn">‹</button><div class="who"><div id="checkersTitle" class="name">Шашки</div><div id="checkersStatus" class="status"></div></div></div>
@@ -546,7 +546,7 @@ var activeCall=null,localStream=null,localMediaPromise=null,callPeers={},remoteS
 var ringbackCtx=null,ringbackTimer=null,autoNewsCache=[],sharedNewsCache=[],sharedNewsReady=false;
 var familyNewsKey=null,familyNewsBusy=false,legacyNewsBusy=false;
 var presenceMap={},presencePollTimer=null,presenceBusy=false;
-var APP_VERSION='6.0.51',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
+var APP_VERSION='6.0.52',reactionTargetId='',pendingMessageNavigation=null,replyDraft=null;
 var games={},activeGameId='',pendingGameAcceptId='',gameSending=false,checkersDrag=null,suppressCheckersClick=0;
 var durakGames={},activeDurakId='',pendingDurakAcceptId='',durakSending=false,gamePickKind='',gamePickPeer='';
 var poolGames={},activePoolId='',pendingPoolAcceptId='',poolSending=false,poolAnimating=false,poolAim=-0.12,poolPower=.62;
@@ -997,7 +997,9 @@ function hideTransientPanels(){
  return changed;
 }
 function showScreen(id){
- ['setup','home','picker','chat','news','more','adminArchive','adminChat','checkers','gamesHub','durak','pool','puzzle'].forEach(function(x){$(x).classList.toggle('hidden',x!==id);});
+ document.querySelectorAll('.screen').forEach(function(screen){
+   screen.classList.toggle('hidden',screen.id!==id);
+ });
  var bn=$('bottomNav');if(bn)bn.classList.toggle('hidden',!['home','gamesHub','news','more'].includes(id));
  if(bn){['navFamily','navGames','navNews','navMore'].forEach(function(n){$(n).classList.remove('active');});if(id==='home')$('navFamily').classList.add('active');if(id==='gamesHub')$('navGames').classList.add('active');if(id==='news')$('navNews').classList.add('active');if(id==='more')$('navMore').classList.add('active');}
  hideTransientPanels();
