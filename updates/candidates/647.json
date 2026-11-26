@@ -1,0 +1,21 @@
+{
+  "versionCode": 6047,
+  "versionName": "6.0.47",
+  "apkBase64Parts": [
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_06.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_07.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_08.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_09.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_10.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_11.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v647_12.b64"
+  ],
+  "sha256": "676055b22584a3b232b35cf2758aaf2ca5f883a10b90b3f93ddc5a66334288d8",
+  "notes": "Арканоид: добавлен отдельный джойстик управления платформой. В вертикальном режиме джойстик расположен под игровым полем; в полноэкранном режиме для него выделена отдельная зона справа. Платформа движется плавно с пропорциональной скоростью в зависимости от отклонения ручки, а при отпускании сразу останавливается. Палец больше не закрывает платформу и точку отскока шара. Физика, скорость шара, звуки, видео и остальные игры не изменялись."
+}

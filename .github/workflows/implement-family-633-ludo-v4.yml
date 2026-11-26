@@ -1,0 +1,84 @@
+name: Validate OurFamily 6.0.33 Ludo final
+
+on:
+  push:
+    branches: ['feature/family-6.0.33-ludo']
+    paths: ['.github/workflows/implement-family-633-ludo-v4.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/family-6.0.33-ludo
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+      - name: Apply Ludo integration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tools/patch_family_633_ludo.py'); s=p.read_text(encoding='utf-8')
+          old="rep('<button id=\"pickDurakBtn\" class=\"accept\">Дурак</button>','<button id=\"pickDurakBtn\" class=\"accept\">Дурак</button><button id=\"pickLudoBtn\" class=\"accept ludo-choice\">🎲 Семейная гонка</button>','game choice ludo')"
+          new="rep('<button id=\"pickDurakBtn\" class=\"durak-pick\">🃏 Дурак</button>','<button id=\"pickDurakBtn\" class=\"durak-pick\">🃏 Дурак</button><button id=\"pickLudoBtn\" class=\"ludo-choice\">🎲 Семейная гонка</button>','game choice ludo')"
+          if old in s: p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+          python3 tools/patch_family_633_ludo.py
+      - name: Test all game JavaScript
+        run: |
+          set -euo pipefail
+          node tools/test_ludo.cjs
+          node --check duoapp/src/main/assets/ludo.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8')
+          Path('/tmp/index633.js').write_text('\n'.join(re.findall(r'<script>(.*?)</script>',h,re.S)),encoding='utf-8')
+          PY
+          node --check /tmp/index633.js
+      - name: Preserve existing features
+        run: |
+          set -euo pipefail
+          H=duoapp/src/main/assets/index.html
+          grep -q "versionCode 6033" duoapp/build.gradle
+          grep -q "versionName '6.0.33'" duoapp/build.gradle
+          grep -q "APP_VERSION='6.0.33'" "$H"
+          grep -q 'hubLudoBtn' "$H"; grep -q 'ludoPicker' "$H"; grep -q 'receiveLudo' "$H"
+          grep -q 'hubCheckersBtn' "$H"; grep -q 'hubDurakBtn' "$H"
+          grep -q 'micBtn' "$H"; grep -q 'captureChatVideoBtn' "$H"; grep -q 'VOICE_MAX_MS=300000' "$H"
+          grep -q 'PermissionGateActivity' duoapp/src/main/AndroidManifest.xml
+      - name: Build and verify APK
+        run: |
+          set -euo pipefail
+          gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          "$BT/aapt" dump badging "$APK" > /tmp/b.txt
+          grep -q "package: name='com.sergey.ourfamily'" /tmp/b.txt
+          grep -q "versionCode='6033'" /tmp/b.txt
+          grep -q "versionName='6.0.33'" /tmp/b.txt
+          unzip -l "$APK" | grep -q 'assets/ludo.js'
+      - name: Commit validated source
+        run: |
+          set -euo pipefail
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html duoapp/src/main/assets/ludo.js tools/test_ludo.cjs tools/patch_family_633_ludo.py
+          git commit -m 'Add Family Race Ludo for OurFamily 6.0.33'
+          git push origin HEAD:feature/family-6.0.33-ludo

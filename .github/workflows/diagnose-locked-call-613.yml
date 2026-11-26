@@ -1,0 +1,51 @@
+name: Diagnose locked OurFamily call
+on:
+  push:
+    branches: [family-stable-6]
+    paths:
+      - 'tools/diagnose_locked_call_613.py'
+      - 'tools/diagnose_locked_call_613.sh'
+      - '.github/workflows/diagnose-locked-call-613.yml'
+      - 'updates/candidates/613.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [33, 35]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Call between two Android emulators
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-front emulated -camera-back emulated
+          script: bash tools/diagnose_locked_call_613.sh
+        env:
+          FAMILY_API_LEVEL: ${{ matrix.api-level }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: locked-call-api-${{ matrix.api-level }}
+          path: |
+            /tmp/ringing-*
+            /tmp/accepted-*
+            /tmp/emulator-5554-crash.log
+            /tmp/emulator-5556-crash.log
+            /tmp/second-emulator.log
+          if-no-files-found: ignore

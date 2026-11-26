@@ -1,0 +1,224 @@
+name: Secure publish OurFamily 6.0.44
+
+on:
+  push:
+    branches:
+      - release/family-6.0.44-secure-publish
+    paths:
+      - .github/workflows/secure-publish-family-644.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/family-6.0.44-secure-publish
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+
+      - name: Set 6.0.44 source version
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          replacements = {
+            'duoapp/build.gradle': [('versionCode 6043','versionCode 6044'), ("versionName '6.0.43'","versionName '6.0.44'")],
+            'duoapp/src/main/AndroidManifest.xml': [('Наша семья 6.0.43','Наша семья 6.0.44')],
+            'duoapp/src/main/assets/index.html': [('6.0.43','6.0.44')],
+          }
+          for name, pairs in replacements.items():
+              p=Path(name); text=p.read_text(encoding='utf-8')
+              for old,new in pairs: text=text.replace(old,new)
+              p.write_text(text,encoding='utf-8')
+          PY
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'Set OurFamily 6.0.44 source version'
+            git push origin HEAD:release/family-6.0.44-secure-publish
+          fi
+
+      - name: Publish one-time encryption certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /tmp/ourfamily644.key >/dev/null 2>&1
+          openssl req -new -x509 -sha256 -key /tmp/ourfamily644.key -out /tmp/ourfamily644.crt -days 1 -subj '/CN=OurFamily-6.0.44-One-Time/'
+          mkdir -p updates/candidates/signed644
+          cp /tmp/ourfamily644.crt updates/candidates/signed644/ephemeral_cert.pem
+          git add updates/candidates/signed644/ephemeral_cert.pem
+          git commit -m 'Publish one-time 6.0.44 signing certificate'
+          git push origin HEAD:release/family-6.0.44-secure-publish
+
+      - name: Wait for encrypted signing payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          FOUND=0
+          for i in $(seq 1 150); do
+            git fetch origin release/family-6.0.44-secure-publish
+            if git cat-file -e 'origin/release/family-6.0.44-secure-publish:updates/candidates/signed644/encrypted_payload.b64' 2>/dev/null; then
+              git show 'origin/release/family-6.0.44-secure-publish:updates/candidates/signed644/encrypted_payload.b64' > /tmp/encrypted_payload.b64
+              git reset --hard origin/release/family-6.0.44-secure-publish
+              FOUND=1
+              break
+            fi
+            sleep 4
+          done
+          test "$FOUND" = 1
+
+      - name: Decrypt signing material in runner only
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d /tmp/encrypted_payload.b64 > /tmp/signing_payload.cms
+          openssl cms -decrypt -binary -inform DER -in /tmp/signing_payload.cms -recip /tmp/ourfamily644.crt -inkey /tmp/ourfamily644.key -out /tmp/signing_payload.tar.gz
+          mkdir -p /tmp/signing644
+          tar -xzf /tmp/signing_payload.tar.gz -C /tmp/signing644
+          test -s /tmp/signing644/OurFamily_Stable6_Signing.p12
+          test -s /tmp/signing644/password.txt
+
+      - name: Validate 6.0.44 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "versionCode 6044" duoapp/build.gradle
+          grep -q "versionName '6.0.44'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.44"' duoapp/src/main/AndroidManifest.xml
+          grep -q "APP_VERSION='6.0.44'" duoapp/src/main/assets/index.html
+          grep -q 'setPoolGameFullscreen(boolean enabled)' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'poolFullscreenBtn' duoapp/src/main/assets/index.html
+          grep -q 'НА ВЕСЬ ЭКРАН' duoapp/src/main/assets/index.html
+          grep -q 'var speed=8+power\*16' duoapp/src/main/assets/billiards.js
+          grep -q 'b.x+=b.vx\*.22' duoapp/src/main/assets/billiards.js
+          grep -q 'bb.vx\*=.9965' duoapp/src/main/assets/billiards.js
+          grep -q 'step-lastFrame>=6' duoapp/src/main/assets/billiards.js
+          grep -q '__ourFamilyPoolCueV2' duoapp/src/main/assets/billiards.js
+          grep -q 'function fxCue(c,strength)' duoapp/src/main/assets/billiards.js
+          grep -q "root.poolPlayCueSound=function(strength){return fxPlay('cue',strength);}" duoapp/src/main/assets/billiards.js
+          ! grep -q "fxPlay('cue',power)" duoapp/src/main/assets/billiards.js
+          grep -q "queueImpact('ball'" duoapp/src/main/assets/billiards.js
+          grep -q "queueImpact('rail'" duoapp/src/main/assets/billiards.js
+          grep -q 'function getAttachmentObjectUrl' duoapp/src/main/assets/index.html
+          grep -q 'attachmentDownloadPending' duoapp/src/main/assets/index.html
+          node --check duoapp/src/main/assets/billiards.js
+          node --check duoapp/src/main/assets/durak.js
+          node tools/test_billiards.cjs
+          node - <<'NODE'
+          require('./duoapp/src/main/assets/billiards.js');
+          const powers=[0.15,0.35,0.62,1];
+          for(const p of powers){
+            const r=global.PoolRules.simulate(global.PoolRules.initial(),-0.12,p,true);
+            if(r.frames.length<300) throw new Error('Pool roll too short at power '+p+': '+r.frames.length);
+            if(r.frames.length>410) throw new Error('Pool animation would skip frames at power '+p+': '+r.frames.length);
+            console.log('POOL_REALTIME',p,r.frames.length);
+          }
+          NODE
+
+      - name: Build unsigned APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Align sign and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          U=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          A=/tmp/OurFamily_6_0_44_aligned.apk
+          S=/tmp/OurFamily_6_0_44_Stable.apk
+          PASS=$(tr -d '\r\n' < /tmp/signing644/password.txt)
+          "$BT/zipalign" -p -f 4 "$U" "$A"
+          "$BT/zipalign" -c -v 4 "$A" >/dev/null
+          "$BT/apksigner" sign --ks /tmp/signing644/OurFamily_Stable6_Signing.p12 --ks-type PKCS12 --ks-key-alias ourfamily6 --ks-pass "pass:$PASS" --key-pass "pass:$PASS" --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled true --out "$S" "$A"
+          "$BT/apksigner" verify --verbose --print-certs "$S" > /tmp/cert644.txt
+          "$BT/aapt" dump badging "$S" > /tmp/badging644.txt
+          grep -q "package: name='com.sergey.ourfamily'" /tmp/badging644.txt
+          grep -q "versionCode='6044'" /tmp/badging644.txt
+          grep -q "versionName='6.0.44'" /tmp/badging644.txt
+          CERT=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert644.txt | sed 's/.*: //')
+          test "$CERT" = '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83'
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/cert644.txt
+          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' /tmp/cert644.txt
+
+      - name: Build update payload and metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib, json
+          apk=Path('/tmp/OurFamily_6_0_44_Stable.apk').read_bytes()
+          sha=hashlib.sha256(apk).hexdigest()
+          b64=base64.b64encode(apk).decode('ascii')
+          chunks=[b64[i:i+16000] for i in range(0,len(b64),16000)]
+          parts=Path('updates/parts'); parts.mkdir(parents=True,exist_ok=True)
+          for p in parts.glob('v644_*.b64'): p.unlink()
+          base='https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'
+          urls=[]
+          for i,c in enumerate(chunks):
+              name=f'v644_{i:02d}.b64'
+              (parts/name).write_text(c,encoding='ascii')
+              urls.append(base+name)
+          meta={
+            'versionCode':6044,
+            'versionName':'6.0.44',
+            'apkBase64Parts':urls,
+            'sha256':sha,
+            'notes':'Бильярд 8-ball: убрано ощущение ускоренного видео — начальная скорость и шаг движения уменьшены, сопротивление стола перенастроено, вся анимация сильного удара идёт без пропуска кадров. Звук удара кия заменён на один короткий многослойный «ток» с отдельными резонансами дерева/шара; двойное наложение старого и нового звука убрано. Полноэкранный режим и остальные функции приложения не изменялись.'
+          }
+          text=json.dumps(meta,ensure_ascii=False,indent=2)+'\n'
+          Path('updates/candidates').mkdir(parents=True,exist_ok=True)
+          Path('updates/candidates/644.json').write_text(text,encoding='utf-8')
+          Path('updates/latest.json').write_text(text,encoding='utf-8')
+          Path('updates/downloads').mkdir(parents=True,exist_ok=True)
+          Path('updates/downloads/OurFamily_6_0_44_Stable.apk').write_bytes(apk)
+          rebuilt=base64.b64decode(''.join((parts/u.rsplit('/',1)[-1]).read_text(encoding='ascii') for u in urls))
+          assert rebuilt==apk
+          assert hashlib.sha256(rebuilt).hexdigest()==sha
+          print('READY',len(apk),len(chunks),sha)
+          PY
+
+      - name: Commit signed release to release branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f updates/candidates/signed644/encrypted_payload.b64 updates/candidates/signed644/ephemeral_cert.pem
+          rmdir updates/candidates/signed644 2>/dev/null || true
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add -A updates
+          git commit -m 'Release OurFamily 6.0.44 stable candidate'
+          git push origin HEAD:release/family-6.0.44-secure-publish
+
+      - name: Final verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          m=json.loads(Path('updates/latest.json').read_text(encoding='utf-8'))
+          apk=Path('updates/downloads/OurFamily_6_0_44_Stable.apk').read_bytes()
+          assert m['versionCode']==6044 and m['versionName']=='6.0.44'
+          assert hashlib.sha256(apk).hexdigest()==m['sha256']
+          assert len(m['apkBase64Parts'])>=10
+          print('FINAL_READY',m['versionName'],m['sha256'])
+          PY

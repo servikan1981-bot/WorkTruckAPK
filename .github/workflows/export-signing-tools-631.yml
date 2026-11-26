@@ -1,0 +1,37 @@
+name: Export Android Signing Tools 6.0.31
+
+on:
+  push:
+    branches: [ 'fix/family-6.0.31-signaling' ]
+    paths:
+      - '.github/workflows/export-signing-tools-631.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Package Android build tools
+        run: |
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          mkdir -p /tmp/android-signing-tools/lib /tmp/android-signing-tools/lib64
+          cp "$BT/apksigner" /tmp/android-signing-tools/
+          cp "$BT/zipalign" /tmp/android-signing-tools/
+          cp "$BT/aapt" /tmp/android-signing-tools/
+          cp "$BT/lib/apksigner.jar" /tmp/android-signing-tools/lib/
+          cp "$BT/lib64/libc++.so" /tmp/android-signing-tools/lib64/
+          chmod +x /tmp/android-signing-tools/apksigner /tmp/android-signing-tools/zipalign /tmp/android-signing-tools/aapt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-signing-tools-631
+          path: /tmp/android-signing-tools
+          if-no-files-found: error
+
+# includes native runtime needed by zipalign/aapt

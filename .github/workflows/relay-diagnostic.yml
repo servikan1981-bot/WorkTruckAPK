@@ -1,0 +1,93 @@
+name: Diagnose family relay writes
+on:
+  push:
+    branches: [family-stable-6]
+    paths: ['.github/workflows/relay-diagnostic.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe home relay write and read
+        run: |
+          python3 - <<'PY'
+          import json,time,uuid,urllib.request
+          base='https://family.familysergey.netcraze.pro'
+          topic='of5-'+uuid.uuid4().hex
+          message='of5probe|'+uuid.uuid4().hex
+          started=time.monotonic()
+          with urllib.request.urlopen(base+'/health',timeout=10) as r:
+              print('HOME health',r.status,r.read(300).decode())
+          body=json.dumps({'topic':topic,'message':message,'priority':4}).encode()
+          req=urllib.request.Request(base+'/',data=body,headers={'Content-Type':'application/json','User-Agent':'OurFamily/6.0.20 Android'})
+          with urllib.request.urlopen(req,timeout=12) as r:
+              print('HOME post',r.status,r.read(500).decode(),'seconds',round(time.monotonic()-started,3))
+          with urllib.request.urlopen(base+'/'+topic+'/json?since=10m',timeout=12) as r:
+              data=r.read(2000).decode()
+              print('HOME read',r.status,data[:1000],'seconds',round(time.monotonic()-started,3))
+              assert message in data
+          PY
+      - name: Read today's Durable Object use
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import datetime,json,os,urllib.request,urllib.error
+          day=(datetime.datetime.now(datetime.timezone.utc).date()-datetime.timedelta(days=1)).isoformat()
+          query='''query { viewer { accounts(filter: {accountTag: "860c7981b2d45d79a28a2f18ab9f101f"}) { durableObjectsPeriodicGroups(filter: {date_gt: "'''+day+'''"}, limit: 1000) { sum { duration rowsRead rowsWritten } } durableObjectsInvocationsAdaptiveGroups(filter: {date_gt: "'''+day+'''"}, limit: 1000) { sum { requests errors } } } } }'''
+          req=urllib.request.Request('https://api.cloudflare.com/client/v4/graphql',data=json.dumps({'query':query}).encode(),headers={'Authorization':'Bearer '+os.environ['CLOUDFLARE_API_TOKEN'],'Content-Type':'application/json'})
+          try:
+              with urllib.request.urlopen(req,timeout=20) as response: data=json.load(response)
+              if data.get('errors'):print('Analytics error:',str(data['errors'])[:350])
+              else:
+                  a=data['data']['viewer']['accounts'][0]
+                  print('DO daily totals',{'duration_GB_s':sum(x['sum']['duration'] for x in a['durableObjectsPeriodicGroups']),'rowsRead':sum(x['sum']['rowsRead'] for x in a['durableObjectsPeriodicGroups']),'rowsWritten':sum(x['sum']['rowsWritten'] for x in a['durableObjectsPeriodicGroups']),'requests':sum(x['sum']['requests'] for x in a['durableObjectsInvocationsAdaptiveGroups'])})
+          except urllib.error.HTTPError as error:print('Analytics HTTP',error.code)
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Capture server exception for disposable topic
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 860c7981b2d45d79a28a2f18ab9f101f
+        run: |
+          timeout 24s npx --yes wrangler@4 tail our-family-relay --format json > /tmp/relay-tail.jsonl 2>/tmp/relay-tail-error &
+          tail_pid=$!
+          sleep 8
+          python3 - <<'PY'
+          import json,uuid,urllib.request,urllib.error
+          body=json.dumps({'topic':'of5-'+uuid.uuid4().hex,'message':'of5probe|'+uuid.uuid4().hex}).encode()
+          req=urllib.request.Request('https://our-family-relay.family-860c7981b2d4.workers.dev/',data=body,headers={'Content-Type':'application/json','User-Agent':'OurFamily/6.0.18 Android'})
+          try:urllib.request.urlopen(req,timeout=10).close()
+          except urllib.error.HTTPError as e:print('Probe HTTP',e.code)
+          PY
+          sleep 5
+          kill "$tail_pid" 2>/dev/null || true
+          python3 - <<'PY'
+          import json,pathlib
+          for line in pathlib.Path('/tmp/relay-tail.jsonl').read_text().splitlines():
+              try:entry=json.loads(line)
+              except ValueError:continue
+              for exception in entry.get('exceptions',[]):
+                  print('RELAY EXCEPTION:',str(exception.get('name','')),str(exception.get('message',''))[:350])
+          print('Tail setup:',pathlib.Path('/tmp/relay-tail-error').read_text()[-300:])
+          PY
+      - name: Probe disposable inbox and presence
+        run: |
+          python3 - <<'PY'
+          import json,uuid,urllib.request,urllib.error
+          base='https://our-family-relay.family-860c7981b2d4.workers.dev'
+          for kind in ('health','inbox','presence'):
+              topic=('of5p-' if kind=='presence' else 'of5-')+uuid.uuid4().hex
+              if kind=='health':url=base+'/health';body=None
+              else:url=base+'/';body=json.dumps({'topic':topic,'message':'of5probe|'+uuid.uuid4().hex}).encode()
+              req=urllib.request.Request(url,data=body,headers={'Content-Type':'application/json','User-Agent':'OurFamily/6.0.18 Android'})
+              try:
+                  with urllib.request.urlopen(req,timeout=20) as response:
+                      print(kind,response.status,response.read(400).decode('utf-8','replace'))
+              except urllib.error.HTTPError as e:
+                  print(kind,e.code,e.read(500).decode('utf-8','replace'))
+          PY

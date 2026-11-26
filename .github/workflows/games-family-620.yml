@@ -1,0 +1,44 @@
+name: OurFamily 6.0.20 games on two emulators
+on:
+  push:
+    branches: [family-stable-6]
+    paths:
+      - 'updates/candidates/620.json'
+      - 'tools/game_family_620.py'
+      - 'tools/game_family_620.sh'
+      - '.github/workflows/games-family-620.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  two-phones:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-33 build-tools;35.0.0'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Upgrade, invite and play
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: bash tools/game_family_620.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: family-620-game-diagnostics
+          path: |
+            /tmp/emulator-5554-game.png
+            /tmp/emulator-5556-game.png
+            /tmp/emulator-5554-game.xml
+            /tmp/emulator-5556-game.xml
+          if-no-files-found: ignore

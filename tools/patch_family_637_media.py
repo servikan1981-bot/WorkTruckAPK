@@ -1,0 +1,162 @@
+from pathlib import Path
+
+
+def once(text, old, new, label):
+    c = text.count(old)
+    if c != 1:
+        raise SystemExit(f"{label}: expected 1 marker, got {c}")
+    return text.replace(old, new, 1)
+
+
+gradle = Path("duoapp/build.gradle")
+g = gradle.read_text(encoding="utf-8")
+g = once(g, "versionCode 6036", "versionCode 6037", "versionCode")
+g = once(g, "versionName '6.0.36'", "versionName '6.0.37'", "versionName")
+gradle.write_text(g, encoding="utf-8")
+
+manifest = Path("duoapp/src/main/AndroidManifest.xml")
+m = manifest.read_text(encoding="utf-8").replace("Наша семья 6.0.36", "Наша семья 6.0.37")
+manifest.write_text(m, encoding="utf-8")
+
+p = Path("duoapp/src/main/assets/index.html")
+h = p.read_text(encoding="utf-8").replace("6.0.36", "6.0.37")
+h = once(
+    h,
+    "var uiSettings={theme:'ocean',videoLayout:'pip'},attachmentKeys={},attachmentDbPromise=null;",
+    "var uiSettings={theme:'ocean',videoLayout:'pip'},attachmentKeys={},attachmentDbPromise=null,attachmentDownloadPending={},attachmentUrlCache={},attachmentUrlPending={},attachmentUrlOrder=[],attachmentMediaState={};",
+    "attachment globals",
+)
+
+old_remote = r'''async function cacheRemoteAttachment(att){
+ if(!att||!att.id)return;
+ try{
+   if(await getAttachmentBytes(att.id))return;
+   var result=String(AndroidBridge.downloadAttachment(att.url)||'');
+   if(!result.startsWith('OK:'))throw new Error(result||'ERR:download');
+   var bytes=b64ToBytes(result.slice(3));
+   await cacheAttachmentBytes(att.id,bytes.buffer);
+ }catch(e){}
+}
+async function getAttachmentBlob(att){
+ var enc=await getAttachmentBytes(att.id);
+ if(!enc){await cacheRemoteAttachment(att);enc=await getAttachmentBytes(att.id);}
+ if(!enc)throw new Error('attachment unavailable');
+ var plain=await decryptAttachmentBytes(enc,att.context);
+ return new Blob([plain],{type:att.mime||'application/octet-stream'});
+}
+function formatBytes(n){if(n<1024)return n+' Б';if(n<1048576)return (n/1024).toFixed(1)+' КБ';return (n/1048576).toFixed(1)+' МБ';}
+async function renderAttachmentInto(parent,att){
+ if(!att)return;
+ var card=document.createElement('div');card.className='attachment-card';card.textContent='Загрузка вложения…';parent.appendChild(card);
+ try{
+   var blob=await getAttachmentBlob(att),url=URL.createObjectURL(blob);card.innerHTML='';
+   if((att.mime||'').startsWith('image/')){
+     var img=document.createElement('img');img.className='attachment-img';img.src=url;img.alt=att.name||'Фото';
+     img.addEventListener('click',function(e){e.stopPropagation();openPhotoViewer(url,img.alt);});
+     img.addEventListener('load',function(){scrollChatToBottom();});
+     card.appendChild(img);
+   }else if((att.mime||'').startsWith('video/')){
+     var video=document.createElement('video');video.className='attachment-video';video.src=url;video.controls=true;video.playsInline=true;video.preload='metadata';
+     video.addEventListener('loadedmetadata',function(){scrollChatToBottom();});card.appendChild(video);
+   }else if((att.mime||'').startsWith('audio/')){
+     var audio=document.createElement('audio');audio.className='attachment-audio';audio.src=url;audio.controls=true;audio.preload='metadata';
+     audio.addEventListener('loadedmetadata',function(){scrollChatToBottom();});card.appendChild(audio);
+   }else{
+     var a=document.createElement('a');a.className='attachment-file';a.href=url;a.download=att.name||'file';a.textContent='📎 '+(att.name||'Файл');card.appendChild(a);
+   }
+   var size=document.createElement('div');size.className='attachment-size';size.textContent=formatBytes(att.size||0);card.appendChild(size);
+ }catch(e){card.textContent='📎 '+(att.name||'Файл')+' — файл пока недоступен';}
+}
+'''
+
+new_remote = r'''function attachmentCacheKey(att){return att&&att.id?String(att.id)+'|'+String(att.context||''):'';}
+function attachmentUrlInUse(key){return Array.from(document.querySelectorAll('.attachment-card[data-attachment-key]')).some(function(n){return n.dataset.attachmentKey===key;});}
+function touchAttachmentUrl(key){var i=attachmentUrlOrder.indexOf(key);if(i>=0)attachmentUrlOrder.splice(i,1);attachmentUrlOrder.push(key);}
+function trimAttachmentUrlCache(){
+ var total=Object.keys(attachmentUrlCache).reduce(function(sum,k){return sum+(attachmentUrlCache[k].size||0);},0),tries=0;
+ while((attachmentUrlOrder.length>48||total>134217728)&&attachmentUrlOrder.length&&tries<attachmentUrlOrder.length+4){
+   var key=attachmentUrlOrder.shift(),entry=attachmentUrlCache[key];if(!entry){continue;}
+   if(attachmentUrlInUse(key)){attachmentUrlOrder.push(key);tries++;continue;}
+   try{URL.revokeObjectURL(entry.url);}catch(e){}total-=entry.size||0;delete attachmentUrlCache[key];tries=0;
+ }
+}
+async function cacheRemoteAttachment(att){
+ if(!att||!att.id)return false;
+ try{if(await getAttachmentBytes(att.id))return true;}catch(e){}
+ if(attachmentDownloadPending[att.id])return attachmentDownloadPending[att.id];
+ attachmentDownloadPending[att.id]=(async function(){
+   try{
+     if(await getAttachmentBytes(att.id))return true;
+     var result=String(AndroidBridge.downloadAttachment(att.url)||'');
+     if(!result.startsWith('OK:'))throw new Error(result||'ERR:download');
+     var bytes=b64ToBytes(result.slice(3));await cacheAttachmentBytes(att.id,bytes.buffer);return true;
+   }catch(e){return false;}
+   finally{delete attachmentDownloadPending[att.id];}
+ })();
+ return attachmentDownloadPending[att.id];
+}
+async function getAttachmentBlob(att){
+ var enc=await getAttachmentBytes(att.id);
+ if(!enc){await cacheRemoteAttachment(att);enc=await getAttachmentBytes(att.id);}
+ if(!enc)throw new Error('attachment unavailable');
+ var plain=await decryptAttachmentBytes(enc,att.context);
+ return new Blob([plain],{type:att.mime||'application/octet-stream'});
+}
+function getAttachmentObjectUrl(att){
+ var key=attachmentCacheKey(att);if(!key)return Promise.reject(new Error('attachment key'));
+ if(attachmentUrlCache[key]){touchAttachmentUrl(key);return Promise.resolve(attachmentUrlCache[key].url);}
+ if(attachmentUrlPending[key])return attachmentUrlPending[key];
+ attachmentUrlPending[key]=getAttachmentBlob(att).then(function(blob){
+   var url=URL.createObjectURL(blob);attachmentUrlCache[key]={url:url,size:blob.size||Number(att.size||0)};touchAttachmentUrl(key);trimAttachmentUrlCache();return url;
+ }).finally(function(){delete attachmentUrlPending[key];});
+ return attachmentUrlPending[key];
+}
+function formatBytes(n){if(n<1024)return n+' Б';if(n<1048576)return (n/1024).toFixed(1)+' КБ';return (n/1048576).toFixed(1)+' МБ';}
+function rememberMediaState(att,el){
+ if(!att||!att.id||!el)return;var save=function(){attachmentMediaState[att.id]={time:Number(el.currentTime||0),muted:!!el.muted,volume:Number.isFinite(el.volume)?el.volume:1};};
+ el.addEventListener('timeupdate',save);el.addEventListener('pause',save);el.addEventListener('volumechange',save);
+ var state=attachmentMediaState[att.id];if(state){el.muted=!!state.muted;if(Number.isFinite(state.volume))el.volume=Math.max(0,Math.min(1,state.volume));el.addEventListener('loadedmetadata',function(){if(state.time>0&&Number.isFinite(el.duration)){try{el.currentTime=Math.min(state.time,Math.max(0,el.duration-.05));}catch(e){}}},{once:true});}
+}
+function fillAttachmentCard(card,att,url){
+ card.innerHTML='';var mime=att.mime||'';
+ if(mime.startsWith('image/')){
+   var img=document.createElement('img');img.className='attachment-img';img.src=url;img.alt=att.name||'Фото';
+   img.addEventListener('click',function(e){e.stopPropagation();openPhotoViewer(url,img.alt);});img.addEventListener('load',function(){scrollChatToBottom();},{once:true});card.appendChild(img);
+ }else if(mime.startsWith('video/')){
+   var video=document.createElement('video');video.className='attachment-video';video.src=url;video.controls=true;video.playsInline=true;video.preload='auto';rememberMediaState(att,video);
+   video.addEventListener('loadedmetadata',function(){scrollChatToBottom();},{once:true});card.appendChild(video);
+ }else if(mime.startsWith('audio/')){
+   var audio=document.createElement('audio');audio.className='attachment-audio';audio.src=url;audio.controls=true;audio.preload='auto';rememberMediaState(att,audio);
+   audio.addEventListener('loadedmetadata',function(){scrollChatToBottom();},{once:true});card.appendChild(audio);
+ }else{
+   var a=document.createElement('a');a.className='attachment-file';a.href=url;a.download=att.name||'file';a.textContent='📎 '+(att.name||'Файл');card.appendChild(a);
+ }
+ var size=document.createElement('div');size.className='attachment-size';size.textContent=formatBytes(att.size||0);card.appendChild(size);
+}
+async function renderAttachmentInto(parent,att){
+ if(!att)return;var key=attachmentCacheKey(att),card=document.createElement('div');card.className='attachment-card';card.dataset.attachmentId=String(att.id||'');card.dataset.attachmentKey=key;parent.appendChild(card);
+ try{
+   if(attachmentUrlCache[key]){touchAttachmentUrl(key);fillAttachmentCard(card,att,attachmentUrlCache[key].url);return;}
+   card.textContent='Загрузка вложения…';var url=await getAttachmentObjectUrl(att);if(!card.isConnected)return;fillAttachmentCard(card,att,url);
+ }catch(e){card.textContent='📎 '+(att.name||'Файл')+' — файл пока недоступен';}
+}
+'''
+
+h = once(h, old_remote, new_remote, "attachment cache block")
+h = once(
+    h,
+    "function renderMessages(){\n var box=$('messages');box.innerHTML='';if(!currentThread)return;",
+    "function renderMessages(){\n var box=$('messages'),keptAttachments={};Array.from(box.querySelectorAll('.attachment-card[data-attachment-key]')).forEach(function(node){var k=node.dataset.attachmentKey;if(k&&!keptAttachments[k]){keptAttachments[k]=node;node.remove();}});box.innerHTML='';if(!currentThread)return;",
+    "renderMessages preserve start",
+)
+start = h.index("function renderMessages(){")
+end = h.index("function openPicker(", start)
+block = h[start:end]
+block = once(
+    block,
+    "   if(m.attachment)renderAttachmentInto(b,m.attachment);",
+    "   if(m.attachment){var attachmentKey=attachmentCacheKey(m.attachment),kept=keptAttachments[attachmentKey];if(kept){b.appendChild(kept);delete keptAttachments[attachmentKey];}else renderAttachmentInto(b,m.attachment);}",
+    "renderMessages attachment reuse",
+)
+h = h[:start] + block + h[end:]
+p.write_text(h, encoding="utf-8")

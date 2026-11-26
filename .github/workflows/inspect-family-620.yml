@@ -1,0 +1,32 @@
+name: Inspect signed Family 6.0.20
+on:
+  push:
+    branches: [family-stable-6]
+    paths: ['.github/workflows/inspect-family-620.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct signed candidate
+        run: |
+          python3 - <<'PY'
+          import base64,json,pathlib,hashlib
+          meta=json.loads(pathlib.Path('updates/candidates/620.json').read_text())
+          raw=''.join(pathlib.Path('updates/parts/'+u.rsplit('/',1)[-1]).read_text().strip() for u in meta['apkBase64Parts'])
+          data=base64.b64decode(raw)
+          print('sha256',hashlib.sha256(data).hexdigest())
+          print('expected',meta['sha256'])
+          assert hashlib.sha256(data).hexdigest()==meta['sha256']
+          pathlib.Path('/tmp/family620.apk').write_bytes(data)
+          PY
+      - name: Inspect relay strings in signed APK
+        run: |
+          unzip -p /tmp/family620.apk classes.dex > /tmp/classes.dex
+          echo '--- relay/domain strings found in signed 6.0.20 ---'
+          strings /tmp/classes.dex | grep -E 'familysergey|workers\.dev|ntfy\.sh|relay_base' || true
+          echo '--- app/version strings ---'
+          unzip -p /tmp/family620.apk assets/index.html | grep -E 'APP_VERSION|Наша семья · v6\.0\.20' | head -5

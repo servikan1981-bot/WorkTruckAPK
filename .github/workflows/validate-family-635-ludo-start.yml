@@ -1,0 +1,81 @@
+name: Validate OurFamily 6.0.35 Ludo startup
+
+on:
+  push:
+    branches: ['fix/family-6.0.35-ludo-start']
+    paths:
+      - '.github/workflows/validate-family-635-ludo-start.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/family-6.0.35-ludo-start
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+
+      - name: Apply 6.0.35 hotfix
+        run: python3 tools/patch_family_635_ludo_start.py
+
+      - name: Validate startup and game rules
+        run: |
+          set -euo pipefail
+          python3 tools/test_family_635_ludo_start.py
+          node tools/test_ludo.cjs
+          node --check duoapp/src/main/assets/ludo.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
+          Path('/tmp/family635-inline.js').write_text('\n'.join(blocks),encoding='utf-8')
+          PY
+          node --check /tmp/family635-inline.js
+
+      - name: Build 6.0.35 candidate
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Verify APK identity
+        run: |
+          set -euo pipefail
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          test -s "$APK"
+          "$BT/aapt" dump badging "$APK" > /tmp/badging635.txt
+          grep -q "package: name='com.sergey.ourfamily'" /tmp/badging635.txt
+          grep -q "versionCode='6035'" /tmp/badging635.txt
+          grep -q "versionName='6.0.35'" /tmp/badging635.txt
+          unzip -l "$APK" | grep -q 'assets/ludo.js'
+
+      - name: Commit validated source
+        run: |
+          set -euo pipefail
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html
+          if ! git diff --cached --quiet; then
+            git commit -m 'Fix Ludo startup in OurFamily 6.0.35'
+            git push origin HEAD:fix/family-6.0.35-ludo-start
+          fi

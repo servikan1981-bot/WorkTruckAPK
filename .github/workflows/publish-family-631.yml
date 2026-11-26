@@ -1,0 +1,138 @@
+# Release gate for 6.0.31
+name: Validate and publish OurFamily 6.0.31
+
+on:
+  push:
+    branches: [ family-stable-6 ]
+    paths:
+      - '.github/workflows/publish-family-631.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+
+      - name: Reconstruct staged 6.0.31 APK
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib, zipfile
+          parts=[]
+          for i in range(10):
+              p=Path(f'updates/parts/v631_{i:02d}.b64')
+              assert p.exists(), f'missing {p}'
+              s=''.join(p.read_text(encoding='ascii').split())
+              assert s, f'empty {p}'
+              parts.append(s)
+          apk=base64.b64decode(''.join(parts), validate=True)
+          out=Path('/tmp/OurFamily_6_0_31_Stable.apk')
+          out.write_bytes(apk)
+          with zipfile.ZipFile(out) as z:
+              assert z.testzip() is None, 'ZIP CRC error'
+              names=set(z.namelist())
+              for req in ['AndroidManifest.xml','classes.dex','assets/index.html','assets/checkers.js','assets/durak.js']:
+                  assert req in names, f'missing {req}'
+          sha=hashlib.sha256(apk).hexdigest()
+          Path('/tmp/631.sha').write_text(sha)
+          print('APK bytes:',len(apk),'SHA-256:',sha)
+          PY
+
+      - name: Verify package, version and Stable certificate
+        run: |
+          set -euo pipefail
+          APK=/tmp/OurFamily_6_0_31_Stable.apk
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          "$BT/aapt" dump badging "$APK" | tee /tmp/631-badging.txt
+          grep -q "package: name='com.sergey.ourfamily' versionCode='6031' versionName='6.0.31'" /tmp/631-badging.txt
+          "$BT/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/631-sign.txt
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/631-sign.txt
+          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' /tmp/631-sign.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/631-sign.txt
+
+      - name: Verify requested call-settings guidance and tested 6.0.30 FastCall core
+        run: |
+          set -euo pipefail
+          NEW=/tmp/OurFamily_6_0_31_Stable.apk
+          unzip -p "$NEW" assets/index.html > /tmp/new-index.html
+          grep -q '6.0.31' /tmp/new-index.html
+          grep -q 'Семейные звонки' /tmp/new-index.html
+          grep -q 'Открыть уведомления' /tmp/new-index.html
+          grep -q 'Уже включено' /tmp/new-index.html
+          grep -q 'requestFullScreenCallPermission' /tmp/new-index.html
+          grep -q 'bottomNav' /tmp/new-index.html
+          grep -q 'videoBtn' /tmp/new-index.html
+          grep -q 'audioBtn' /tmp/new-index.html
+          grep -q 'durak_invite' /tmp/new-index.html
+          python3 - <<'PY'
+          import zipfile, hashlib
+          expected={
+            'classes.dex':'516ef872adfa63b2ac6ab860d2cf3b01432eb565f6f356bbacd66635090bad73',
+            'assets/checkers.js':'57738724c238d988547823585a08992eb8724cc9b6911c8e521f124196bbb642',
+            'assets/durak.js':'721bd70196d473985917a62cb67b2267c200eb3ae037a44d4d91bdf87325b955'
+          }
+          new='/tmp/OurFamily_6_0_31_Stable.apk'
+          with zipfile.ZipFile(new) as z:
+              for n,want in expected.items():
+                  got=hashlib.sha256(z.read(n)).hexdigest()
+                  assert got==want, f'unexpected change in tested 6.0.30 core {n}: {got}'
+                  print('preserved tested core',n,got)
+          PY
+
+      - name: Prepare 6.0.31 update metadata
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          sha=Path('/tmp/631.sha').read_text().strip()
+          base='https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'
+          meta={
+            'versionCode':6031,
+            'versionName':'6.0.31',
+            'apkBase64Parts':[base+f'v631_{i:02d}.b64' for i in range(10)],
+            'sha256':sha,
+            'notes':'Добавлена автоматическая проверка разрешений для входящих семейных звонков и понятный переход в настройки «Семейные звонки» для показа вызова на заблокированном экране. Остальной функционал 6.0.30 сохранён.'
+          }
+          text=json.dumps(meta,ensure_ascii=False,indent=2)+'\n'
+          Path('updates/candidates/631.json').write_text(text,encoding='utf-8')
+          Path('updates/latest.json').write_text(text,encoding='utf-8')
+          print(text)
+          PY
+          cp /tmp/OurFamily_6_0_31_Stable.apk updates/downloads/OurFamily_6_0_31_Stable.apk
+
+      - name: Publish to all family phones
+        run: |
+          set -euo pipefail
+          git config user.name 'ourfamily-release-bot'
+          git config user.email 'ourfamily-release-bot@users.noreply.github.com'
+          git add updates/candidates/631.json updates/latest.json updates/downloads/OurFamily_6_0_31_Stable.apk
+          git commit -m 'Publish OurFamily 6.0.31 stable'
+          git push origin HEAD:family-stable-6
+
+      - name: Final local publication check
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, hashlib, base64
+          from pathlib import Path
+          m=json.loads(Path('updates/latest.json').read_text())
+          assert m['versionCode']==6031 and m['versionName']=='6.0.31'
+          assert len(m['apkBase64Parts'])==10
+          data=base64.b64decode(''.join(Path('updates/parts/'+u.rsplit('/',1)[-1]).read_text().strip() for u in m['apkBase64Parts']))
+          assert hashlib.sha256(data).hexdigest()==m['sha256']
+          assert data==Path('updates/downloads/OurFamily_6_0_31_Stable.apk').read_bytes()
+          print('LIVE 6.0.31',m['sha256'],len(data),'bytes')
+          PY

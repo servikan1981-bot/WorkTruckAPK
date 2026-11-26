@@ -1,0 +1,45 @@
+name: Verify OurFamily 6.0.26 install on Android 13
+
+on:
+  push:
+    branches: [family-stable-6]
+    paths:
+      - '.github/workflows/verify-family-626-install.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - name: Verify exact published package
+        run: |
+          echo '80d309d9ba88488be57ff78e4de9ef7c9432cee6d182419cfaec2f2e19be412f  updates/downloads/OurFamily_6_0_26_Stable.apk' | sha256sum -c -
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 updates/downloads/OurFamily_6_0_26_Stable.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs updates/downloads/OurFamily_6_0_26_Stable.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install and launch on Android 13
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            adb install -r updates/downloads/OurFamily_6_0_26_Stable.apk
+            adb shell pm path com.sergey.ourfamily
+            adb shell dumpsys package com.sergey.ourfamily | grep -m 1 'versionCode=6026'
+            adb shell monkey -p com.sergey.ourfamily 1
+            sleep 3
+            adb shell pidof com.sergey.ourfamily

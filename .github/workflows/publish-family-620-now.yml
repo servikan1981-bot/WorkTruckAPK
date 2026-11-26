@@ -1,0 +1,88 @@
+name: Publish OurFamily 6.0.20 Now
+
+on:
+  push:
+    branches: [ family-stable-6 ]
+    paths:
+      - '.github/workflows/publish-family-620-now.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+
+      - name: Download fixed 6.0.20 unsigned APK
+        uses: actions/download-artifact@v4
+        with:
+          name: OurFamily_6_0_20_unsigned
+          path: /tmp/family620unsigned
+          github-token: ${{ github.token }}
+          run-id: 36308209674
+
+      - name: Restore and verify Stable 6.0.20
+        run: |
+          set -euo pipefail
+          APK=$(find /tmp/family620unsigned -type f -name '*.apk' | head -1)
+          test -n "$APK"
+          echo '3192e325f6e966a9461a0178e80e206df8caeecacd6db0458c8739a8dd0a3b31  '"$APK" | sha256sum -c -
+          base64 -d updates/candidates/sign620.patch.b64 > /tmp/sign620.patch.zst
+          zstd -q -d --patch-from="$APK" /tmp/sign620.patch.zst -o /tmp/OurFamily_6_0_20_Stable.apk
+          echo '66a8a2afbbe00e8a92574ab0f484145a62eb518a103517fe9051d99077c8346a  /tmp/OurFamily_6_0_20_Stable.apk' | sha256sum -c -
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/OurFamily_6_0_20_Stable.apk | tee /tmp/certs.txt
+          grep -qi '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83' /tmp/certs.txt
+
+      - name: Publish update files
+        run: |
+          set -euo pipefail
+          base64 -w0 /tmp/OurFamily_6_0_20_Stable.apk > /tmp/family620.b64
+          rm -f updates/parts/v620_*.b64
+          split -b 16000 -d -a 2 --additional-suffix=.b64 /tmp/family620.b64 updates/parts/v620_
+          python3 - <<'PY'
+          import base64, hashlib, json, pathlib
+          parts=sorted(pathlib.Path('updates/parts').glob('v620_*.b64'))
+          assert len(parts)==9, len(parts)
+          urls=['https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'+p.name for p in parts]
+          meta={
+            'versionCode':6020,
+            'versionName':'6.0.20',
+            'apkBase64Parts':urls,
+            'sha256':'66a8a2afbbe00e8a92574ab0f484145a62eb518a103517fe9051d99077c8346a',
+            'notes':'Дурак, шашки, нижнее меню и статусы. Исправлена загрузка правил «Дурака» в WebView и работа игр через домашний сервер. Проверено обновление 6.0.19 → 6.0.20 на двух телефонах.'
+          }
+          raw=''.join(p.read_text().strip() for p in parts)
+          data=base64.b64decode(raw)
+          assert hashlib.sha256(data).hexdigest()==meta['sha256']
+          text=json.dumps(meta,ensure_ascii=False,indent=2)+'\n'
+          pathlib.Path('updates/candidates/620.json').write_text(text,encoding='utf-8')
+          pathlib.Path('updates/latest.json').write_text(text,encoding='utf-8')
+          print('parts',len(parts),'apk bytes',len(data),'sha256',hashlib.sha256(data).hexdigest())
+          PY
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add updates/latest.json updates/candidates/620.json updates/parts/v620_*.b64
+          git add -u updates/parts
+          git commit -m 'Publish OurFamily 6.0.20 stable to all phones'
+          git fetch origin family-stable-6
+          git rebase origin/family-stable-6
+          git push origin HEAD:family-stable-6
+
+      - name: Upload released APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_20_Stable_RELEASED
+          path: /tmp/OurFamily_6_0_20_Stable.apk
+          if-no-files-found: error

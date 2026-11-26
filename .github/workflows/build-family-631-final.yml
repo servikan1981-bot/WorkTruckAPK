@@ -1,0 +1,193 @@
+name: Build OurFamily 6.0.31 final candidate
+
+on:
+  push:
+    branches: [fix/family-6.0.31-signaling]
+    paths:
+      - '.github/workflows/build-family-631-final.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/family-6.0.31-signaling
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Normalize 6.0.31 source and permission guide
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          gradle=Path('duoapp/build.gradle')
+          s=gradle.read_text(encoding='utf-8')
+          s=re.sub(r"versionCode\s+\d+", "versionCode 6031", s)
+          s=re.sub(r"versionName\s+'[^']+'", "versionName '6.0.31'", s)
+          gradle.write_text(s,encoding='utf-8')
+
+          manifest=Path('duoapp/src/main/AndroidManifest.xml')
+          s=manifest.read_text(encoding='utf-8')
+          s=re.sub(r'android:label="Наша семья [^"]+"', 'android:label="Наша семья 6.0.31"', s, count=1)
+          manifest.write_text(s,encoding='utf-8')
+
+          htmlp=Path('duoapp/src/main/assets/index.html')
+          h=htmlp.read_text(encoding='utf-8')
+          h=re.sub(r'<title>Наша семья 6\.0\.\d+</title>', '<title>Наша семья 6.0.31</title>', h, count=1)
+          h=re.sub(r'<h1>Наша семья 6\.0\.\d+</h1>', '<h1>Наша семья 6.0.31</h1>', h, count=1)
+          h=re.sub(r'<div id="myName" class="name">Наша семья · v6\.0\.\d+</div>', '<div id="myName" class="name">Наша семья · v6.0.31</div>', h, count=1)
+          h=re.sub(r'<div id="aboutVersion" class="about-version">v6\.0\.\d+</div>', '<div id="aboutVersion" class="about-version">v6.0.31</div>', h, count=1)
+          h=re.sub(r"var APP_VERSION='6\.0\.\d+'", "var APP_VERSION='6.0.31'", h, count=1)
+          h=h.replace('https://family.familysergey.netcraze.pro','https://our-family-relay.family-860c7981b2d4.workers.dev')
+
+          if 'id="callChannelGuideRow"' not in h:
+              old='<div id="backgroundPermissionRow" class="hidden">Работа в фоне для получения звонков и сообщений<br><button id="backgroundPermissionBtn">Открыть настройки батареи</button></div><div class="hint">'
+              new='<div id="backgroundPermissionRow" class="hidden">Работа в фоне для получения звонков и сообщений<br><button id="backgroundPermissionBtn">Открыть настройки батареи</button></div><div id="callChannelGuideRow" class="hidden">Проверьте канал <strong>«Семейные звонки»</strong>: Настройки → Приложения → Наша семья → Уведомления → Семейные звонки. Включите все доступные пункты: уведомления, всплывающий показ, экран блокировки, звук и вибрацию.<br><button id="callChannelGuideBtn">Открыть уведомления</button> <button id="callChannelGuideDoneBtn">Уже включено</button></div><div class="hint">'
+              assert old in h, 'permission banner anchor missing'
+              h=h.replace(old,new,1)
+
+          if 'id="callNotificationsMenuBtn"' not in h:
+              old='  <button id="systemCallMenuBtn">📞 Системные входящие звонки</button>\n'
+              new=old+'  <button id="callNotificationsMenuBtn">🔔 Семейные звонки — настройки</button>\n'
+              assert old in h, 'system call menu anchor missing'
+              h=h.replace(old,new,1)
+
+          if "of5_call_channel_guide_6031" not in h:
+              old=" try{background=!!AndroidBridge.backgroundAllowed();}catch(e){}\n $('notificationPermissionRow').classList.toggle('hidden',notifications);\n $('fullScreenPermissionRow').classList.toggle('hidden',full);\n $('backgroundPermissionRow').classList.toggle('hidden',background);\n $('permissionBanner').classList.toggle('hidden',full&&notifications&&background);"
+              new=" try{background=!!AndroidBridge.backgroundAllowed();}catch(e){}\n var channelGuideDone=localStorage.getItem('of5_call_channel_guide_6031')==='1';\n $('notificationPermissionRow').classList.toggle('hidden',notifications);\n $('fullScreenPermissionRow').classList.toggle('hidden',full);\n $('backgroundPermissionRow').classList.toggle('hidden',background);\n $('callChannelGuideRow').classList.toggle('hidden',channelGuideDone);\n $('permissionBanner').classList.toggle('hidden',full&&notifications&&background&&channelGuideDone);"
+              assert old in h, 'permission JS anchor missing'
+              h=h.replace(old,new,1)
+
+          if "callChannelGuideBtn').addEventListener" not in h:
+              old="$('notificationPermissionBtn').addEventListener('click',function(){try{AndroidBridge.requestNotifications();}catch(e){}});\n"
+              new=old+"$('callChannelGuideBtn').addEventListener('click',function(){try{AndroidBridge.requestNotifications();}catch(e){}});\n$('callNotificationsMenuBtn').addEventListener('click',function(){try{AndroidBridge.requestNotifications();}catch(e){}});\n$('callChannelGuideDoneBtn').addEventListener('click',function(){localStorage.setItem('of5_call_channel_guide_6031','1');checkFullScreenPermission();toast('Настройки «Семейные звонки» отмечены как проверенные');});\n"
+              assert old in h, 'notification listener anchor missing'
+              h=h.replace(old,new,1)
+
+          htmlp.write_text(h,encoding='utf-8')
+          PY
+
+      - name: Validate source identity and safety-critical call setup
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          files={
+            'gradle':Path('duoapp/build.gradle').read_text(encoding='utf-8'),
+            'manifest':Path('duoapp/src/main/AndroidManifest.xml').read_text(encoding='utf-8'),
+            'gate':Path('duoapp/src/main/java/com/sergey/duochat/PermissionGateActivity.java').read_text(encoding='utf-8'),
+            'service':Path('duoapp/src/main/java/com/sergey/duochat/MessagingService.java').read_text(encoding='utf-8'),
+            'store':Path('duoapp/src/main/java/com/sergey/duochat/SecureStore.java').read_text(encoding='utf-8'),
+            'html':Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8'),
+          }
+          checks=[
+            ('versionCode 6031','versionCode 6031' in files['gradle']),
+            ('versionName 6.0.31',"versionName '6.0.31'" in files['gradle']),
+            ('manifest label','android:label="Наша семья 6.0.31"' in files['manifest']),
+            ('PermissionGate launcher','android:name=".PermissionGateActivity"' in files['manifest']),
+            ('guide preference','call_settings_guide_v6031_seen' in files['gate']),
+            ('full-screen permission check','canUseFullScreenIntent' in files['gate']),
+            ('channel settings intent','ACTION_CHANNEL_NOTIFICATION_SETTINGS' in files['gate']),
+            ('calls channel exported','CH_CALLS' in files['service'] and 'public static final String' in files['service']),
+            ('worker relay in SecureStore','https://our-family-relay.family-860c7981b2d4.workers.dev' in files['store']),
+            ('APP_VERSION 6.0.31',"APP_VERSION='6.0.31'" in files['html']),
+            ('channel guide row','callChannelGuideRow' in files['html']),
+            ('channel guide menu','callNotificationsMenuBtn' in files['html']),
+            ('old messaging relay absent','https://family.familysergey.netcraze.pro' not in files['html']),
+          ]
+          failed=[]
+          for name,ok in checks:
+              print(('OK   ' if ok else 'FAIL ')+name)
+              if not ok: failed.append(name)
+          if failed:
+              raise SystemExit('Failed checks: '+', '.join(failed))
+          PY
+
+      - name: Run app logic tests and JavaScript syntax check
+        run: |
+          set -euo pipefail
+          node tools/test_family_624_async.cjs
+          node tools/test_turn_sdp_627.cjs
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8')
+          Path('/tmp/family631.js').write_text('\n'.join(re.findall(r'<script>(.*?)</script>',html,re.S)),encoding='utf-8')
+          PY
+          node --check /tmp/family631.js
+
+      - name: Build unsigned release APK
+        run: |
+          set -euo pipefail
+          gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee /tmp/631-badging.txt
+          grep -q "package: name='com.sergey.ourfamily' versionCode='6031' versionName='6.0.31'" /tmp/631-badging.txt
+          grep -q "launchable-activity: name='com.sergey.duochat.PermissionGateActivity'" /tmp/631-badging.txt
+          unzip -p "$APK" assets/index.html > /tmp/631-index.html
+          grep -q "APP_VERSION='6.0.31'" /tmp/631-index.html
+          grep -q 'callChannelGuideRow' /tmp/631-index.html
+          unzip -p "$APK" classes.dex | strings > /tmp/631-dexstrings.txt
+          grep -q 'PermissionGateActivity' /tmp/631-dexstrings.txt
+          grep -q 'our-family-relay.family-860c7981b2d4.workers.dev' /tmp/631-dexstrings.txt
+          sha256sum "$APK" | tee /tmp/631-unsigned.sha256
+
+      - name: Stage exact unsigned payload for local Stable signing
+        run: |
+          set -euo pipefail
+          rm -rf updates/candidates/unsigned631
+          mkdir -p updates/candidates/unsigned631
+          base64 -w0 duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk > /tmp/631unsigned.b64
+          split -b 16000 -d -a 2 --additional-suffix=.b64 /tmp/631unsigned.b64 updates/candidates/unsigned631/part_
+          cp /tmp/631-unsigned.sha256 updates/candidates/unsigned631/sha256.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64,hashlib
+          parts=sorted(Path('updates/candidates/unsigned631').glob('part_*.b64'))
+          raw=''.join(p.read_text(encoding='ascii').strip() for p in parts)
+          apk=base64.b64decode(raw,validate=True)
+          expected=Path('duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk').read_bytes()
+          assert apk==expected
+          print('unsigned payload parts',len(parts),'bytes',len(apk),'sha256',hashlib.sha256(apk).hexdigest())
+          PY
+
+      - name: Commit validated 6.0.31 source and unsigned payload
+        run: |
+          set -euo pipefail
+          git config user.name 'ourfamily-release-bot'
+          git config user.email 'ourfamily-release-bot@users.noreply.github.com'
+          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html updates/candidates/unsigned631
+          if git diff --cached --quiet; then
+            echo 'Nothing to commit'
+          else
+            git commit -m 'Prepare validated OurFamily 6.0.31 release source'
+            git push origin HEAD:fix/family-6.0.31-signaling
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_31_final_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error

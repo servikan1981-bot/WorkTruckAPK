@@ -1,0 +1,105 @@
+name: Build Our Family v5.1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-v5-1-media-themes ]
+    paths:
+      - 'duoapp/**'
+      - 'settings-duo.gradle'
+      - '.github/workflows/build-family-v51.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Validate JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text()
+          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
+          assert blocks
+          Path('/tmp/family-v51.js').write_text('\n'.join(blocks))
+          PY
+          node --check /tmp/family-v51.js
+
+      - name: Validate history and Android file picker
+        run: |
+          grep -q "history_v51" duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q "history_v51_backup" duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q "onShowFileChooser" duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q "FILE_CHOOSER_REQUEST" duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q "saveHistory(JSON.stringify(messages))" duoapp/src/main/assets/index.html
+          grep -q "История чатов" duoapp/src/main/assets/index.html
+
+      - name: Validate themes video modes attachments emojis
+        run: |
+          HTML=duoapp/src/main/assets/index.html
+          for token in "layout-side" "layout-stack" "layout-pip" "data-theme-choice=\"light\"" "data-theme-choice=\"dark\"" "data-theme-choice=\"ocean\"" "photoInput" "fileInput" "sendAttachment" "uploadEncryptedAttachment" "renderAttachmentInto" "indexedDB.open"; do
+            grep -q "$token" "$HTML"
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text()
+          m=re.search(r'var EMOJIS="([^"]+)"\.split\(\' \'\);',h)
+          assert m, 'emoji list missing'
+          assert len(m.group(1).split(' ')) == 100, len(m.group(1).split(' '))
+          assert 'new WebSocket' not in h
+          PY
+
+      - name: Validate messaging and call protocol retained
+        run: |
+          HTML=duoapp/src/main/assets/index.html
+          for token in direct_chat group_chat direct_invite direct_offer direct_answer direct_candidate group_invite group_join group_offer group_answer group_candidate; do
+            grep -q "$token" "$HTML"
+          done
+          grep -q "RelayInbox.enqueue" duoapp/src/main/java/com/sergey/duochat/MessagingService.java
+          grep -q "AndroidBridge.readRelayInbox" "$HTML"
+          grep -q "AndroidBridge.ackRelayInbox" "$HTML"
+
+      - name: Build APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK=duoapp/build/outputs/apk/debug/duoapp-debug.apk
+          test -f "$APK"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/index.html | grep -q "История чатов"
+          unzip -p "$APK" assets/index.html | grep -q "Варианты видео"
+          unzip -p "$APK" assets/index.html | grep -q "Фото из галереи"
+          unzip -p "$APK" assets/index.html | grep -q "Океан"
+          ls -lh "$APK"
+
+      - name: Rename APK
+        run: cp duoapp/build/outputs/apk/debug/duoapp-debug.apk OurFamily_v5_1.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_v5_1
+          path: OurFamily_v5_1.apk
+          if-no-files-found: error

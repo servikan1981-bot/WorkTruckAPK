@@ -1,0 +1,92 @@
+name: Implement OurFamily 6.0.32 voice and instant video
+
+on:
+  push:
+    branches: ['feature/family-6.0.32-voice-video']
+    paths:
+      - '.github/workflows/implement-family-632-voice-video.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  implement-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/family-6.0.32-voice-video
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Patch 6.0.32 features
+        run: python3 tools/patch_family_632.py
+
+      - name: Validate JavaScript and feature markers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script>(.*?)</script>',h,flags=re.S)
+          assert blocks
+          Path('/tmp/family632.js').write_text('\n'.join(blocks),encoding='utf-8')
+          tokens=["APP_VERSION='6.0.32'",'startVoiceRecording','stopVoiceRecording','MediaRecorder','attachment-audio','voiceRecordingBar','captureChatVideoBtn','chatCaptureVideoInput','capture="environment"','Голосовое сообщение','Снять видео сейчас']
+          for token in tokens: assert token in h, token
+          assert 'accept="video/*" capture="environment"' in h
+          assert "startsWith('audio/')" in h
+          PY
+          node --check /tmp/family632.js
+          node --check duoapp/src/main/assets/checkers.js
+          node --check duoapp/src/main/assets/durak.js
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          grep -q "versionCode 6032" duoapp/build.gradle
+          grep -q "versionName '6.0.32'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.32"' duoapp/src/main/AndroidManifest.xml
+
+      - name: Build unsigned 6.0.32 candidate
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Verify APK contents
+        run: |
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/index.html | grep -q "startVoiceRecording"
+          unzip -p "$APK" assets/index.html | grep -q "Снять видео сейчас"
+          unzip -p "$APK" assets/index.html | grep -q "6.0.32"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionCode='6032'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionName='6.0.32'"
+          sha256sum "$APK"
+          ls -lh "$APK"
+
+      - name: Commit validated 6.0.32 source
+        run: |
+          set -euo pipefail
+          git config user.name ourfamily-feature-bot
+          git config user.email ourfamily-feature-bot@users.noreply.github.com
+          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html duoapp/src/main/java/com/sergey/duochat/NativeRelayTransport.java
+          git commit -m 'Add voice messages and instant video capture for 6.0.32'
+          git push origin HEAD:feature/family-6.0.32-voice-video
+
+      - name: Upload candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: OurFamily_6_0_32_voice_video_unsigned
+          path: duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          if-no-files-found: error

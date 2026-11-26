@@ -1,0 +1,99 @@
+from pathlib import Path
+
+
+def replace_once(text, old, new, label):
+    if old not in text:
+        raise SystemExit(f"missing marker: {label}")
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"non-unique marker: {label} count={count}")
+    return text.replace(old, new, 1)
+
+
+gradle = Path("duoapp/build.gradle")
+g = gradle.read_text(encoding="utf-8")
+g = replace_once(g, "versionCode 6035", "versionCode 6036", "gradle versionCode")
+g = replace_once(g, "versionName '6.0.35'", "versionName '6.0.36'", "gradle versionName")
+gradle.write_text(g, encoding="utf-8")
+
+manifest = Path("duoapp/src/main/AndroidManifest.xml")
+m = manifest.read_text(encoding="utf-8")
+m = m.replace("Наша семья 6.0.35", "Наша семья 6.0.36")
+manifest.write_text(m, encoding="utf-8")
+
+path = Path("duoapp/src/main/assets/index.html")
+h = path.read_text(encoding="utf-8")
+h = h.replace("6.0.35", "6.0.36")
+h = replace_once(
+    h,
+    "var ludoGames={},activeLudoId='',pendingLudoAcceptId='',ludoSending=false;",
+    "var ludoGames={},activeLudoId='',pendingLudoAcceptId='',ludoSending=false,ludoAnimating=false;",
+    "ludo globals",
+)
+h = replace_once(
+    h,
+    ".ludo-dice.rolling{animation:ludoRoll .38s ease}",
+    ".ludo-dice.rolling{animation:ludoRoll .86s cubic-bezier(.2,.7,.2,1);pointer-events:none}",
+    "dice animation css",
+)
+h = replace_once(
+    h,
+    "@keyframes ludoRoll{0%{transform:rotate(0) scale(1)}35%{transform:rotate(22deg) scale(1.12)}70%{transform:rotate(-18deg) scale(.96)}100%{transform:rotate(0) scale(1)}}",
+    "@keyframes ludoRoll{0%{transform:rotate(0) scale(1)}18%{transform:rotate(-24deg) scale(1.13)}38%{transform:rotate(30deg) scale(.96)}58%{transform:rotate(-34deg) scale(1.11)}78%{transform:rotate(20deg) scale(.98)}100%{transform:rotate(0) scale(1)}}",
+    "dice keyframes",
+)
+h = replace_once(
+    h,
+    "legal=(g.status==='active'&&s.winner===null&&s.turn===side&&s.dice!==null)?LudoRules.movable(s,side,s.dice):[]",
+    "legal=(g.status==='active'&&s.winner===null&&s.turn===side&&s.dice!==null&&!ludoSending&&!ludoAnimating)?LudoRules.movable(s,side,s.dice):[]",
+    "board legal guard",
+)
+
+start = h.index("function renderLudo(){")
+end = h.index("function openOpponentChoice(kind)", start)
+replacement = r'''function ludoAllHome(s,side){return !!(s&&s.pieces&&s.pieces[side])&&s.pieces[side].every(function(x){return x<0;});}
+function ludoDelay(ms){return new Promise(function(resolve){setTimeout(resolve,ms);});}
+function ludoAnimateDie(btn,d){
+ ludoAnimating=true;btn.disabled=true;$('ludoStatus').textContent='Бросаем кубик…';$('ludoHint').textContent='Кубик вращается…';
+ btn.classList.remove('rolling');void btn.offsetWidth;btn.classList.add('rolling');
+ return new Promise(function(resolve){
+  var faces=['⚀','⚁','⚂','⚃','⚄','⚅'],step=0,total=11,timer=setInterval(function(){btn.textContent=faces[(step*5+d)%6];step++;if(step>=total){clearInterval(timer);btn.textContent=ludoDie(d);setTimeout(function(){btn.classList.remove('rolling');ludoAnimating=false;resolve();},120);}},65);
+ });
+}
+function renderLudo(){
+ var g=ludoGames[activeLudoId];if(!g)return;var s=g.state,side=ludoSide(g);if(!Array.isArray(s.out))s.out=Array(g.players.length).fill(false);
+ $('ludoTitle').textContent='Семейная гонка · '+g.players.length+' игрока';var pb=$('ludoPlayers');pb.innerHTML='';
+ g.players.forEach(function(p,i){var chip=document.createElement('div');chip.className='ludo-player-chip'+(s.turn===i&&g.status==='active'&&s.winner===null?' current':'')+(s.out[i]?' out':'');chip.style.borderColor=LUDO_COLORS[i];var dot=document.createElement('span');dot.className='ludo-dot';dot.style.background=LUDO_COLORS[i];chip.appendChild(dot);chip.appendChild(document.createTextNode(NAMES[p]+(g.status==='invited'?' '+((g.accepted&&g.accepted[p])?'✓':'…'):'')));pb.appendChild(chip);});
+ renderLudoBoard(g);var status='',hint='';
+ if(g.status==='invited'){var wait=g.players.filter(function(p){return !(g.accepted&&g.accepted[p]);}).map(function(p){return NAMES[p];});status='Ожидаем игроков';hint=wait.length?'Ждём: '+wait.join(', '):'Запускаем игру…';}
+ else if(g.status==='declined'){status='Игра отменена';hint='Один из участников отклонил приглашение.';}
+ else if(s.winner!==null){g.status='ended';var winner=g.players[s.winner];status='🏆 Победитель: '+NAMES[winner];hint=(s.winner===side?'🎉 Поздравляем! Вы выиграли Семейную гонку!':'Победил '+NAMES[winner]+'. Можно сыграть ещё раз.');awardGameOnce(g.id,s.winner===side?'win':'loss');saveLudoGames();}
+ else if(s.out[side]){status='Вы вышли из партии';hint='Партия продолжается у остальных участников.';}
+ else if(ludoAnimating&&s.turn===side){status='Бросаем кубик…';hint='Кубик вращается…';}
+ else if(s.turn===side){status='Ваш ход';if(s.dice===null)hint=ludoAllHome(s,side)?'Нажмите на кубик. Чтобы вывести фишку из дома, нужна 6.':'Нажмите на кубик, чтобы бросить.';else{var legal=LudoRules.movable(s,side,s.dice);hint=legal.length?'Выпало '+s.dice+' — выберите подсвеченную фишку.':'Выпало '+s.dice+' — ходить нечем.';}}
+ else{status='Ход: '+NAMES[g.players[s.turn]];var last=s.last||{};hint=(last.kind==='roll'&&Number.isInteger(last.player)&&last.player!==s.turn)?('У '+NAMES[g.players[last.player]]+' выпало '+last.dice+'. Ход перешёл дальше.'):'Ждём ход '+NAMES[g.players[s.turn]]+'.';}
+ $('ludoStatus').textContent=status;$('ludoHint').textContent=hint;$('ludoDiceBtn').textContent=ludoDie(s.dice);$('ludoDiceBtn').disabled=!(g.status==='active'&&s.winner===null&&!s.out[side]&&s.turn===side&&s.dice===null&&!ludoSending&&!ludoAnimating);$('ludoResignBtn').classList.toggle('hidden',!(g.status==='active'&&s.winner===null&&!s.out[side]));$('ludoRetryInviteBtn').classList.toggle('hidden',!(g.status==='invited'&&g.inviter===role));
+}
+function openLudo(id){var g=ludoGames[id];if(!g)return;ensureLudoRules();activeLudoId=id;$('checkersRequest').classList.add('hidden');showScreen('ludo');renderLudo();}
+async function sendLudoState(g,next,kind){
+ if(!next||ludoSending)return false;ludoSending=true;g.state=next;g.status=next.winner===null?'active':'ended';g.updated=Date.now();saveLudoGames();if(activeLudoId===g.id)renderLudo();
+ try{await broadcastLudo(g,kind||'game_move');return true;}catch(e){toast('Ход сохранён. Отправка продолжится в фоне.');return true;}finally{ludoSending=false;if(activeLudoId===g.id)renderLudo();}
+}
+async function ludoRoll(){
+ var g=ludoGames[activeLudoId];if(!g||g.status!=='active'||ludoSending||ludoAnimating)return;var side=ludoSide(g);if(g.state.turn!==side||g.state.dice!==null||g.state.out[side])return;
+ var before=g.state,d=ludoRandomDie(),legalBefore=LudoRules.movable(before,side,d),btn=$('ludoDiceBtn');await ludoAnimateDie(btn,d);
+ if(activeLudoId!==g.id)return;var next=LudoRules.roll(before,side,d);if(!next){renderLudo();return;}
+ if(!legalBefore.length){var home=ludoAllHome(before,side),nextName=NAMES[g.players[next.turn]];var msg=home&&d!==6?('Выпало '+d+'. Для выхода из дома нужна 6.'):'Выпало '+d+'. Ходить нечем.';$('ludoStatus').textContent='Выпало '+d;$('ludoHint').textContent=msg+' Ход переходит к '+nextName+'.';toast(msg);await ludoDelay(650);await sendLudoState(g,next,'game_move');return;}
+ await sendLudoState(g,next,'game_move');if(activeLudoId!==g.id||g.state.turn!==side||g.state.dice!==d)return;
+ var legal=LudoRules.movable(g.state,side,d);if(!legal.length)return;var allHome=ludoAllHome(before,side);
+ if(legal.length===1||(allHome&&d===6)){$('ludoHint').textContent=(allHome&&d===6)?'Шестёрка! Выводим фишку на поле…':'Есть только один возможный ход — двигаем фишку…';await ludoDelay(280);await ludoMove(legal[0]);}
+ else renderLudo();
+}
+async function ludoMove(piece){
+ var g=ludoGames[activeLudoId];if(!g||g.status!=='active'||ludoAnimating)return;if(ludoSending){toast('Сохраняем бросок…');return;}var side=ludoSide(g),next=LudoRules.move(g.state,side,piece);if(next)await sendLudoState(g,next,'game_move');else toast('Этой фишкой сейчас ходить нельзя');
+}
+async function resignLudo(){var g=ludoGames[activeLudoId];if(!g||g.status!=='active'||g.state.winner!==null)return;var side=ludoSide(g);if(g.state.out[side]||!confirm('Сдаться в Семейной гонке?'))return;awardGameOnce(g.id,'surrender');var next=LudoRules.resign(g.state,side);await sendLudoState(g,next,'game_resign');}
+
+'''
+h = h[:start] + replacement + h[end:]
+path.write_text(h, encoding="utf-8")

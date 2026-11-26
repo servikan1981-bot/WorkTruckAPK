@@ -1,0 +1,21 @@
+{
+  "versionCode": 6048,
+  "versionName": "6.0.48",
+  "apkBase64Parts": [
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_00.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_01.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_02.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_03.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_04.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_05.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_06.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_07.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_08.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_09.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_10.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_11.b64",
+    "https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/v648f_12.b64"
+  ],
+  "sha256": "a0b75b8a076bd3a2823e376ff9c3367e199463c06b2c2e390ed873375a7daca9",
+  "notes": "Исправление Арканоида после 6.0.47: джойстик теперь реально включён внутрь APK и его подключение проверено непосредственно в собранном и подписанном пакете. В обычном вертикальном режиме джойстик расположен под игровым полем; в полноэкранном режиме — в отдельной зоне справа. Дополнительно устранён повторный цикл обновления подсказки интерфейса. Палец больше не должен закрывать платформу. Физика Арканоида, видео, чаты и остальные игры не изменялись."
+}

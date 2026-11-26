@@ -1,0 +1,47 @@
+name: OurFamily 6.0.17 two-device video and checkers
+on:
+  push:
+    branches: [family-stable-6]
+    paths:
+      - 'updates/candidates/617.json'
+      - 'tools/video_checkers_617.py'
+      - 'tools/video_checkers_617.sh'
+      - '.github/workflows/video-checkers-617.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  video-and-game:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-33 build-tools;35.0.0'
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Call and play between two Android emulators
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-front emulated -camera-back emulated
+          script: bash tools/video_checkers_617.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: family-video-checkers-617
+          path: |
+            /tmp/emulator-5554-png
+            /tmp/emulator-5556-png
+            /tmp/emulator-5554-call.log
+            /tmp/emulator-5556-call.log
+            /tmp/emulator-5554-crash.log
+            /tmp/emulator-5556-crash.log
+            /tmp/second-emulator.log
+          if-no-files-found: ignore

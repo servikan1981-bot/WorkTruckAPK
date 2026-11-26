@@ -1,0 +1,59 @@
+name: Verify Family 6.0.20 Signing
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ family-stable-6 ]
+    paths:
+      - '.github/workflows/verify-family-620-signing.yml'
+      - 'updates/latest.json'
+      - 'updates/parts/v619_*.b64'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools build-tools;35.0.0'
+      - name: Reconstruct and verify published 6.0.19
+        run: |
+          python3 - <<'PY'
+          import base64,hashlib,json,pathlib
+          meta=json.loads(pathlib.Path('updates/latest.json').read_text())
+          assert meta['versionCode']==6019
+          raw=''.join(pathlib.Path('updates/parts/'+u.rsplit('/',1)[-1]).read_text().strip() for u in meta['apkBase64Parts'])
+          data=base64.b64decode(raw)
+          got=hashlib.sha256(data).hexdigest()
+          assert got==meta['sha256'], (got,meta['sha256'])
+          pathlib.Path('/tmp/OurFamily_6_0_19_Stable.apk').write_bytes(data)
+          PY
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" verify --verbose --print-certs /tmp/OurFamily_6_0_19_Stable.apk | tee /tmp/certs.txt
+          python3 - <<'PY'
+          import re,pathlib
+          text=pathlib.Path('/tmp/certs.txt').read_text().lower().replace(':','')
+          expected='23c5093c35f0be76b5369194982bd8f025fe07a6188c1dc1237c3b893f34c597'
+          m=re.search(r'signer #1 certificate sha-256 digest:\s*([0-9a-f]+)',text)
+          assert m, text
+          assert m.group(1)==expected,(m.group(1),expected)
+          print('PASS Stable6 signer:',expected)
+          PY
+      - name: Package Android signing tools
+        run: |
+          mkdir -p /tmp/signing-tools/lib64 /tmp/signing-tools/lib
+          cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" /tmp/signing-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" /tmp/signing-tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" /tmp/signing-tools/lib/
+          cp -a "$ANDROID_HOME/build-tools/35.0.0/lib64/." /tmp/signing-tools/lib64/ 2>/dev/null || true
+          chmod +x /tmp/signing-tools/apksigner /tmp/signing-tools/zipalign
+      - name: Upload signing tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android_BuildTools_35_signing
+          path: /tmp/signing-tools
+          if-no-files-found: error

@@ -1,0 +1,108 @@
+name: Test OurFamily 6.0.39 Pool Fix
+
+on:
+  push:
+    branches:
+      - fix/family-6.0.39-pool-launch-solo
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+
+      - name: Validate version and unchanged media fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "versionCode 6039" duoapp/build.gradle
+          grep -q "versionName '6.0.39'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.39"' duoapp/src/main/AndroidManifest.xml
+          H=duoapp/src/main/assets/index.html
+          grep -q 'function getAttachmentObjectUrl' "$H"
+          grep -q 'attachmentDownloadPending' "$H"
+          grep -q 'keptAttachments' "$H"
+          grep -q 'rememberMediaState' "$H"
+          grep -q "video.preload='auto'" "$H"
+
+      - name: Validate billiards engine is actually loaded
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check duoapp/src/main/assets/durak.js
+          node --check duoapp/src/main/assets/billiards.js
+          node - <<'NODE'
+          const path=require('path');
+          require(path.resolve('duoapp/src/main/assets/durak.js'));
+          if(!global.PoolRules) throw new Error('PoolRules missing from durak.js runtime bundle');
+          const s=global.PoolRules.initial();
+          if(!s || s.balls.length!==16 || s.turn!==0) throw new Error('PoolRules.initial failed');
+          const r=global.PoolRules.shot(s,0,0,0.55);
+          if(!r || !r.state || !Array.isArray(r.frames)) throw new Error('PoolRules.shot failed');
+          console.log('POOL_RUNTIME_OK', r.state.seq, r.frames.length);
+          NODE
+          grep -q 'root.PoolRules=' duoapp/src/main/assets/durak.js
+          grep -q 'Играть одному · тренировка' duoapp/src/main/assets/durak.js
+          grep -q 'function enterSolo' duoapp/src/main/assets/durak.js
+          grep -q 'function shootSolo' duoapp/src/main/assets/durak.js
+
+      - name: Validate Android startup bundle path
+        shell: bash
+        run: |
+          set -euo pipefail
+          M=duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'String\[\] gameRuleAssets = {"checkers.js", "durak.js"}' "$M"
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('duoapp/src/main/assets/index.html').read_text(encoding='utf-8')
+          for name in ('checkers.js','durak.js'):
+              marker=f'<script src="{name}"></script>'
+              assert marker in h
+              rules=Path('duoapp/src/main/assets/'+name).read_text(encoding='utf-8')
+              h=h.replace(marker,'<script>\n'+rules+'\n</script>')
+          assert 'root.PoolRules=' in h
+          assert h.index('root.PoolRules=') < h.index('async function invitePool(peer)')
+          assert 'Играть одному · тренировка' in h
+          print('ANDROID_STARTUP_BUNDLE_OK')
+          PY
+
+      - name: Validate existing game tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tools/test_checkers.cjs
+          node tools/test_durak.cjs
+          node tools/test_billiards.cjs
+
+      - name: Build 6.0.39 APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Inspect built APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          unzip -p "$APK" assets/durak.js | grep -q 'root.PoolRules='
+          unzip -p "$APK" assets/durak.js | grep -q 'Играть одному · тренировка'
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionCode='6039'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -q "versionName='6.0.39'"
+          sha256sum "$APK"
+          ls -lh "$APK"

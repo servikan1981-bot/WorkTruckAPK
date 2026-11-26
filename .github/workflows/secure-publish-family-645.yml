@@ -1,0 +1,248 @@
+name: Secure publish OurFamily 6.0.45
+
+on:
+  push:
+    branches:
+      - release/family-6.0.45-secure-publish
+    paths:
+      - .github/workflows/secure-publish-family-645.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/family-6.0.45-secure-publish
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+          cache-read-only: true
+
+      - name: Set 6.0.45 source version and wire Arkanoid
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          replacements = {
+            'duoapp/build.gradle': [('versionCode 6044','versionCode 6045'), ("versionName '6.0.44'","versionName '6.0.45'")],
+            'duoapp/src/main/AndroidManifest.xml': [('Наша семья 6.0.44','Наша семья 6.0.45')],
+            'duoapp/src/main/assets/index.html': [('6.0.44','6.0.45')],
+          }
+          for name, pairs in replacements.items():
+              p=Path(name); text=p.read_text(encoding='utf-8')
+              for old,new in pairs: text=text.replace(old,new)
+              p.write_text(text,encoding='utf-8')
+
+          p=Path('duoapp/src/main/assets/index.html')
+          text=p.read_text(encoding='utf-8')
+          marker='<script src="arkanoid.js"></script>'
+          if marker not in text:
+              anchor='<script src="billiards.js"></script>'
+              if anchor not in text: raise SystemExit('billiards marker missing')
+              text=text.replace(anchor, anchor+'\n'+marker, 1)
+              p.write_text(text,encoding='utf-8')
+
+          p=Path('duoapp/src/main/java/com/sergey/duochat/MainActivity.java')
+          text=p.read_text(encoding='utf-8')
+          old='{"checkers.js", "durak.js", "billiards.js"}'
+          new='{"checkers.js", "durak.js", "billiards.js", "arkanoid.js"}'
+          if new not in text:
+              if old not in text: raise SystemExit('gameRuleAssets marker missing')
+              text=text.replace(old,new,1)
+              p.write_text(text,encoding='utf-8')
+
+          p=Path('duoapp/src/main/assets/arkanoid.js')
+          text=p.read_text(encoding='utf-8')
+          old="if(!state.started||state.lives<=0)newGame();else if(state.balls.some(function(b){return b.stuck;}))launchStuckBalls();else{state.running=true;state.paused=false;state.lastTs=0;loop();}updateUi();"
+          new="if(!state.started||state.lives<=0)newGame();else if(state.balls.some(function(b){return b.stuck;}))launchStuckBalls();else newGame();updateUi();"
+          if old in text:
+              text=text.replace(old,new,1)
+              p.write_text(text,encoding='utf-8')
+          PY
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add duoapp/build.gradle duoapp/src/main/AndroidManifest.xml duoapp/src/main/assets/index.html duoapp/src/main/assets/arkanoid.js duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          if ! git diff --cached --quiet; then
+            git commit -m 'Wire Arkanoid into OurFamily 6.0.45'
+            git push origin HEAD:release/family-6.0.45-secure-publish
+          fi
+
+      - name: Publish one-time encryption certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /tmp/ourfamily645.key >/dev/null 2>&1
+          openssl req -new -x509 -sha256 -key /tmp/ourfamily645.key -out /tmp/ourfamily645.crt -days 1 -subj '/CN=OurFamily-6.0.45-One-Time/'
+          mkdir -p updates/candidates/signed645
+          cp /tmp/ourfamily645.crt updates/candidates/signed645/ephemeral_cert.pem
+          git add updates/candidates/signed645/ephemeral_cert.pem
+          git commit -m 'Publish one-time 6.0.45 signing certificate'
+          git push origin HEAD:release/family-6.0.45-secure-publish
+
+      - name: Wait for encrypted signing payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          FOUND=0
+          for i in $(seq 1 150); do
+            git fetch origin release/family-6.0.45-secure-publish
+            if git cat-file -e 'origin/release/family-6.0.45-secure-publish:updates/candidates/signed645/encrypted_payload.b64' 2>/dev/null; then
+              git show 'origin/release/family-6.0.45-secure-publish:updates/candidates/signed645/encrypted_payload.b64' > /tmp/encrypted_payload.b64
+              git reset --hard origin/release/family-6.0.45-secure-publish
+              FOUND=1
+              break
+            fi
+            sleep 4
+          done
+          test "$FOUND" = 1
+
+      - name: Decrypt signing material in runner only
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d /tmp/encrypted_payload.b64 > /tmp/signing_payload.cms
+          openssl cms -decrypt -binary -inform DER -in /tmp/signing_payload.cms -recip /tmp/ourfamily645.crt -inkey /tmp/ourfamily645.key -out /tmp/signing_payload.tar.gz
+          mkdir -p /tmp/signing645
+          tar -xzf /tmp/signing_payload.tar.gz -C /tmp/signing645
+          test -s /tmp/signing645/OurFamily_Stable6_Signing.p12
+          test -s /tmp/signing645/password.txt
+
+      - name: Validate 6.0.45 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "versionCode 6045" duoapp/build.gradle
+          grep -q "versionName '6.0.45'" duoapp/build.gradle
+          grep -q 'android:label="Наша семья 6.0.45"' duoapp/src/main/AndroidManifest.xml
+          grep -q "APP_VERSION='6.0.45'" duoapp/src/main/assets/index.html
+          grep -q '<script src="arkanoid.js"></script>' duoapp/src/main/assets/index.html
+          grep -q '"arkanoid.js"' duoapp/src/main/java/com/sergey/duochat/MainActivity.java
+          grep -q 'function speedForLevel(level)' duoapp/src/main/assets/arkanoid.js
+          grep -q 'requestAnimationFrame' duoapp/src/main/assets/arkanoid.js
+          grep -q 'var dt=clamp((t-state.lastTs)/1000,0,.033)' duoapp/src/main/assets/arkanoid.js
+          grep -q "sound('brick'" duoapp/src/main/assets/arkanoid.js
+          grep -q "sound('paddle'" duoapp/src/main/assets/arkanoid.js
+          grep -q 'setPoolGameFullscreen' duoapp/src/main/assets/arkanoid.js
+          grep -q 'requestPoolLandscape' duoapp/src/main/assets/arkanoid.js
+          grep -q 'arkanoid-fullscreen-mode' duoapp/src/main/assets/arkanoid.js
+          grep -q 'hubArkanoidBtn' duoapp/src/main/assets/arkanoid.js
+          node --check duoapp/src/main/assets/arkanoid.js
+          node --check duoapp/src/main/assets/billiards.js
+          node --check duoapp/src/main/assets/durak.js
+          node tools/test_billiards.cjs
+          node - <<'NODE'
+          require('./duoapp/src/main/assets/arkanoid.js');
+          const a=global.ArkanoidGame;
+          if(!a) throw new Error('Arkanoid API missing');
+          if(a.speedForLevel(1)!==320) throw new Error('Unexpected level 1 speed');
+          if(a.speedForLevel(10)>430||a.speedForLevel(10)<400) throw new Error('Unexpected level 10 speed');
+          const b1=a.buildLevel(1),b6=a.buildLevel(6);
+          if(b1.length<45||b1.length>55) throw new Error('Level 1 brick count invalid: '+b1.length);
+          if(b6.length<=b1.length) throw new Error('Higher level should be denser');
+          console.log('ARKANOID_OK',a.speedForLevel(1),a.speedForLevel(10),b1.length,b6.length);
+          NODE
+
+      - name: Build unsigned APK
+        run: gradle --no-daemon -c settings-duo.gradle :duoapp:assembleRelease
+
+      - name: Align sign and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          U=duoapp/build/outputs/apk/release/duoapp-release-unsigned.apk
+          A=/tmp/OurFamily_6_0_45_aligned.apk
+          S=/tmp/OurFamily_6_0_45_Stable.apk
+          PASS=$(tr -d '\r\n' < /tmp/signing645/password.txt)
+          "$BT/zipalign" -p -f 4 "$U" "$A"
+          "$BT/zipalign" -c -v 4 "$A" >/dev/null
+          "$BT/apksigner" sign --ks /tmp/signing645/OurFamily_Stable6_Signing.p12 --ks-type PKCS12 --ks-key-alias ourfamily6 --ks-pass "pass:$PASS" --key-pass "pass:$PASS" --v1-signing-enabled false --v2-signing-enabled true --v3-signing-enabled true --out "$S" "$A"
+          "$BT/apksigner" verify --verbose --print-certs "$S" > /tmp/cert645.txt
+          "$BT/aapt" dump badging "$S" > /tmp/badging645.txt
+          grep -q "package: name='com.sergey.ourfamily'" /tmp/badging645.txt
+          grep -q "versionCode='6045'" /tmp/badging645.txt
+          grep -q "versionName='6.0.45'" /tmp/badging645.txt
+          CERT=$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/cert645.txt | sed 's/.*: //')
+          test "$CERT" = '237977f5597cd292a76f597557a2131af530ceea08f089005396bd99dc993b83'
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' /tmp/cert645.txt
+          grep -q 'Verified using v3 scheme (APK Signature Scheme v3): true' /tmp/cert645.txt
+
+      - name: Build update payload and metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib, json
+          apk=Path('/tmp/OurFamily_6_0_45_Stable.apk').read_bytes()
+          sha=hashlib.sha256(apk).hexdigest()
+          b64=base64.b64encode(apk).decode('ascii')
+          chunks=[b64[i:i+16000] for i in range(0,len(b64),16000)]
+          parts=Path('updates/parts'); parts.mkdir(parents=True,exist_ok=True)
+          for p in parts.glob('v645_*.b64'): p.unlink()
+          base='https://raw.githubusercontent.com/servikan1981-bot/WorkTruckAPK/family-stable-6/updates/parts/'
+          urls=[]
+          for i,c in enumerate(chunks):
+              name=f'v645_{i:02d}.b64'
+              (parts/name).write_text(c,encoding='ascii')
+              urls.append(base+name)
+          meta={
+            'versionCode':6045,
+            'versionName':'6.0.45',
+            'apkBase64Parts':urls,
+            'sha256':sha,
+            'notes':'Добавлена четвёртая игра — Арканоид. Одиночный режим с уровнями, 3 жизнями, рекордом и бонусами: широкая платформа, мультишар и дополнительная жизнь. Движение шара рассчитывается по реальному времени, поэтому скорость стабильна на экранах 60/90/120 Гц. Есть отдельные звуки удара о платформу, кубики, стены, бонусов, потери жизни и завершения уровня. Добавлен полноэкранный горизонтальный режим. Бильярд и остальные функции приложения не изменялись.'
+          }
+          text=json.dumps(meta,ensure_ascii=False,indent=2)+'\n'
+          Path('updates/candidates').mkdir(parents=True,exist_ok=True)
+          Path('updates/candidates/645.json').write_text(text,encoding='utf-8')
+          Path('updates/latest.json').write_text(text,encoding='utf-8')
+          Path('updates/downloads').mkdir(parents=True,exist_ok=True)
+          Path('updates/downloads/OurFamily_6_0_45_Stable.apk').write_bytes(apk)
+          rebuilt=base64.b64decode(''.join((parts/u.rsplit('/',1)[-1]).read_text(encoding='ascii') for u in urls))
+          assert rebuilt==apk
+          assert hashlib.sha256(rebuilt).hexdigest()==sha
+          print('READY',len(apk),len(chunks),sha)
+          PY
+
+      - name: Commit signed release to release branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f updates/candidates/signed645/encrypted_payload.b64 updates/candidates/signed645/ephemeral_cert.pem
+          rmdir updates/candidates/signed645 2>/dev/null || true
+          git config user.name ourfamily-release-bot
+          git config user.email ourfamily-release-bot@users.noreply.github.com
+          git add -A updates
+          git commit -m 'Release OurFamily 6.0.45 stable candidate'
+          git push origin HEAD:release/family-6.0.45-secure-publish
+
+      - name: Final verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, hashlib
+          from pathlib import Path
+          m=json.loads(Path('updates/latest.json').read_text(encoding='utf-8'))
+          apk=Path('updates/downloads/OurFamily_6_0_45_Stable.apk').read_bytes()
+          assert m['versionCode']==6045 and m['versionName']=='6.0.45'
+          assert hashlib.sha256(apk).hexdigest()==m['sha256']
+          assert len(m['apkBase64Parts'])>=10
+          print('FINAL_READY',m['versionName'],m['sha256'])
+          PY
